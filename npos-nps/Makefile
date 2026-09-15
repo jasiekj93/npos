@@ -39,6 +39,7 @@ cxx_defs := \
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 export external_library_include_path = \
+etl/include \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \

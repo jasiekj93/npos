@@ -33,6 +33,7 @@ program_names = \
 
 # Project libraries
 library_names = \
+npos-nps \
 
 # optimalization flags
 # export debug_optimalization := 
