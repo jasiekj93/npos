@@ -1,1 +1,336 @@
-//TODO
+#pragma once
+
+/**
+ * @file MessagePacket.hpp
+ * @author Adrian Szczepanski
+ * @date 15-09-2026
+ */
+
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <new>
+#include <type_traits>
+#include <utility>
+
+#include <libnpos/ipc/Message.hpp>
+
+namespace npos::ipc
+{
+    template <typename... TMessages>
+    class MessagePacket
+    {
+    private:
+        static constexpr size_t maxSize() noexcept
+        {
+            size_t result = 0;
+
+            ((result = result < sizeof(TMessages)
+                        ? sizeof(TMessages)
+                        : result), ...);
+
+            return result;
+        }
+
+
+        static constexpr size_t maxAlignment() noexcept
+        {
+            size_t result = 0;
+
+            ((result = result < alignof(TMessages)
+                        ? alignof(TMessages)
+                        : result), ...);
+
+            return result;
+        }
+
+        template <typename T>
+        static constexpr bool isAllowed() noexcept
+        {
+            return (std::is_same_v<T, TMessages> || ...);
+        }
+
+
+        static constexpr size_t StorageSize = maxSize();
+        static constexpr size_t StorageAlignment = maxAlignment();
+
+        using Storage = std::aligned_storage_t<
+                StorageSize,
+                StorageAlignment
+            >;
+
+        using DestroyFunction = void (*)(void*) noexcept;
+        using CopyFunction = void (*)(const void*, void*);
+        using MoveFunction = void (*)(void*, void*) noexcept;
+
+    public:
+        MessagePacket() noexcept
+            : id(0),
+            destroyFunction(nullptr),
+            copyFunction(nullptr),
+            moveFunction(nullptr)
+        {
+        }
+
+        template <
+            typename T,
+            typename U = std::decay_t<T>,
+            typename = std::enable_if_t<isAllowed<U>()>
+            >
+        explicit MessagePacket(T&& message) noexcept(
+                std::is_nothrow_constructible_v<
+                    U,
+                    T&&
+                >
+            )
+            : id(0),
+            destroyFunction(nullptr),
+            copyFunction(nullptr),
+            moveFunction(nullptr)
+        {
+            construct<U>(std::forward<T>(message));
+        }
+
+        MessagePacket(
+            const MessagePacket& other)
+            : id(other.id),
+            destroyFunction(other.destroyFunction),
+            copyFunction(other.copyFunction),
+            moveFunction(other.moveFunction)
+        {
+            if (other.copyFunction != nullptr)
+            {
+                other.copyFunction(
+                    &other.storage,
+                    &storage
+                );
+            }
+        }
+
+        MessagePacket(MessagePacket&& other) noexcept
+            : id(other.id),
+            destroyFunction(other.destroyFunction),
+            copyFunction(other.copyFunction),
+            moveFunction(other.moveFunction)
+        {
+            if (other.moveFunction != nullptr)
+            {
+                other.moveFunction(
+                    &other.storage,
+                    &storage
+                );
+
+                other.reset();
+            }
+        }
+
+        MessagePacket& operator=(const MessagePacket& other)
+        {
+            if (this == &other)
+                return *this;
+
+            reset();
+
+            id = other.id;
+            destroyFunction = other.destroyFunction;
+            copyFunction = other.copyFunction;
+            moveFunction = other.moveFunction;
+
+            if (other.copyFunction != nullptr)
+            {
+                other.copyFunction(
+                    &other.storage,
+                    &storage
+                );
+            }
+
+            return *this;
+        }
+
+
+        MessagePacket& operator=(MessagePacket&& other) noexcept
+        {
+            if (this == &other)
+                return *this;
+
+            reset();
+
+            id = other.id;
+            destroyFunction = other.destroyFunction;
+            copyFunction = other.copyFunction;
+            moveFunction = other.moveFunction;
+
+            if (other.moveFunction != nullptr)
+            {
+                other.moveFunction(
+                    &other.storage,
+                    &storage
+                );
+
+                other.reset();
+            }
+
+            return *this;
+        }
+
+
+        ~MessagePacket()
+        {
+            reset();
+        }
+
+        Message::Id getId() const noexcept
+        {
+            return id;
+        }
+
+        bool empty() const noexcept
+        {
+            return destroyFunction == nullptr;
+        }
+
+
+        explicit operator bool() const noexcept
+        {
+            return not empty();
+        }
+
+        template <typename T>
+        bool holds() const noexcept
+        {
+            static_assert(
+                is_allowed<T>(),
+                "T is not allowed in this npos::ipc::MessagePacket"
+            );
+
+            return not empty() and (id == getObject<T>().getId());
+        }
+
+
+        template <typename T>
+        T& get()
+        {
+            static_assert(
+                is_allowed<T>(),
+                "T is not allowed in this npos::ipc::MessagePacket"
+            );
+
+            assert(not empty());
+            assert(id == getObject<T>().getId());
+
+            return getObject<T>();
+        }
+
+
+        template <typename T>
+        const T& get() const
+        {
+            static_assert(
+                is_allowed<T>(),
+                "T is not allowed in this npos::ipc::MessagePacket"
+            );
+
+            assert(not empty());
+            assert(id == getObject<T>().getId());
+
+            return getObject<T>();
+        }
+
+
+        // ========================================================
+        // reset
+        // ========================================================
+
+        void reset() noexcept
+        {
+            if (destroyFunction != nullptr)
+            {
+                destroyFunction(&storage);
+            }
+
+            id = 0;
+            destroyFunction = nullptr;
+            copyFunction = nullptr;
+            moveFunction = nullptr;
+        }
+
+
+    private:
+
+        // ========================================================
+        // Construct T w storage
+        // ========================================================
+
+        template <typename T, typename U>
+        void construct(U&& value)
+        {
+            static_assert(
+                std::is_base_of_v<Message, T>,
+                "T must derive from npos::ipc::Message"
+            );
+
+            new (&storage) T(std::forward<U>(value));
+
+            T& object = getObject<T>();
+
+            id = object.getId();
+
+            destroyFunction = &destroyImpl<T>;
+            copyFunction = &copyImpl<T>;
+            moveFunction = &moveImpl<T>;
+        }
+
+        template <typename T>
+        T& getObject() noexcept
+        {
+            return *std::launder(
+                reinterpret_cast<T*>(&storage));
+        }
+
+
+        template <typename T>
+        const T& getObject() const noexcept
+        {
+            return *std::launder(reinterpret_cast<const T*>(&storage));
+        }
+
+        template <typename T>
+        static void destroyImpl(void* storage) noexcept
+        {
+            T* object = std::launder(
+                    reinterpret_cast<T*>(storage));
+
+            object->~T();
+        }
+
+
+        template <typename T>
+        static void copyImpl(const void* source, void* destination)
+        {
+            const T* object = std::launder(
+                    reinterpret_cast<const T*>(source));
+
+            new (destination)
+                T(*object);
+        }
+
+        template <typename T>
+        static void moveImpl(void* source, void* destination) noexcept
+        {
+            T* object = std::launder(
+                    reinterpret_cast<T*>(source));
+
+            new (destination) T(std::move(*object));
+        }
+
+
+    private:
+        Storage storage;
+
+        Message::Id id;
+
+        DestroyFunction destroyFunction;
+        CopyFunction    copyFunction;
+        MoveFunction    moveFunction;
+    };
+}
