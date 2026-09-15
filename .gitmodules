@@ -4,3 +4,6 @@
 [submodule "external/CppUTest"]
 	path = external/CppUTest
 	url = https://github.com/jasiekj93/cpputest
+[submodule "external/etl"]
+	path = external/etl
+	url = https://github.com/etlcpp/etl
