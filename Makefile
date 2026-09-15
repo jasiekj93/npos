@@ -30,6 +30,7 @@ internal_library_names = \
 
 # Project subprograms
 program_names = \
+examples/blinking-led \
 
 # Project libraries
 library_names = \

@@ -4,10 +4,10 @@
  * @date 2026-09-15
  */
 
-using namespace npos::blinking-led;
 
 int main(int argc, char* argv[])
 {
 
+	os::System();
 	return 0;
 }

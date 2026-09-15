@@ -19,7 +19,8 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos-driver/*.cpp) \
+$(wildcard libnpos/driver/*.cpp) \
+$(wildcard libnpos/driver/hal/*.cpp) \
 
 # c_sources := \
 

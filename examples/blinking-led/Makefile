@@ -40,6 +40,10 @@ required_internal_libraries = \
 
 # libraries
 required_libraries = \
+npos-nps \
+npos-ipc \
+npos-os \
+npos-driver \
 
 # external libraries
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
