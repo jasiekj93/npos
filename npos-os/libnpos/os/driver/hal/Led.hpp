@@ -2,7 +2,7 @@
 
 #include <etl/string.h>
 
-namespace npos::driver::hal
+namespace npos::os::driver::hal
 {
     class Led
     {
