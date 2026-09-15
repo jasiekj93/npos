@@ -48,5 +48,5 @@ namespace npos::nps
         SchedulerSuccessor* succesor;
         Task* idleTask;
         Task* watchdogTask;
-    }
+    };
 }

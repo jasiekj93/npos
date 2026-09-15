@@ -19,7 +19,7 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos-nps/*.cpp) \
+$(wildcard libnpos/nps/*.cpp) \
 
 # c_sources := \
 

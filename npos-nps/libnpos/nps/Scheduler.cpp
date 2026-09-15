@@ -64,7 +64,10 @@ bool Scheduler::scheduleTasks()
 
 void Scheduler::initalizeTasks()
 {
-    etl::sort(taskList.begin(), taskList.end(), etl::greater<Task>());
+    etl::sort(taskList.begin(), taskList.end(), 
+        [](const Task* lhs, const Task* rhs) {
+        return *rhs < *lhs;  // descending
+    });
 
     for(auto& task : taskList)
         task->initalize();

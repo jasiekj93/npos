@@ -4,7 +4,7 @@
 # ------------------------------------------------
 
 # platform
-export PLATFORM := 
+export PLATFORM := Pc32
 
 # project
 export project_name := npos
@@ -34,6 +34,7 @@ program_names = \
 # Project libraries
 library_names = \
 npos-nps \
+npos-ipc \
 
 # optimalization flags
 # export debug_optimalization := 
