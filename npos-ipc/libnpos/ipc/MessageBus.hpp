@@ -24,9 +24,8 @@ namespace npos::ipc
         void receive(const Message& message) override;
         void receive(MessageRouter::Id destinationId, const Message& message) override;
 
-    protected:
         inline void onReceive(const Message&) override {}
-        inline bool accepts(Message::Id) override { return true; }
+        inline bool accepts(Message::Id) const override { return true; }
 
     private:
         RouterList& routerList;

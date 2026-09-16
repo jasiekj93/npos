@@ -10,9 +10,11 @@
 
 namespace npos::os::driver
 {
-    enum MessageId : ipc::Message::Id
+    enum Id : ipc::Message::Id
     {
-        CLOCK_GET_TIME_REQUEST = os::message::Id::DRIVER,
+        ERROR = os::message::Id::DRIVER,
+
+        CLOCK_GET_TIME_REQUEST,
         CLOCK_GET_TIME_RESPONSE, 
         CLOCK_SET_TIME_REQUEST,
         CLOCK_SET_TIME_RESPONSE,

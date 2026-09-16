@@ -29,9 +29,9 @@ namespace npos::os::driver::hal
 
         virtual ~Rtc() = default;
 
-        virtual bool setTime(const Time &time) = 0;
-        virtual bool getTime(Time &time) = 0;
-        virtual bool setDate(const Date &date) = 0;
-        virtual bool getDate(Date &date) = 0;
+        virtual bool setTime(const Time&) = 0;
+        virtual bool getTime(Time&) = 0;
+        virtual bool setDate(const Date&) = 0;
+        virtual bool getDate(Date&) = 0;
     };
 }

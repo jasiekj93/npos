@@ -3,334 +3,230 @@
 /**
  * @file MessagePacket.hpp
  * @author Adrian Szczepanski
- * @date 15-09-2026
+ * @date 16-09-2026
  */
 
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <new>
-#include <type_traits>
-#include <utility>
+#include <etl/type_traits.h>
+#include <etl/type_list.h>
+#include <etl/utility.h>
+#include <etl/largest.h>
 
 #include <libnpos/ipc/Message.hpp>
 
 namespace npos::ipc
 {
-    template <typename... TMessages>
+    template <typename... TMessageTypes>
     class MessagePacket
     {
-    private:
-        static constexpr size_t maxSize() noexcept
-        {
-            size_t result = 0;
-
-            ((result = result < sizeof(TMessages)
-                        ? sizeof(TMessages)
-                        : result), ...);
-
-            return result;
-        }
-
-
-        static constexpr size_t maxAlignment() noexcept
-        {
-            size_t result = 0;
-
-            ((result = result < alignof(TMessages)
-                        ? alignof(TMessages)
-                        : result), ...);
-
-            return result;
-        }
+    protected:
+        template <typename T>
+        static constexpr bool isMessagePacket = etl::is_same_v<etl::remove_const_t<etl::remove_reference_t<T>>, npos::ipc::MessagePacket<TMessageTypes...>>;
 
         template <typename T>
-        static constexpr bool isAllowed() noexcept
-        {
-            return (std::is_same_v<T, TMessages> || ...);
-        }
+        static constexpr bool isInMessageList = etl::is_one_of_v<etl::remove_const_t<etl::remove_reference_t<T>>, TMessageTypes...>;
 
-
-        static constexpr size_t StorageSize = maxSize();
-        static constexpr size_t StorageAlignment = maxAlignment();
-
-        using Storage = std::aligned_storage_t<
-                StorageSize,
-                StorageAlignment
-            >;
-
-        using DestroyFunction = void (*)(void*) noexcept;
-        using CopyFunction = void (*)(const void*, void*);
-        using MoveFunction = void (*)(void*, void*) noexcept;
+        template <typename T>
+        static constexpr bool isMessage = etl::is_same_v<etl::remove_const_t<etl::remove_reference_t<T>>, npos::ipc::Message>;
 
     public:
-        MessagePacket() noexcept
-            : id(0),
-            destroyFunction(nullptr),
-            copyFunction(nullptr),
-            moveFunction(nullptr)
+        using MessageTypes = etl::type_list<TMessageTypes...>;
+
+        constexpr MessagePacket() noexcept
+            : valid(false)
         {
         }
 
-        template <
-            typename T,
-            typename U = std::decay_t<T>,
-            typename = std::enable_if_t<isAllowed<U>()>
-            >
-        explicit MessagePacket(T&& message) noexcept(
-                std::is_nothrow_constructible_v<
-                    U,
-                    T&&
-                >
-            )
-            : id(0),
-            destroyFunction(nullptr),
-            copyFunction(nullptr),
-            moveFunction(nullptr)
+        template <typename T, typename = typename etl::enable_if< isMessage<T> || isInMessageList<T>, int>::type>
+        explicit MessagePacket(T&& msg)
+            : valid(true)
         {
-            construct<U>(std::forward<T>(message));
-        }
-
-        MessagePacket(
-            const MessagePacket& other)
-            : id(other.id),
-            destroyFunction(other.destroyFunction),
-            copyFunction(other.copyFunction),
-            moveFunction(other.moveFunction)
-        {
-            if (other.copyFunction != nullptr)
+            if constexpr (isMessage<T>)
             {
-                other.copyFunction(
-                    &other.storage,
-                    &storage
-                );
+                if (accepts(msg))
+                {
+                    addNewMessage(etl::forward<T>(msg));
+                valid = true;
+                }
+                else
+                {
+                valid = false;
+                }
+
+                ETL_ASSERT(valid, ETL_ERROR(unhandled_message_exception));
+            }
+            else if constexpr (isInMessageList<T>)
+                add_new_message_type<T>(etl::forward<T>(msg));
+            else
+            {
+                static_assert(isInMessageList<T>, "Message not in packet type list");
             }
         }
 
-        MessagePacket(MessagePacket&& other) noexcept
-            : id(other.id),
-            destroyFunction(other.destroyFunction),
-            copyFunction(other.copyFunction),
-            moveFunction(other.moveFunction)
+        MessagePacket(const MessagePacket& other)
         {
-            if (other.moveFunction != nullptr)
-            {
-                other.moveFunction(
-                    &other.storage,
-                    &storage
-                );
+            valid = other.isValid();
 
-                other.reset();
-            }
+            if(valid)
+                addNewMessage(other.get());
+        }
+
+        MessagePacket(const MessagePacket&& other)
+        {
+            valid = other.isValid();
+
+            if(valid)
+                addNewMessage(etl::move(other.get()));
+        }
+
+        void copy(const MessagePacket& other)
+        {
+            valid = other.isValid();
+
+            if (valid)
+                addNewMessage(other.get());
+        }
+
+        void copy(MessagePacket&& other)
+        {
+            valid = other.isValid();
+
+            if (valid)
+                addNewMessage(etl::move(other.get()));
         }
 
         MessagePacket& operator=(const MessagePacket& other)
         {
-            if (this == &other)
-                return *this;
-
-            reset();
-
-            id = other.id;
-            destroyFunction = other.destroyFunction;
-            copyFunction = other.copyFunction;
-            moveFunction = other.moveFunction;
-
-            if (other.copyFunction != nullptr)
-            {
-                other.copyFunction(
-                    &other.storage,
-                    &storage
-                );
-            }
+            deleteCurrentMessage();
+            copy(other);
 
             return *this;
         }
 
-
-        MessagePacket& operator=(MessagePacket&& other) noexcept
+        MessagePacket& operator=(MessagePacket&& other)
         {
-            if (this == &other)
-                return *this;
-
-            reset();
-
-            id = other.id;
-            destroyFunction = other.destroyFunction;
-            copyFunction = other.copyFunction;
-            moveFunction = other.moveFunction;
-
-            if (other.moveFunction != nullptr)
-            {
-                other.moveFunction(
-                    &other.storage,
-                    &storage
-                );
-
-                other.reset();
-            }
+            deleteCurrentMessage();
+            copy(etl::move(other));
 
             return *this;
         }
-
 
         ~MessagePacket()
         {
-            reset();
+            deleteCurrentMessage();
         }
 
-        Message::Id getId() const noexcept
+        Message& get()
         {
-            return id;
+            return *static_cast<npos::ipc::Message*>(data);
         }
 
-        bool empty() const noexcept
+        const Message& get() const
         {
-            return destroyFunction == nullptr;
+            return *static_cast<const npos::ipc::Message*>(data);
         }
 
-
-        explicit operator bool() const noexcept
+        bool isValid() const
         {
-            return not empty();
+            return valid;
         }
 
-        template <typename T>
-        bool holds() const noexcept
+        static constexpr bool accepts(npos::ipc::Message::Id id) 
         {
-            static_assert(
-                is_allowed<T>(),
-                "T is not allowed in this npos::ipc::MessagePacket"
-            );
-
-            return not empty() and (id == getObject<T>().getId());
+            return (acceptsMessage<TMessageTypes::Id>(id) || ...);
         }
 
-
-        template <typename T>
-        T& get()
+        static constexpr bool accepts(const npos::ipc::Message& msg)
         {
-            static_assert(
-                is_allowed<T>(),
-                "T is not allowed in this npos::ipc::MessagePacket"
-            );
-
-            assert(not empty());
-            assert(id == getObject<T>().getId());
-
-            return getObject<T>();
+            return accepts(msg.getId());
         }
 
-
-        template <typename T>
-        const T& get() const
+        template <npos::ipc::Message::Id Id>
+        static constexpr bool accepts()
         {
-            static_assert(
-                is_allowed<T>(),
-                "T is not allowed in this npos::ipc::MessagePacket"
-            );
-
-            assert(not empty());
-            assert(id == getObject<T>().getId());
-
-            return getObject<T>();
+            return (acceptsMessage<TMessageTypes::Id>(id) || ...);
+        }
+        
+        template <typename TMessage>
+        static constexpr typename etl::enable_if<etl::is_base_of<npos::ipc::Message, TMessage>::value, bool>::type accepts()
+        {
+            return accepts<TMessage::Id>();
         }
 
-
-        // ========================================================
-        // reset
-        // ========================================================
-
-        void reset() noexcept
+        enum
         {
-            if (destroyFunction != nullptr)
+            SIZE = etl::largest<TMessageTypes...>::size,
+            ALIGNMENT = etl::largest<TMessageTypes...>::alignment
+        };
+                
+    protected:
+        template <npos::ipc::Message::Id Id1, npos::ipc::Message::Id Id2>
+        static bool acceptsMessage()
+        {
+            return Id1 == Id2;
+        }
+
+        template <npos::ipc::Message::Id Id1>
+        static bool acceptsMessage(npos::ipc::Message::Id id2)
+        {
+            return Id1 == id2;
+        }
+
+        void deleteCurrentMessage()
+        {
+            if (valid)
             {
-                destroyFunction(&storage);
+                npos::ipc::Message* pointer = static_cast<npos::ipc::Message*>(data);
+                pointer->~Message();
             }
+        }
 
-            id = 0;
-            destroyFunction = nullptr;
-            copyFunction = nullptr;
-            moveFunction = nullptr;
+        void addNewMessage(const npos::ipc::Message& msg)
+        {
+            (addNewMessageType<TMessageTypes>(msg) || ...);
+        }
+
+        void addNewMessage(etl::imessage&& msg)
+        {
+            (addNewMessageType<TMessageTypes>(etl::move(msg)) || ...);
+        }
+
+        template <typename TMessage>
+        etl::enable_if_t< etl::is_one_of_v<etl::remove_const_t<etl::remove_reference_t<TMessage>>, TMessageTypes...>, void>
+        addNewMessageType(TMessage&& msg)
+        {
+            void* placement = data;
+            new (placement) etl::remove_reference_t<TMessage>((etl::forward<TMessage>(msg)));
+        }
+
+        template <typename TType>
+        bool addNewMessageType(const npos::ipc::Message& msg)
+        {
+            if (TType::ID == msg.getId())
+            {
+                void* placement = data;
+                new (placement) TType(static_cast<const TType&>(msg));
+                return true;
+            }
+            else
+                return false;
+        }
+
+        template <typename TType>
+        bool addNewMessageType(npos::ipc::Message&& msg)
+        {
+            if (TType::ID == msg.getId())
+            {
+                void* placement = data;
+                new (placement) TType(static_cast<TType&&>(msg));
+                return true;
+            }
+            else
+                return false;
         }
 
 
     private:
-
-        // ========================================================
-        // Construct T w storage
-        // ========================================================
-
-        template <typename T, typename U>
-        void construct(U&& value)
-        {
-            static_assert(
-                std::is_base_of_v<Message, T>,
-                "T must derive from npos::ipc::Message"
-            );
-
-            new (&storage) T(std::forward<U>(value));
-
-            T& object = getObject<T>();
-
-            id = object.getId();
-
-            destroyFunction = &destroyImpl<T>;
-            copyFunction = &copyImpl<T>;
-            moveFunction = &moveImpl<T>;
-        }
-
-        template <typename T>
-        T& getObject() noexcept
-        {
-            return *std::launder(
-                reinterpret_cast<T*>(&storage));
-        }
-
-
-        template <typename T>
-        const T& getObject() const noexcept
-        {
-            return *std::launder(reinterpret_cast<const T*>(&storage));
-        }
-
-        template <typename T>
-        static void destroyImpl(void* storage) noexcept
-        {
-            T* object = std::launder(
-                    reinterpret_cast<T*>(storage));
-
-            object->~T();
-        }
-
-
-        template <typename T>
-        static void copyImpl(const void* source, void* destination)
-        {
-            const T* object = std::launder(
-                    reinterpret_cast<const T*>(source));
-
-            new (destination)
-                T(*object);
-        }
-
-        template <typename T>
-        static void moveImpl(void* source, void* destination) noexcept
-        {
-            T* object = std::launder(
-                    reinterpret_cast<T*>(source));
-
-            new (destination) T(std::move(*object));
-        }
-
-
-    private:
-        Storage storage;
-
-        Message::Id id;
-
-        DestroyFunction destroyFunction;
-        CopyFunction    copyFunction;
-        MoveFunction    moveFunction;
+        typename etl::aligned_storage<SIZE, ALIGNMENT>::type data;
+        bool valid;
     };
 }

@@ -10,17 +10,16 @@
 
 #include <libnpos/os/Timestamp.hpp>
 #include <libnpos/os/message/RequestResponse.hpp>
-#include <libnpos/os/driver/MessageId.hpp>
-#include <libnpos/os/driver/hal/Rtc.hpp>
+#include <libnpos/os/driver/message/Id.hpp>
 
-namespace npos::os::driver
+namespace npos::os::driver::message
 {
-    class Clock : public ipc::MessageRouter
+    class Clock 
     {
     public:
         struct SetTimeRequest : public os::message::Request
         {
-            static constexpr ipc::Message::Id ID = MessageId::CLOCK_SET_TIME_REQUEST;
+            static constexpr auto ID = Id::CLOCK_SET_TIME_REQUEST;
 
             Timestamp timestamp;
 
@@ -29,7 +28,7 @@ namespace npos::os::driver
 
         struct SetTimeResponse : public os::message::Response
         {
-            static constexpr ipc::Message::Id ID = MessageId::CLOCK_SET_TIME_RESPONSE;
+            static constexpr auto ID = Id::CLOCK_SET_TIME_RESPONSE;
 
             enum Status
             {
@@ -46,24 +45,20 @@ namespace npos::os::driver
 
         struct GetTimeRequest : public os::message::Request
         {
-            static constexpr ipc::Message::Id ID = MessageId::CLOCK_GET_TIME_REQUEST;
+            static constexpr auto ID = Id::CLOCK_GET_TIME_REQUEST;
 
             GetTimeRequest() : os::message::Request(ID) {}
         };
 
         struct GetTimeResponse : public os::message::Response
         {
-            static constexpr ipc::Message::Id ID = MessageId::CLOCK_GET_TIME_RESPONSE;
+            static constexpr auto ID = Id::CLOCK_GET_TIME_RESPONSE;
 
             bool status;
             Timestamp timestamp;
 
             GetTimeResponse() : os::message::Response(ID) {}
         };
-
-    protected:
-        void onReceive(const ipc::Message&) override;
-        bool accepts(ipc::Message::Id) override;
     };
 }
 

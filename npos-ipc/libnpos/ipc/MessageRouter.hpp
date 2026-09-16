@@ -23,11 +23,11 @@ namespace npos::ipc
         virtual void receive(MessageRouter::Id destinationId, const Message& message);
 
         inline auto getId() const { return id; }
-    
-    protected:
-        virtual void onReceive(const Message&) = 0;
-        virtual bool accepts(Message::Id) = 0;
+        inline void setId(Id newId) { id = newId; }
 
+        virtual void onReceive(const Message&) = 0;
+        virtual bool accepts(Message::Id) const = 0;
+    
     private:
         Id id;
     };
