@@ -36,7 +36,9 @@ namespace npos::nps
         void initalizeTasks() override;
 
         inline void setSuccesor(SchedulerSuccessor& ss) { succesor = &ss; }
-        inline void stop() { isRunning = false; }
+        inline void stop() { runningFlag = false; }
+        inline bool full() const { return taskList.full(); }
+        inline bool isRunning() const { return runningFlag; }
 
     protected:
         void processIdle();
@@ -44,7 +46,7 @@ namespace npos::nps
 
     private:
         TaskList& taskList;
-        bool isRunning;
+        bool runningFlag;
         SchedulerSuccessor* succesor;
         Task* idleTask;
         Task* watchdogTask;

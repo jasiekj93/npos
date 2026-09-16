@@ -8,6 +8,8 @@
  * @details
  */
 
+#include <etl/optional.h>
+
 #include <libnpos/os/Timestamp.hpp>
 #include <libnpos/os/message/RequestResponse.hpp>
 #include <libnpos/os/driver/message/Id.hpp>
@@ -41,6 +43,10 @@ namespace npos::os::driver::message
             Timestamp timestamp;
 
             SetTimeResponse() : os::message::Response(ID) {}
+            SetTimeResponse(Status status, Timestamp timestamp = 0) 
+                : os::message::Response(ID)
+                , status(status)
+                , timestamp(timestamp) {}
         };
 
         struct GetTimeRequest : public os::message::Request
@@ -54,10 +60,15 @@ namespace npos::os::driver::message
         {
             static constexpr auto ID = Id::CLOCK_GET_TIME_RESPONSE;
 
-            bool status;
-            Timestamp timestamp;
+            etl::optional<Timestamp> timestamp;
 
-            GetTimeResponse() : os::message::Response(ID) {}
+            GetTimeResponse() 
+                : os::message::Response(ID)
+                , timestamp(etl::nullopt) {}
+
+            explicit GetTimeResponse(etl::optional<Timestamp> timestamp) 
+                : os::message::Response(ID)
+                , timestamp(timestamp) {}
         };
     };
 }

@@ -20,9 +20,9 @@ void Scheduler::start()
     if(idleTask)
         idleTask->initalize();
 
-    isRunning = true;
+    runningFlag = true;
 
-    while(isRunning)
+    while(runningFlag)
     {
         processWatchdog();
 

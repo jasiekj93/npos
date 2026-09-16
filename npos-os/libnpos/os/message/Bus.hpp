@@ -21,6 +21,7 @@ namespace npos::os::message
         Bus(); 
 
         bool subscribe(ipc::MessageRouter&);
+        inline bool full() const { return routerList.full(); }
 
         void receive(const ipc::Message& message) override;
         void receive(ipc::MessageRouter::Id destinationId, const ipc::Message& message) override;

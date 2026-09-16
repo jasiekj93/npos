@@ -20,6 +20,8 @@ namespace npos::os
 
         virtual ~Service() = default;
 
+        virtual void initalize() {}
+
     protected:
         message::Bus& bus;
     };

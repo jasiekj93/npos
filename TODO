@@ -1,0 +1,10 @@
+## UBOOT
+uboot - hal flash, czytanie, liczenie skrótu, itp.
+taski - własny do rozbudowy, scheduler
+
+## DEBUG
+Syslog - Message
+
+## Driver
+Hal repo
+Taski czy serwisy?
