@@ -1,16 +1,14 @@
 #pragma once
 
 /**
- * @file Format.hpp
+ * @file Status.hpp
  * @author Adrian Szczepanski
  * @date 17-09-2026
  */
 
-#include <libnpos/fs/Path.hpp>
-#include <libnpos/fs/message/Id.hpp>
-#include <libnpos/os/message/RequestResponse.hpp>
+#include <cstdint>
 
-namespace npos::fs::message
+namespace npos::os::filesystem
 {
     enum Status : uint8_t
     {
@@ -28,21 +26,6 @@ namespace npos::fs::message
         NO_SPACE_LEFT,
         NO_MEMORY_AVAILABLE,
         NO_DATA_AVAILABLE,
-    };
-
-    struct OpenRequest
-    {
-        enum Flags : uint8_t
-        {
-            READ_ONLY = 0,
-            WRITE_ONLY,
-            READ_WRITE,
-            CREATE,
-            EXCLUSIVE,
-            TRUNCATE,
-            APPEND,
-        };
-
-        Path path;
+        DIRECTORY_READ_END
     };
 }

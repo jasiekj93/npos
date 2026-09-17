@@ -8,17 +8,52 @@
 
 #include <libnpos/os/message/Id.hpp>
 
-namespace npos::fs::message
+namespace npos::os::filesystem::message
 {
     enum Id : ipc::Message::Id
     {
-        MOUNT = os::message::Id::FILESYSTEM,
-        UNMOUNT,
-        CREATE,
-        OPEN,
-        CLOSE,
-        WRITE,
-        READ,
+        FILE_OPEN_REQUEST = os::message::Id::FILESYSTEM,
+        FILE_OPEN_RESPONSE,
+        FILE_CLOSE_REQUEST,
+        FILE_CLOSE_RESPONSE,
+        FILE_WRITE_REQUEST,
+        FILE_WRITE_RESPONSE,
+        FILE_READ_REQUEST,
+        FILE_READ_RESPONSE,
+        FILE_SYNC_REQUEST,
+        FILE_SYNC_RESPONSE,
+        FILE_SEEK_REQUEST,
+        FILE_SEEK_RESPONSE,
+        FILE_TRUNCATE_REQUEST,
+        FILE_TRUNCATE_RESPONSE,
+        FILE_TELL_REQUEST,
+        FILE_TELL_RESPONSE,
+
+        DIR_MAKE_REQUEST,
+        DIR_MAKE_RESPONSE,
+        DIR_OPEN_REQUEST,
+        DIR_OPEN_RESPONSE,
+        DIR_CLOSE_REQUEST,
+        DIR_CLOSE_RESPONSE,
+        DIR_READ_REQUEST,
+        DIR_READ_RESPONSE,
+        DIR_SEEK_REQUEST,
+        DIR_SEEK_RESPONSE,
+        DIR_TELL_REQUEST,
+        DIR_TELL_RESPONSE,
+
+        SYSTEM_FORMAT_REQUEST,
+        SYSTEM_FORMAT_RESPONSE,
+        SYSTEM_MOUNT_REQUEST,
+        SYSTEM_MOUNT_RESPONSE,
+        SYSTEM_UNMOUNT_REQUEST,
+        SYSTEM_UNMOUNT_RESPONSE,
+        SYSTEM_REMOVE_REQUEST,
+        SYSTEM_REMOVE_RESPONSE,
+        SYSTEM_RENAME_REQUEST,
+        SYSTEM_RENAME_RESPONSE,
+        SYSTEM_STATFS_REQUEST,
+        SYSTEM_STATFS_RESPONSE
     };
 }
 

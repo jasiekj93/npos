@@ -8,7 +8,7 @@
 
 #include <etl/string.h>
 
-namespace npos::fs
+namespace npos::os::filesystem
 {
     static constexpr size_t MAX_PATH_LENGTH = 64;
 
