@@ -11,13 +11,13 @@ System::System(System::TaskStorage& taskStorage, System::DeviceList& devices)
     , systemBus()
 {
 
-    if(devices.rtc.has_value())
-    {
+    // if(devices.rtc.has_value())
+    // {
         //jakiś new albo sharedPrt;
         //albo coś?
         // driver::service::RtcClock rtcClock;
         // driver::service::RtcClockProcess rtcClockProcess(devices.rtc.value());
-    }
+    // }
 }
 
 bool npos::os::System::addProcess(os::Process &process)

@@ -21,16 +21,19 @@ namespace npos::os::driver::message
     public:
         struct SetTimeRequest : public os::message::Request
         {
-            static constexpr auto ID = Id::CLOCK_SET_TIME_REQUEST;
+            static constexpr auto ID = driver::message::Id::CLOCK_SET_TIME_REQUEST;
 
             Timestamp timestamp;
 
-            SetTimeRequest() : os::message::Request(ID) {}
+            SetTimeRequest(Request::SenderId senderId, Timestamp timestamp) 
+                : os::message::Request(ID)
+                , senderId(senderId)
+                , timestamp(timestamp) {}
         };
 
         struct SetTimeResponse : public os::message::Response
         {
-            static constexpr auto ID = Id::CLOCK_SET_TIME_RESPONSE;
+            static constexpr auto ID = driver::message::Id::CLOCK_SET_TIME_RESPONSE;
 
             enum Status
             {
@@ -51,14 +54,16 @@ namespace npos::os::driver::message
 
         struct GetTimeRequest : public os::message::Request
         {
-            static constexpr auto ID = Id::CLOCK_GET_TIME_REQUEST;
+            static constexpr auto ID = driver::message::Id::CLOCK_GET_TIME_REQUEST;
 
-            GetTimeRequest() : os::message::Request(ID) {}
+            GetTimeRequest(Request::SenderId senderId) 
+                : os::message::Request(ID)
+                , senderId(senderId) {}
         };
 
         struct GetTimeResponse : public os::message::Response
         {
-            static constexpr auto ID = Id::CLOCK_GET_TIME_RESPONSE;
+            static constexpr auto ID = driver::message::Id::CLOCK_GET_TIME_RESPONSE;
 
             etl::optional<Timestamp> timestamp;
 

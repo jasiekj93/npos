@@ -12,7 +12,9 @@ namespace npos::os::message
 {
     struct Request : public ipc::Message
     {
-        ipc::MessageRouter::Id senderId;
+        using SenderId = ipc::MessageRouter::Id;
+
+        SenderId senderId;
 
         Request(ipc::Message::Id id) : ipc::Message(id) {}
     };

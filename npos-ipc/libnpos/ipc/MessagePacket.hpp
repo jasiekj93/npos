@@ -55,7 +55,7 @@ namespace npos::ipc
                 ETL_ASSERT(valid, ETL_ERROR(unhandled_message_exception));
             }
             else if constexpr (isInMessageList<T>)
-                add_new_message_type<T>(etl::forward<T>(msg));
+                addNewMessageType<T>(etl::forward<T>(msg));
             else
             {
                 static_assert(isInMessageList<T>, "Message not in packet type list");
@@ -143,7 +143,7 @@ namespace npos::ipc
         template <npos::ipc::Message::Id Id>
         static constexpr bool accepts()
         {
-            return (acceptsMessage<TMessageTypes::Id>(id) || ...);
+            return (acceptsMessage<TMessageTypes::Id>(Id) || ...);
         }
         
         template <typename TMessage>
@@ -185,7 +185,7 @@ namespace npos::ipc
             (addNewMessageType<TMessageTypes>(msg) || ...);
         }
 
-        void addNewMessage(etl::imessage&& msg)
+        void addNewMessage(npos::ipc::Message&& msg)
         {
             (addNewMessageType<TMessageTypes>(etl::move(msg)) || ...);
         }

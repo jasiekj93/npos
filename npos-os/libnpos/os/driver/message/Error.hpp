@@ -13,7 +13,7 @@ namespace npos::os::driver::message
 {
     struct Error : public os::message::Request
     {
-        static constexpr auto ID = Id::ERROR;
+        static constexpr auto ID = driver::message::Id::ERROR;
 
         enum Code : uint16_t
         {

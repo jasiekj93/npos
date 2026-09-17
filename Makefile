@@ -30,12 +30,13 @@ internal_library_names = \
 
 # Project subprograms
 program_names = \
-examples/blinking-led \
+# examples/blinking-led \
 
 # Project libraries
 library_names = \
 npos-nps \
 npos-ipc \
+npos-os \
 
 # optimalization flags
 # export debug_optimalization := 

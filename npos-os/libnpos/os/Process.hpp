@@ -11,36 +11,55 @@
 #include <libnpos/ipc/MessagePacket.hpp>
 #include <libnpos/nps/Task.hpp>
 #include <libnpos/os/Service.hpp>
+#include <libnpos/os/message/Error.hpp>
 
 namespace npos::os
 {
-    template <typename... TMessageTypes>
     class Process : public ipc::MessageRouter, public nps::Task
+    {
+    public:
+        Process(nps::Task::Priority priority)
+            : ipc::MessageRouter(0)
+            , nps::Task(priority)
+        {
+        }
+
+        virtual ~Process() = default;
+
+        // void onReceive(const Message&) override;
+        // virtual bool accepts(Message::Id) const override;
+
+        // void initalize() override;
+        // virtual bool isReady() const override;
+        // virtual void process() override;
+    };
+
+    template <typename... TMessageTypes>
+    class QueuedProcess : public ipc::MessageRouter, public nps::Task
     {
     public:
         using MessagePacket = ipc::MessagePacket<TMessageTypes...>;
         using MessageQueue = etl::iqueue<MessagePacket>;
 
-        Process(nps::Task::Priority priority, MessageQueue& messageQueue, Service& service)
+        QueuedProcess(nps::Task::Priority priority, message::Bus& bus, MessageQueue& messageQueue, Service& service)
             : ipc::MessageRouter(0)
             , nps::Task(priority) 
+            , bus(bus)
             , messageQueue(messageQueue)
             , service(service)
         {
         }
 
-        void onReceive(const Message& message) override
+        void onReceive(const ipc::Message& message) override
         {
-            //TODO obsługa przerwań? Czy to bardziej user space?
             if(messageQueue.full())
-            {
-                // Handle full message queue scenario
-            }
+                //chociaż tu bardziej syslog? czy syslog to osobny proces?
+                bus.receive(message::Error(message::Error::MESSAGE_QUEUE_FULL));
             else
                 messageQueue.emplace(MessagePacket(message));
         }
 
-        bool accepts(Message::Id id) const override
+        bool accepts(ipc::Message::Id id) const override
         {
             return MessagePacket::accepts(id);
         }
@@ -64,6 +83,7 @@ namespace npos::os
         }
 
     private:
+        message::Bus& bus;
         MessageQueue& messageQueue;
         Service& service;
     };

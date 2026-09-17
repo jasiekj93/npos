@@ -23,6 +23,7 @@ namespace npos::os::driver::service
 
         static os::Timestamp fromRtcTime(const hal::Rtc::Time&, const hal::Rtc::Date&);
         static etl::optional<DateTime> toRtcTime(os::Timestamp);
+
         explicit RtcClock(hal::Rtc&, os::message::Bus&);
 
         void initalize() override;
@@ -33,5 +34,16 @@ namespace npos::os::driver::service
         hal::Rtc& rtc;
     };
 
-    using RtcClockProcess = os::Process<message::Clock::GetTimeRequest, message::Clock::SetTimeRequest>;
+    // class RtcClockProcess : public os::QueuedProcess<message::Clock::GetTimeRequest, message::Clock::SetTimeRequest>
+    // {
+    // public:
+    //     RtcClockProcess(Priority p, MessageQueue& mq, os::message::Bus& bus, hal::Rtc& rtc)
+    //         : os::QueuedProcess<message::Clock::GetTimeRequest, message::Clock::SetTimeRequest>(p, mq, service)
+    //         , service(rtc, bus)
+    //     {
+    //     }
+
+    // private:
+    //     RtcClock service;
+    // };
 }
