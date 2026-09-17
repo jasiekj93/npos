@@ -10,7 +10,7 @@
 # supported_platforms := Pc32 Pc64 ArmA7-Linux ArmA9-Linux Rpi64
 
 # Target
-library_name := npos-os
+library_name := npos-driver
 
 # Directories
 project_dir ?= ..
@@ -19,11 +19,7 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos/os/*.cpp) \
-$(wildcard libnpos/os/message/*.cpp) \
-$(wildcard libnpos/os/syslog/*.cpp) \
-$(wildcard libnpos/os/device/*.cpp) \
-$(wildcard libnpos/os/device/service/*.cpp) \
+$(wildcard libnpos-driver/*.cpp) \
 
 # c_sources := \
 
@@ -32,8 +28,6 @@ $(wildcard libnpos/os/device/service/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
--I$(project_dir)/npos-nps \
--I$(project_dir)/npos-ipc \
 
 # Defines
 cxx_defs := \
@@ -45,7 +39,6 @@ cxx_defs := \
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 export external_library_include_path = \
-etl/include \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \

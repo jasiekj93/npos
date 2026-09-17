@@ -12,28 +12,27 @@
 
 #include <libnpos/os/Timestamp.hpp>
 #include <libnpos/os/message/RequestResponse.hpp>
-#include <libnpos/os/driver/message/Id.hpp>
+#include <libnpos/os/device/message/Id.hpp>
 
-namespace npos::os::driver::message
+namespace npos::os::device::message
 {
     class Clock 
     {
     public:
         struct SetTimeRequest : public os::message::Request
         {
-            static constexpr auto ID = driver::message::Id::CLOCK_SET_TIME_REQUEST;
+            static constexpr auto ID = device::message::Id::CLOCK_SET_TIME_REQUEST;
 
             Timestamp timestamp;
 
             SetTimeRequest(Request::SenderId senderId, Timestamp timestamp) 
-                : os::message::Request(ID)
-                , senderId(senderId)
+                : os::message::Request(ID, senderId)
                 , timestamp(timestamp) {}
         };
 
         struct SetTimeResponse : public os::message::Response
         {
-            static constexpr auto ID = driver::message::Id::CLOCK_SET_TIME_RESPONSE;
+            static constexpr auto ID = device::message::Id::CLOCK_SET_TIME_RESPONSE;
 
             enum Status
             {
@@ -54,16 +53,15 @@ namespace npos::os::driver::message
 
         struct GetTimeRequest : public os::message::Request
         {
-            static constexpr auto ID = driver::message::Id::CLOCK_GET_TIME_REQUEST;
+            static constexpr auto ID = device::message::Id::CLOCK_GET_TIME_REQUEST;
 
             GetTimeRequest(Request::SenderId senderId) 
-                : os::message::Request(ID)
-                , senderId(senderId) {}
+                : os::message::Request(ID, senderId) {}
         };
 
         struct GetTimeResponse : public os::message::Response
         {
-            static constexpr auto ID = driver::message::Id::CLOCK_GET_TIME_RESPONSE;
+            static constexpr auto ID = device::message::Id::CLOCK_GET_TIME_RESPONSE;
 
             etl::optional<Timestamp> timestamp;
 

@@ -11,9 +11,9 @@
 
 namespace npos::os::message
 {
-    struct Error : public Request
+    struct Error : public ipc::Message
     {
-        static constexpr auto ID = message::Id::ERROR;
+        static constexpr auto ID = message::Id::SYSTEM_ERROR;
 
         enum Code : uint8_t
         {
@@ -23,7 +23,7 @@ namespace npos::os::message
         Code code;
 
         Error(Code c)
-            : Request(ID)
+            : ipc::Message(ID)
             , code(c)
         {
         }

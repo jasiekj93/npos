@@ -8,11 +8,11 @@
 
 #include <libnpos/os/message/Id.hpp>
 
-namespace npos::os::driver::message
+namespace npos::os::device::message
 {
     enum Id : ipc::Message::Id
     {
-        ERROR = os::message::Id::DRIVER,
+        ERROR = os::message::Id::DEVICE,
 
         CLOCK_GET_TIME_REQUEST,
         CLOCK_GET_TIME_RESPONSE, 
@@ -24,6 +24,9 @@ namespace npos::os::driver::message
         TIMER_REGISTER_REQUEST,
         TIMER_ELAPSED_NOTIFICATION,
 
-        HASH_INTERRUPT,
+        HASH_COMPUTE_REQUEST,
+        HASH_COMPUTE_RESPONSE,
+
+        SYSTEM_RESET_REQUEST,
     };
 }

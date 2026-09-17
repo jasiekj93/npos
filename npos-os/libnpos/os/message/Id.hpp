@@ -6,9 +6,13 @@ namespace npos::os::message
 {
     enum Id : ipc::Message::Id
     {
-        KERNEL = 0x0000,
-        ERROR = 0x0001,
+        SYSTEM_ERROR = 0x0000,
+        SYSLOG = 0x0001,
 
-        DRIVER = 0x0200,
+        DEVICE = 0x0200,
+        DRIVER = 0x0300,
+        FILESYSTEM = 0x0400,
+        CLI = 0x0500,
+        USER = 0x1000
     };
 }

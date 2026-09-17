@@ -15,7 +15,9 @@ namespace npos::nps
     public:
         using Priority = uint8_t;
 
-        explicit Task(Priority);
+        explicit Task(Priority p) 
+            : priority(p) 
+        {}
 
         virtual void initalize() {}
         virtual bool isReady() const = 0;
@@ -23,7 +25,10 @@ namespace npos::nps
 
         inline auto getPriority() const { return priority; }
 
-        bool operator<(const Task&) const;
+        bool operator<(const Task& other) const
+        {
+            return (priority < other.priority);
+        }
 
     private:
         Priority priority;

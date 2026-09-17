@@ -7,10 +7,10 @@
  */
 
 #include <libnpos/os/Tick.hpp>
-#include <libnpos/os/driver/message/Id.hpp>
+#include <libnpos/os/device/message/Id.hpp>
 #include <libnpos/os/message/RequestResponse.hpp>
 
-namespace npos::os::driver::message
+namespace npos::os::device::message
 {
     struct TimerRegisterRequest : public os::message::Request
     {

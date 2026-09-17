@@ -17,10 +17,22 @@ namespace npos::ipc
 
         static constexpr Id BROADCAST = 255;
 
-        explicit MessageRouter(Id);
+        explicit MessageRouter(Id id)
+            : id(id)
+        {
+        }
 
-        virtual void receive(const Message& message);
-        virtual void receive(MessageRouter::Id destinationId, const Message& message);
+        virtual void receive(const Message& message)
+        {
+            if(accepts(message.getId()))
+                onReceive(message);
+        }
+
+        virtual void receive(MessageRouter::Id destinationId, const Message& message)
+        {
+            if(destinationId == id)
+                receive(message);
+        }
 
         inline auto getId() const { return id; }
         inline void setId(Id newId) { id = newId; }

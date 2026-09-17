@@ -27,13 +27,71 @@ namespace npos::nps
     public:
         using TaskList = etl::ivector<Task*>;
 
-        explicit Scheduler(TaskList&);
+        explicit Scheduler(TaskList& taskList)
+            : taskList(taskList)
+            , runningFlag(false)
+            , succesor(nullptr)
+            , idleTask(nullptr)
+            , watchdogTask(nullptr)
+        {
+        }
 
-        void start();
-        bool addTask(Task&);
+        void start()
+        {
+            initalize();
 
-        bool scheduleTasks() override;
-        void initalizeTasks() override;
+            runningFlag = true;
+
+            while(runningFlag)
+            {
+                processWatchdog();
+
+                if(not scheduleTasks())
+                {
+                    if(succesor)
+                    {
+                        if(not succesor->scheduleTasks())
+                            processIdle();
+                    }
+                    else
+                        processIdle();
+                }
+            }
+        }
+
+        bool addTask(Task& task)
+        {
+            if(taskList.full())
+                return false;
+            
+            taskList.push_back(&task);
+            return true;
+        }
+
+        bool scheduleTasks() override
+        {
+            for(auto& task : taskList)
+            {
+                if(task->isReady())
+                {
+                    task->process();
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        void initalizeTasks() override
+        {
+            etl::sort(taskList.begin(), taskList.end(), 
+                [](const Task* lhs, const Task* rhs) {
+                return *rhs < *lhs;  // descending
+            });
+
+            for(auto& task : taskList)
+                task->initalize();
+        }
 
         inline void setSuccesor(SchedulerSuccessor& ss) { succesor = &ss; }
         inline void stop() { runningFlag = false; }
@@ -41,8 +99,31 @@ namespace npos::nps
         inline bool isRunning() const { return runningFlag; }
 
     protected:
-        void processIdle();
-        void processWatchdog();
+        void initalize()
+        {
+            initalizeTasks();
+
+            if(succesor)
+                succesor->initalizeTasks();
+
+            if(watchdogTask)
+                watchdogTask->initalize();
+
+            if(idleTask)
+                idleTask->initalize();
+        }
+
+        void processIdle()
+        {
+            if(idleTask and idleTask->isReady())
+                idleTask->process();
+        }
+
+        void processWatchdog()
+        {
+            if(watchdogTask and watchdogTask->isReady())
+                watchdogTask->process();
+        }
 
     private:
         TaskList& taskList;

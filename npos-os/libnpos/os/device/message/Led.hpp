@@ -1,13 +1,13 @@
 #pragma once
 
 #include <libnpos/os/message/RequestResponse.hpp>
-#include <libnpos/os/driver/message/Id.hpp>
+#include <libnpos/os/device/message/Id.hpp>
 
-namespace npos::os::driver::message
+namespace npos::os::device::message
 {
-    struct LedRequest : public os::message::Request
+    struct LedRequest : public ipc::Message
     {
-        static constexpr auto ID = Id::LED_SET_STATE_REQUEST;
+        static constexpr auto ID = device::message::Id::LED_SET_STATE_REQUEST;
 
         using LedId = uint8_t;
 
@@ -22,7 +22,7 @@ namespace npos::os::driver::message
         Operation operation;
 
         LedRequest(LedId ledId, Operation operation) 
-            : os::message::Request(ID)
+            : ipc::Message(ID)
             , ledId(ledId)
             , operation(operation) 
         {}

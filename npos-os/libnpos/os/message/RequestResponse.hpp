@@ -16,7 +16,9 @@ namespace npos::os::message
 
         SenderId senderId;
 
-        Request(ipc::Message::Id id) : ipc::Message(id) {}
+        Request(ipc::Message::Id id, SenderId senderId) 
+            : ipc::Message(id)
+            , senderId(senderId) {}
     };
     
     using Response = ipc::Message;
