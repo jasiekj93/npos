@@ -28,5 +28,8 @@ namespace npos::os::device::message
         HASH_COMPUTE_RESPONSE,
 
         SYSTEM_RESET_REQUEST,
+
+        BACKUP_REGISTER_REQUEST,
+        BACKUP_REGISTER_RESPONSE,
     };
 }
