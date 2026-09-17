@@ -7,3 +7,7 @@
 [submodule "external/etl"]
 	path = external/etl
 	url = https://github.com/etlcpp/etl
+[submodule "external/littlefs"]
+	path = external/littlefs
+	url = https://github.com/jasiekj93/littlefs
+	branch = aszczepanski

@@ -19,7 +19,8 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos-fs/*.cpp) \
+$(wildcard libnpos/fs/*.cpp) \
+$(wildcard libnpos/fs/service/*.cpp) \
 
 # c_sources := \
 
@@ -28,6 +29,8 @@ $(wildcard libnpos-fs/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
+-I$(project_dir)/npos-ipc \
+-I$(project_dir)/npos-os \
 
 # Defines
 cxx_defs := \
@@ -39,14 +42,17 @@ cxx_defs := \
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 export external_library_include_path = \
+littlefs/littlefs \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \
+-llittlefs \
 
 # 	for testing purposes - use only PC 32-bit version
 #	e.g. if link flag is '-L$(external_dir)/libFoo/lib'
 #	write 'libFoo/lib'
 export external_library_paths = \
+littlefs/lib/Pc32/$(BUILD) \
 
 # Install configuration
 installed_include_files = \

@@ -22,6 +22,9 @@ namespace npos::os
 
         virtual void initalize() {}
 
+        // virtual void onReceive(const Message&) = 0;
+        // virtual bool accepts(Message::Id) const = 0;
+
     protected:
         message::Bus& bus;
     };
