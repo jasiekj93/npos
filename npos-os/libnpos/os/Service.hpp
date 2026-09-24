@@ -6,15 +6,18 @@
  * @date 16-09-2026
  */
 
-#include <libnpos/ipc/MessageRouter.hpp>
-#include <libnpos/os/message/Bus.hpp>
+#include <libnpos/os/Message.hpp>
+#include <libnpos/os/syslog/Stream.hpp>
 
 namespace npos::os
 {
     class Service : public ipc::MessageRouter
     {
     public:
-        explicit Service(message::Bus& bus) 
+        using Id = ipc::MessageRouter::Id;
+        using SystemBus = ipc::MessageRouter;
+
+        explicit Service(SystemBus& bus) 
             : ipc::MessageRouter(0)
             , bus(bus) {}
 
@@ -26,6 +29,24 @@ namespace npos::os
         // virtual bool accepts(Message::Id) const = 0;
 
     protected:
-        message::Bus& bus;
+        void sendTo(Id recipient, os::Message& message)
+        {
+            message.senderId = getId();
+            bus.receive(recipient, message);
+        }
+
+        void broadcast(os::Message& message)
+        {
+            message.senderId = getId();
+            bus.receive(message);
+        }
+
+        syslog::Stream syslog(syslog::Level level)
+        {
+            return syslog::log(getId(), level, bus);
+        }
+
+    private:
+        SystemBus& bus;
     };
 }

@@ -1,11 +1,16 @@
 #pragma once
 
-#include <libnpos/os/message/RequestResponse.hpp>
+/**
+ * @file Led.hpp
+ * @author Adrian Szczepanski
+ * @date 24-09-2026
+ */
+
 #include <libnpos/os/device/message/Id.hpp>
 
 namespace npos::os::device::message
 {
-    struct LedRequest : public ipc::Message
+    struct LedRequest : public os::Message
     {
         static constexpr auto ID = device::message::Id::LED_SET_STATE_REQUEST;
 
@@ -21,10 +26,6 @@ namespace npos::os::device::message
         LedId ledId;
         Operation operation;
 
-        LedRequest(LedId ledId, Operation operation) 
-            : ipc::Message(ID)
-            , ledId(ledId)
-            , operation(operation) 
-        {}
+        LedRequest() : os::Message(ID) {}
     };
 }

@@ -20,10 +20,10 @@ external_dir := $(project_dir)/external
 # Sources 
 cxx_sources :=  \
 $(wildcard libnpos/os/*.cpp) \
-$(wildcard libnpos/os/message/*.cpp) \
-$(wildcard libnpos/os/syslog/*.cpp) \
 $(wildcard libnpos/os/device/*.cpp) \
-$(wildcard libnpos/os/device/service/*.cpp) \
+$(wildcard libnpos/os/error/*.cpp) \
+$(wildcard libnpos/os/filesystem/*.cpp) \
+$(wildcard libnpos/os/syslog/*.cpp) \
 
 # c_sources := \
 

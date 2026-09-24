@@ -8,27 +8,29 @@
 
 #include <libnpos/os/Tick.hpp>
 #include <libnpos/os/device/message/Id.hpp>
-#include <libnpos/os/message/RequestResponse.hpp>
 
 namespace npos::os::device::message
 {
-    struct TimerRegisterRequest : public os::message::Request
+    struct TimerRegisterRequest : public os::Message
     {
         static constexpr auto ID = Id::TIMER_REGISTER_REQUEST;
 
-        Tick interval;
+        enum Mode : uint8_t
+        {
+            ONE_SHOT,
+            PERIODIC
+        };
 
-        TimerRegisterRequest(Request::SenderId senderId, Tick interval) 
-            : os::message::Request(ID)
-            , senderId(senderId)
-            , interval(interval) {}
+        Tick interval;
+        Mode mode;
+
+        TimerRegisterRequest() : os::Message(ID) {}
     };
 
-    struct TimerElapsedNotification : public os::message::Response
+    struct TimerElapsedNotification : public os::Message
     {
         static constexpr auto ID = Id::TIMER_ELAPSED_NOTIFICATION;
 
-        TimerElapsedNotification() 
-            : os::message::Response(ID) {}
+        TimerElapsedNotification() : os::Message(ID) {}
     };
 }

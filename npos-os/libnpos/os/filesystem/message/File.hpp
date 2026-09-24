@@ -1,21 +1,21 @@
 #pragma once
 
 /**
- * @file Format.hpp
+ * @file File.hpp
  * @author Adrian Szczepanski
  * @date 17-09-2026
  */
 
 #include <etl/vector.h>
+#include <etl/span.h>
 
 #include <libnpos/os/filesystem/Path.hpp>
 #include <libnpos/os/filesystem/Status.hpp>
 #include <libnpos/os/filesystem/message/Id.hpp>
-#include <libnpos/os/message/RequestResponse.hpp>
 
 namespace npos::os::filesystem::message
 {
-    struct FileOpenRequest : public os::message::Request
+    struct FileOpenRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_OPEN_REQUEST;
 
@@ -36,13 +36,10 @@ namespace npos::os::filesystem::message
         Path path;
         Flags flags;
 
-        FileOpenRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileOpenRequest() : os::Message(ID) {}
     };
 
-    struct FileOpenResponse : public os::message::Response
+    struct FileOpenResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_OPEN_RESPONSE;
 
@@ -50,113 +47,86 @@ namespace npos::os::filesystem::message
         size_t fileSize;
         int fileDescriptor;
 
-        FileOpenResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileOpenResponse() : os::Message(ID) {}
     };
 
-    struct FileCloseRequest : public os::message::Request
+    struct FileCloseRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_CLOSE_REQUEST;
 
         int fileDescriptor;
 
-        FileCloseRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileCloseRequest() : os::Message(ID) {}
     };
 
-    struct FileCloseResponse : public os::message::Response
+    struct FileCloseResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_CLOSE_RESPONSE;
 
         Status status;
 
-        FileCloseResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileCloseResponse() : os::Message(ID) {}
     };
 
-    struct FileWriteRequest : public os::message::Request
+    struct FileWriteRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_WRITE_REQUEST;
 
         int fileDescriptor;
         etl::span<const uint8_t> data;
 
-        FileWriteRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileWriteRequest() : os::Message(ID) {}
     };
 
-    struct FileWriteResponse : public os::message::Response
+    struct FileWriteResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_WRITE_RESPONSE;
 
         Status status;
         size_t bytesWritten;
 
-        FileWriteResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileWriteResponse() : os::Message(ID) {}
     };
 
-    struct FileReadRequest : public os::message::Request
+    struct FileReadRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_READ_REQUEST;
 
         int fileDescriptor;
         etl::span<uint8_t> buffer;
 
-        FileReadRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileReadRequest() : os::Message(ID) {}
     };
 
-    struct FileReadResponse : public os::message::Response
+    struct FileReadResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_READ_RESPONSE;
 
         Status status;
         size_t bytesRead;
 
-        FileReadResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileReadResponse() : os::Message(ID) {}
     };
 
-    struct FileSyncRequest : public os::message::Request
+    struct FileSyncRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_SYNC_REQUEST;
 
         int fileDescriptor;
 
-        FileSyncRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileSyncRequest() : os::Message(ID) {}
     };
 
-    struct FileSyncResponse : public os::message::Response
+    struct FileSyncResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_SYNC_RESPONSE;
 
         Status status;
 
-        FileSyncResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileSyncResponse() : os::Message(ID) {}
     };
 
-    struct FileSeekRequest : public os::message::Request
+    struct FileSeekRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_SEEK_REQUEST;
 
@@ -164,73 +134,55 @@ namespace npos::os::filesystem::message
         size_t offset;
         int whence;
 
-        FileSeekRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileSeekRequest() : os::Message(ID) {}
     };
 
-    struct FileSeekResponse : public os::message::Response
+    struct FileSeekResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_SEEK_RESPONSE;
 
         Status status;
         size_t fileOffset;
 
-        FileSeekResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileSeekResponse() : os::Message(ID) {}
     };
     
 
-    struct FileTellRequest : public os::message::Request
+    struct FileTellRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_TELL_REQUEST;
 
         int fileDescriptor;
 
-        FileTellRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileTellRequest() : os::Message(ID) {}
     };
 
-    struct FileTellResponse : public os::message::Response
+    struct FileTellResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_TELL_RESPONSE;
 
         Status status;
         size_t fileOffset;
 
-        FileTellResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileTellResponse() : os::Message(ID) {}
     };
 
-    struct FileTruncateRequest : public os::message::Request
+    struct FileTruncateRequest : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_TRUNCATE_REQUEST;
 
         int fileDescriptor;
         size_t size;
 
-        FileTruncateRequest(Request::SenderId senderId)
-            : os::message::Request(ID, senderId)
-        {
-        }
+        FileTruncateRequest() : os::Message(ID) {}
     };
 
-    struct FileTruncateResponse : public os::message::Response
+    struct FileTruncateResponse : public os::Message
     {
         static constexpr auto ID = filesystem::message::Id::FILE_TRUNCATE_RESPONSE;
 
         Status status;
 
-        FileTruncateResponse()
-            : os::message::Response(ID)
-        {
-        }
+        FileTruncateResponse() : os::Message(ID) {}
     };
 }

@@ -22,6 +22,7 @@ export docs_dir := docs
 # External libraries
 external_names = \
 CppUTest \
+littlefs \
 
 external_build_options = \
 
@@ -37,6 +38,7 @@ library_names = \
 npos-nps \
 npos-ipc \
 npos-os \
+npos-fs \
 
 # optimalization flags
 # export debug_optimalization := 

@@ -6,13 +6,13 @@
  * @date 15-09-2026
  */
 
-#include <libnpos/os/message/Id.hpp>
+#include <libnpos/os/Message.hpp>
 
 namespace npos::os::device::message
 {
-    enum Id : ipc::Message::Id
+    enum Id : os::Message::Id
     {
-        ERROR = os::message::Id::DEVICE,
+        ERROR = os::Message::DEVICE,
 
         CLOCK_GET_TIME_REQUEST,
         CLOCK_GET_TIME_RESPONSE, 

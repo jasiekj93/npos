@@ -8,8 +8,7 @@
 
 #include <etl/optional.hpp>
 
-#include <libnpos/os/message/Id.hpp>
-#include <libnpos/os/message/RequestResponse.hpp>
+#include <libnpos/os/device/message/Id.hpp>
 
 namespace npos::os::device::message
 {
@@ -18,7 +17,7 @@ namespace npos::os::device::message
         using Register = uint8_t;
         using Value = uint32_t;
 
-        struct Request : public os::message::Request
+        struct Request : public os::Message
         {
             static constexpr auto ID = device::message::Id::BACKUP_REGISTER_REQUEST;
 
@@ -29,12 +28,7 @@ namespace npos::os::device::message
              */
             etl::optional<Value> value;
 
-            Request(Request::SenderId senderId, Register reg, etl::optional<Value> value = etl::nullopt)
-                : os::message::Request(senderId)
-                , reg(reg)
-                , value(value)
-            {
-            }
+            Request() : os::Message(ID) {}
         };
 
         struct Response : public os::message::Response
@@ -44,12 +38,7 @@ namespace npos::os::device::message
             Register reg;
             etl::optional<Value> value;
 
-            Response(Register reg, etl::optional<Value> value = etl::nullopt)
-                : os::message::Response()
-                , reg(reg)
-                , value(value)
-            {
-            }
+            Response() : os::Message(ID) {}
         };
     };
 }

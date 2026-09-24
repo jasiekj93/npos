@@ -4,13 +4,13 @@ using namespace npos;
 using namespace npos::os;
 using namespace npos::os::syslog;
 
-static message::SysLogRequest::Level currentLevel;
+static Level currentLevel;
 
-Stream::Stream(message::Request::SenderId senderId, message::SysLogRequest::Level level, message::Bus& bus)
-    : request(senderId)
-    , bus(bus)
+Stream::Stream(os::Message::SenderId senderId, Level level, Stream::SystemBus& bus)
+    : bus(bus)
     , stream(request.message)
 {
+    request.senderId = senderId;
     request.level = level;
     request.senderId = senderId;
 }
@@ -139,12 +139,12 @@ inline Stream& Stream::operator<<(const Endl&)
     return *this;
 }
 
-Stream npos::os::syslog::log(message::Request::SenderId senderId, message::SysLogRequest::Level level, message::Bus& bus)
+Stream npos::os::syslog::log(os::Message::SenderId senderId, Level level, Stream::SystemBus& bus)
 {
     return Stream(senderId, level, bus);
 }
 
-void npos::os::syslog::setLevel(message::SysLogRequest::Level level)
+void npos::os::syslog::setLevel(Level level)
 {
     currentLevel = level;
 }

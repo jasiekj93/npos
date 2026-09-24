@@ -11,156 +11,119 @@
 #include <libnpos/os/filesystem/Info.hpp>
 #include <libnpos/os/filesystem/Status.hpp>
 #include <libnpos/os/filesystem/message/Id.hpp>
-#include <libnpos/os/message/RequestResponse.hpp>
 
 namespace npos::os::filesystem::message
 {
-    struct DirectoryMakeRequest : public os::message::Request
+    struct DirectoryMakeRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_MAKE_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_MAKE_REQUEST;
 
         Path path;
 
-        DirectoryMakeRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectoryMakeRequest() : os::Message(ID) {}
     };
 
-    struct DirectoryMakeResponse : public os::message::Response
+    struct DirectoryMakeResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_MAKE_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_MAKE_RESPONSE;
 
         Status status;
 
-        DirectoryMakeResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectoryMakeResponse() : os::Message(ID) {}
     };
 
-    struct DirectoryOpenRequest : public os::message::Request
+    struct DirectoryOpenRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_OPEN_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_OPEN_REQUEST;
 
         Path path;
 
-        DirectoryOpenRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectoryOpenRequest() : os::Message(ID) {}
     };
 
-    struct DirectoryOpenResponse : public os::message::Response
+    struct DirectoryOpenResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_OPEN_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_OPEN_RESPONSE;
 
         Status status;
         int directoryDescriptor;
 
-        DirectoryOpenResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectoryOpenResponse() : os::Message(ID) {}
     };
 
-    struct DirectoryCloseRequest : public os::message::Request
+    struct DirectoryCloseRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_CLOSE_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_CLOSE_REQUEST;
 
         int directoryDescriptor;
 
-        DirectoryCloseRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectoryCloseRequest() : os::Message(ID) {}
     };
 
-    struct DirectoryCloseResponse : public os::message::Response
+    struct DirectoryCloseResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_CLOSE_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_CLOSE_RESPONSE;
 
         Status status;
 
-        DirectoryCloseResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectoryCloseResponse() : os::Message(ID) {}
     };
 
-    struct DirectoryReadRequest : public os::message::Request
+    struct DirectoryReadRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_READ_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_READ_REQUEST;
 
         int directoryDescriptor;
 
-        DirectoryReadRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectoryReadRequest() : os::Message(ID) {}
     };
 
-    struct DirectoryReadResponse : public os::message::Response
+    struct DirectoryReadResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_READ_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_READ_RESPONSE;
 
         Status status;
         Info info;
 
-        DirectoryReadResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectoryReadResponse() : os::Message(ID) {}
     };
 
-    struct DirectorySeekRequest : public os::message::Request
+    struct DirectorySeekRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_SEEK_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_SEEK_REQUEST;
 
         int directoryDescriptor;
         int offset;
 
-        DirectorySeekRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectorySeekRequest() : os::Message(ID) {}
     };
 
-    struct DirectorySeekResponse : public os::message::Response
+    struct DirectorySeekResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_SEEK_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_SEEK_RESPONSE;
 
         Status status;
 
-        DirectorySeekResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectorySeekResponse() : os::Message(ID) {}
     };
 
-    struct DirectoryTellRequest : public os::message::Request
+    struct DirectoryTellRequest : public os::Message
     {
-        static constexpr auto ID = Id::DIR_TELL_REQUEST;
+        static constexpr auto ID = filesystem::message::Id::DIR_TELL_REQUEST;
 
         int directoryDescriptor;
 
-        DirectoryTellRequest(Request::SenderId senderId)
-            : Request(senderId)
-        {
-        }
+        DirectoryTellRequest() : os::Message(ID) {}
     };
 
-    struct DirectoryTellResponse : public os::message::Response
+    struct DirectoryTellResponse : public os::Message
     {
-        static constexpr auto ID = Id::DIR_TELL_RESPONSE;
+        static constexpr auto ID = filesystem::message::Id::DIR_TELL_RESPONSE;
 
         Status status;
         int position;
 
-        DirectoryTellResponse(Request::SenderId senderId)
-            : Response(senderId)
-        {
-        }
+        DirectoryTellResponse() : os::Message(ID) {}
     };
 }
      

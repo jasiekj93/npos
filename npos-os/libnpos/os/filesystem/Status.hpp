@@ -16,8 +16,8 @@ namespace npos::os::filesystem
         IO_ERROR,
         CORRUPTED,
         NO_DIRECTORY_ENTRY,
-        ENTRY_ALREADY_EXISTS,
-        NOT_A_DIRECOTRY,
+        ALREADY_EXISTS,
+        NOT_A_DIRECTORY,
         IS_A_DIRECTORY,
         DIRECTORY_NOT_EMPTY,
         BAD_FILE_NUMBER,
@@ -26,6 +26,9 @@ namespace npos::os::filesystem
         NO_SPACE_LEFT,
         NO_MEMORY_AVAILABLE,
         NO_DATA_AVAILABLE,
-        DIRECTORY_READ_END
+        DIRECTORY_READ_END,
+        TOO_MANY_FILES_OPENED,
+        FILE_NOT_FOUND,
+        DIRECTORY_NOT_FOUND
     };
 }

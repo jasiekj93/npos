@@ -9,25 +9,23 @@
 #include <etl/span.h>
 #include <etl/array.h>
 
-#include <libnpos/os/message/RequestResponse.hpp>
+#include <libnpos/os/Message.hpp>
 #include <libnpos/os/device/message/Id.hpp>
 
 namespace npos::os::device::message
 {
     struct Hash
     {
-        struct ComputeRequest : public os::message::Request
+        struct ComputeRequest : public os::Message
         {
             static constexpr auto ID = device::message::Id::HASH_COMPUTE_REQUEST;
 
             etl::span<const uint8_t> buffer;
 
-            ComputeRequest(Request::SenderId senderId, etl::span<const uint8_t> buffer)
-                : os::message::Request(ID, senderId)
-                , buffer(buffer) {}
+            ComputeRequest() : os::Message(ID) {}
         };
 
-        struct ComputeResponse : public os::message::Response
+        struct ComputeResponse : public os::Message
         {
             static constexpr auto ID = device::message::Id::HASH_COMPUTE_RESPONSE;
             static constexpr size_t HASH_SIZE = 32;
@@ -44,10 +42,7 @@ namespace npos::os::device::message
             Hash hash;
             Status status;
 
-            ComputeResponse(Request::SenderId senderId, const Hash& hash, Status status)
-                : os::message::Response(ID)
-                , hash(hash)
-                , status(status) {}
+            ComputeResponse() : os::Message(ID) {}
         };
     };
 }

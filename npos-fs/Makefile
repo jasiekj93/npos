@@ -29,6 +29,7 @@ $(wildcard libnpos/fs/service/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
+-I$(project_dir)/npos-nps \
 -I$(project_dir)/npos-ipc \
 -I$(project_dir)/npos-os \
 
@@ -43,6 +44,7 @@ cxx_defs := \
 #	write 'libFoo'
 export external_library_include_path = \
 littlefs/littlefs \
+etl/include \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \
