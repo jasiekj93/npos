@@ -25,9 +25,10 @@ namespace npos::os
         bool subscribe(Service&);
         inline bool full() const { return services.full(); }
 
-        void publish(Pid recipient, const Message&) override;
-        void publish(const Message&) override;
-        void release(const Message&) override;
+        void sendTo(Pid recipient, const Message&) override;
+        void broadcast(const Message&) override;
+        void respond(const Message&) override;
+        void release(const Message const*) override;
 
         inline void setSuccessor(SystemBus* next) { successor = next; }
 

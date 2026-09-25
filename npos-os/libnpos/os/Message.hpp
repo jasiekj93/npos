@@ -15,80 +15,62 @@ namespace npos::os
 
     struct Message 
     {
-        static constexpr size_t RAW_SIZE = 32;
+        static constexpr size_t PAYLOAD_SIZE = 128;
 
         using Type = uint16_t;
         using ObjectId = uint8_t;
         using Priority = uint8_t;
         using ReferenceCount = uint8_t;
+        using Status = uint8_t;
 
-        struct Input
+        struct OpenClose
         {
-            struct OpenClose
-            {
-                int flags;
-            };
+            using Flags = int;
 
-            struct InputOutput
-            {
-                size_t offset;
-                size_t length;
-                unsigned mode;
-            };
-
-            struct Attributes
-            {
-                uint64_t value;
-                int type;
-            };
-
-            union
-            {
-                OpenClose openClose;
-                InputOutput inputOutput;
-                Attributes attributes;
-
-                uint8_t raw[RAW_SIZE];
-            };
-
-            size_t size;
-            const uint8_t* data;
+            Flags flags;
         };
 
-        struct Output
+        struct InputOutput
         {
-            using Status = uint8_t;
+            using Mode = uint8_t;
 
-            struct Attributes
-            {
-                uint64_t value;
-            };
+            size_t offset;
+            size_t length;
+            Mode mode;
+        };
 
-            struct Create
-            {
-                ObjectId object;
-            };
+        struct Attributes
+        {
+            uint64_t value;
+            int type;
+        };
 
-            union 
-            {
-                Attributes attributes;
-                Create create;
-                uint8_t raw[RAW_SIZE];
-            };
-
-            Status status;
-            size_t size;
-            uint8_t* data;
+        struct Create
+        {
+            ObjectId object;
         };
 
         Type type;
         Pid sender;
         ObjectId object;
+
         Priority priority;
         ReferenceCount referenceCount;
 
-        Input input;
-        Output output;
+        Status status;
+
+        union
+        {
+            OpenClose openClose;
+            InputOutput inputOutput;
+            Attributes attributes;
+            Create create;
+
+            uint8_t payload[PAYLOAD_SIZE];
+        };
+
+        size_t size;
+        uint8_t* data;
     };
 
     struct CompareMessage : public etl::binary_function<Message, Message, bool>
@@ -98,4 +80,12 @@ namespace npos::os
             return lhs.priority < rhs.priority;
         }
     };
+
+    static constexpr Message::Type OS_ERROR_MESSAGE_TYPE = 0x0000;
+    static constexpr Message::Type OS_SYSLOG_MESSAGE_TYPE = 0x0001;
+    static constexpr Message::Type DEVICE_MESSAGE_TYPE = 0x0200;
+    static constexpr Message::Type DRIVER_MESSAGE_TYPE = 0x0300;
+    static constexpr Message::Type FILESYSTEM_MESSAGE_TYPE = 0x0400;
+    static constexpr Message::Type CLI_MESSAGE_TYPE = 0x0500;
+    static constexpr Message::Type USER_MESSAGE_TYPE = 0x0600;
 }

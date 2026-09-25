@@ -38,7 +38,7 @@ namespace npos::os
     class ServiceTask  : public Task, public Service 
     {
     public:
-        using MessageQueue = etl::ipriority_queue<const Message const*, etl::ivector<Message>, CompareMessage>;
+        using MessageQueue = etl::ipriority_queue<Message*, etl::ivector<Message>, CompareMessage>;
 
         ServiceTask(Priority priority, MessageQueue& messageQueue, Service& service) 
             : Task(priority)
@@ -48,26 +48,25 @@ namespace npos::os
 
         virtual ~ServiceTask() = default;
 
-        virtual void initalize() { service.initalize(); } 
+        virtual void initalize() override { service.initalize(); } 
 
-        virtual bool isReady() const { return not messageQueue.empty(); }
-        virtual void process() 
+        virtual bool isReady() const override { return not messageQueue.empty(); }
+        virtual void process() override
         { 
             if(messageQueue.empty())
                 return;
 
             auto messagePtr = messageQueue.top();
-            service.onReceive(*messagePtr);
-            service.getBus().release(*messagePtr);
+            service.receive(*messagePtr);
             messageQueue.pop();
         }
 
-        virtual bool accepts(Message::Type type) const
+        virtual bool accepts(Message::Type type) const override
         {
             return service.accepts(type);
         }
 
-        void onReceive(const Message& message)  
+        void onReceive(Message& message) override
         {
             if(not messageQueue.full())
                 messageQueue.push(&message);

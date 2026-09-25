@@ -22,11 +22,8 @@ bool SystemBus::subscribe(Service& service)
     return true;
 }
 
-void SystemBus::publish(Pid recipient, const Message& message)
+void SystemBus::sendTo(Pid recipient, const Message& message)
 {
-    if(recipient == BROADCAST)
-        return publish(message);
-
     if(recipient < startId)
         return;
 
@@ -36,18 +33,35 @@ void SystemBus::publish(Pid recipient, const Message& message)
     {
         if(services[index]->accepts(message.type))
         {
-            auto* allocatedMessage = new (messagePool.allocate<Message>()) Message(message);
-            allocatedMessage->referenceCount++;
+            auto* messagePtr = const_cast<Message*>(&message);
 
-            services[index]->onReceive(*allocatedMessage);
+            if(not messagePool.is_in_pool(messagePtr))
+            {
+                if(messagePool.full())
+                {
+                    //TODO handle full message pool scenario
+                    return;
+                }
+
+                messagePtr = new (messagePool.allocate<Message>()) Message(message);
+            }
+
+            messagePtr->referenceCount++;
+            services[index]->onReceive(*messagePtr);
         }
     }
     else if(successor)
-        successor->publish(recipient, message);
+        successor->sendTo(recipient, message);
 }
 
-void SystemBus::publish(const Message& message)
+void SystemBus::broadcast(const Message& message)
 {
+    if(messagePool.full())
+    {
+        //TODO handle full message pool scenario
+        return;
+    }
+
     auto* allocatedMessage = new (messagePool.allocate<Message>()) Message(message);
 
     for(auto& service : services)
@@ -63,18 +77,50 @@ void SystemBus::publish(const Message& message)
         messagePool.release(allocatedMessage);
 
     if(successor)
-        successor->publish(message);
+        successor->broadcast(message);
 }
 
-void SystemBus::release(const Message& message)
+void SystemBus::respond(const Message& message)
 {
-    if(not messagePool.is_in_pool(&message))
+    if(message.sender < startId)
         return;
 
-    if(message.referenceCount == 0)
-        return messagePool.release(&message);
+    auto index = getIndex(message.sender);
 
-    auto* ptr = const_cast<Message*>(&message);
+    if(index < services.size())
+    {
+        if(services[index]->accepts(message.type))
+        {
+            auto* response = const_cast<Message*>(&message);
+
+            if(not messagePool.is_in_pool(response))
+            {
+                if(messagePool.full())
+                {
+                    //TODO handle full message pool scenario
+                    return;
+                }
+
+                response = new (messagePool.allocate<Message>()) Message(message);
+            }
+
+            response->referenceCount++;
+            services[index]->onReceive(*response);
+        }
+    }
+    else if(successor)
+        successor->respond(message);
+}
+
+void SystemBus::release(const Message const* message)
+{
+    if(not messagePool.is_in_pool(message))
+        return;
+
+    if(message->referenceCount == 0)
+        return messagePool.release(message);
+
+    auto* ptr = const_cast<Message*>(message);
     ptr->referenceCount--;
 
     if(ptr->referenceCount == 0)

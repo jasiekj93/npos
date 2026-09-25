@@ -10,26 +10,22 @@
 
 namespace npos::os::device::message
 {
-    enum Id : os::Message::Id
+    enum Id : os::Message::Type
     {
-        ERROR = os::Message::DEVICE,
+        ERROR = os::DEVICE_MESSAGE_TYPE,
 
-        CLOCK_GET_TIME_REQUEST,
-        CLOCK_GET_TIME_RESPONSE, 
-        CLOCK_SET_TIME_REQUEST,
-        CLOCK_SET_TIME_RESPONSE,
+        CLOCK_GET_TIME,
+        CLOCK_SET_TIME,
 
-        LED_SET_STATE_REQUEST,
+        LED_SET_STATE,
 
         TIMER_REGISTER_REQUEST,
         TIMER_ELAPSED_NOTIFICATION,
 
-        HASH_COMPUTE_REQUEST,
-        HASH_COMPUTE_RESPONSE,
+        HASH_COMPUTE,
 
         SYSTEM_RESET_REQUEST,
 
-        BACKUP_REGISTER_REQUEST,
-        BACKUP_REGISTER_RESPONSE,
+        BACKUP_REGISTER,
     };
 }

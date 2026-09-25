@@ -21,7 +21,12 @@ namespace npos::os
 
         virtual void initalize() {}
 
-        virtual void onReceive(const Message& message) = 0;
+        virtual void receive(Message& message)
+        {
+            onReceive(message);
+            bus.release(&message);
+        }
+
         virtual bool accepts(Message::Type) const = 0;
 
         inline void setId(Pid newId) { id = newId; }
@@ -29,16 +34,23 @@ namespace npos::os
         inline auto& getBus() const { return bus; }
 
     protected:
+        virtual void onReceive(Message&) = 0;
+
         void sendTo(Pid recipient, os::Message& message)
         {
             message.sender = id;
-            bus.publish(recipient, message);
+            bus.sendTo(recipient, message);
         }
 
         void broadcast(os::Message& message)
         {
             message.sender = id;
-            bus.publish(message);
+            bus.broadcast(message);
+        }
+
+        void respond(os::Message& message)
+        {
+            bus.respond(message);
         }
 
         syslog::Stream syslog(syslog::Level level)

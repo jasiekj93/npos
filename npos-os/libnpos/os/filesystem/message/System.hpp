@@ -12,107 +12,147 @@
 
 namespace npos::os::filesystem::message
 {
-    struct SystemFormatRequest : public os::Message
+    struct SystemFormat : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_FORMAT_REQUEST;
+        SystemFormat()
+        {
+            this->type = filesystem::message::Id::SYSTEM_FORMAT;
+        }
 
-        SystemFormatRequest() : os::Message(ID) {}
+        void setStatus(filesystem::Status status)
+        {
+            this->status = status;
+        }
+
+        inline filesystem::Status getStatus() const
+        {
+            return static_cast<filesystem::Status>(this->status);
+        }
     };
 
-    struct SystemFormatResponse : public os::Message
+    struct SystemMount : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_FORMAT_RESPONSE;
+        SystemMount()
+        {
+            this->type = filesystem::message::Id::SYSTEM_MOUNT;
+        }
 
-        Status status;
+        void setStatus(filesystem::Status status)
+        {
+            this->status = status;
+        }
 
-        SystemFormatResponse() : os::Message(ID) {}
+        inline filesystem::Status getStatus() const
+        {
+            return static_cast<filesystem::Status>(this->status);
+        }
     };
 
-    struct SystemMountRequest : public os::Message
+    struct SystemUnmount : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_MOUNT_REQUEST;
+        SystemUnmount() 
+        {
+            this->type = filesystem::message::Id::SYSTEM_UNMOUNT;
+        }
 
-        SystemMountRequest() : os::Message(ID) {}
+        void setStatus(filesystem::Status status)
+        {
+            this->status = status;
+        }
+
+        inline filesystem::Status getStatus() const
+        {
+            return static_cast<filesystem::Status>(this->status);
+        }
     };
 
-    struct SystemMountResponse : public os::Message
+    struct SystemRemove : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_MOUNT_RESPONSE;
+        SystemRemove()
+        {
+            this->type = filesystem::message::Id::SYSTEM_REMOVE;
+            this->payload[0] = 0;
+        }
 
-        Status status;
+        void setPath(const Path& path)
+        {
+            etl::string_ext(path, (char*)this->payload, PAYLOAD_SIZE);
+        }
 
-        SystemMountResponse() : os::Message(ID) {}
+        inline etl::string_view getPath() const
+        {
+            return etl::string_view((char*)this->payload);
+        }
+
+        void setStatus(filesystem::Status status)
+        {
+            this->status = status;
+        }
+
+        inline filesystem::Status getStatus() const
+        {
+            return static_cast<filesystem::Status>(this->status);
+        }
     };
 
-    struct SystemUnmountRequest : public os::Message
+    struct SystemRename : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_UNMOUNT_REQUEST;
+        static constexpr size_t OLD_PATH_INDEX = 0;
+        static constexpr size_t NEW_PATH_INDEX = PAYLOAD_SIZE / 2;
 
-        SystemUnmountRequest() : os::Message(ID) {}
-    };
+        SystemRename() 
+        {
+            this->type = filesystem::message::Id::SYSTEM_RENAME;
+            this->payload[0] = 0;
+        }
 
-    struct SystemUnmountResponse : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_UNMOUNT_RESPONSE;
+        void setOldPath(const Path& path)
+        {
+            etl::string_ext(path, (char*)this->payload + OLD_PATH_INDEX, PAYLOAD_SIZE / 2);
+        }
 
-        Status status;
+        inline etl::string_view getOldPath() const
+        {
+            return etl::string_view((char*)this->payload + OLD_PATH_INDEX, PAYLOAD_SIZE / 2);
+        }
 
-        SystemUnmountResponse() : os::Message(ID) {}
-    };
+        void setNewPath(const Path& path)
+        {
+            etl::string_ext(path, (char*)this->payload + NEW_PATH_INDEX, PAYLOAD_SIZE / 2);
+        }
 
-    struct SystemRemoveRequest : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_REMOVE_REQUEST;
+        inline etl::string_view getNewPath() const
+        {
+            return etl::string_view((char*)this->payload + NEW_PATH_INDEX, PAYLOAD_SIZE / 2);
+        }
 
-        Path path;
+        void setStatus(filesystem::Status status)
+        {
+            this->status = status;
+        }
 
-        SystemRemoveRequest() : os::Message(ID) {}
-    };
-
-    struct SystemRemoveResponse : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_REMOVE_RESPONSE;
-
-        Status status;
-
-        SystemRemoveResponse() : os::Message(ID) {}
-    };
-
-    struct SystemRenameRequest : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_RENAME_REQUEST;
-
-        Path oldPath;
-        Path newPath;
-
-        SystemRenameRequest() : os::Message(ID) {}
-    };
-
-    struct SystemRenameResponse : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_RENAME_RESPONSE;
-
-        Status status;
-
-        SystemRenameResponse() : os::Message(ID) {}
+        inline filesystem::Status getStatus() const
+        {
+            return static_cast<filesystem::Status>(this->status);
+        }
     };
 
     struct SystemStatfsRequest : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_STATFS_REQUEST;
+        SystemStatfsRequest()
+        {
+            this->type = filesystem::message::Id::SYSTEM_STATFS;
+            this->payload[0] = 0;
+        }
 
-        Path path;
+        void setPath(const Path& path)
+        {
+            etl::string_ext(path, (char*)this->payload, PAYLOAD_SIZE);
+        }
 
-        SystemStatfsRequest() : os::Message(ID) {}
-    };
-
-    struct SystemStatfsResponse : public os::Message
-    {
-        static constexpr auto ID = filesystem::message::Id::SYSTEM_STATFS_RESPONSE;
-
-        Status status;
-        Info info;
-
-        SystemStatfsResponse() : os::Message(ID) {}
+        inline etl::string_view getPath() const
+        {
+            return etl::string_view((char*)this->payload);
+        }
     };
 }

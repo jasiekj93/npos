@@ -10,6 +10,7 @@
 #include <etl/vector.h>
 #include <etl/string_stream.h>
 
+#include <libnpos/os/Bus.hpp>
 #include <libnpos/os/syslog/Request.hpp>
 
 namespace npos::os::syslog
@@ -20,11 +21,9 @@ namespace npos::os::syslog
     class Stream
     {
     public:
-        using SystemBus = ipc::MessageRouter;
-
         static constexpr size_t MAX_NUMBER_LENGTH = 20; // max length of long in decimal
 
-        Stream(os::Message::SenderId senderId, Level level, SystemBus& bus);
+        Stream(os::Pid senderId, Level level, Bus& bus);
 
         Stream& operator<<(etl::string_view);
         Stream& operator<<(const char*);
@@ -41,11 +40,12 @@ namespace npos::os::syslog
 
     private:
         Request request;
-        SystemBus& bus;
+        Bus& bus;
         etl::string_stream stream;
+        etl::string_ext buffer;
         etl::string<MAX_NUMBER_LENGTH> numberBuffer;
     };
 
-    Stream log(os::Message::SenderId senderId, Level level, Stream::SystemBus& bus);
+    Stream log(Pid senderId, Level level, Bus& bus);
     void setLevel(Level level);
 }

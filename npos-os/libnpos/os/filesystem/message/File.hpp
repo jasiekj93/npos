@@ -15,28 +15,38 @@
 
 namespace npos::os::filesystem::message
 {
-    struct FileOpenRequest : public os::Message
+    struct FileOpen : public os::Message
     {
-        static constexpr auto ID = filesystem::message::Id::FILE_OPEN_REQUEST;
+        static constexpr size_t PATH_INDEX = PAYLOAD_SIZE / 2;
 
-        enum Flag : uint8_t
+        enum Flag : os::Message::OpenClose::Flags
         {
-            READ_ONLY = 0,
-            WRITE_ONLY,
-            READ_WRITE,
-            CREATE,
-            EXCLUSIVE,
-            TRUNCATE,
-            APPEND,
+            READ_ONLY  = 0b00000001,
+            WRITE_ONLY = 0b00000010,
+            READ_WRITE = 0b00000100,
+            CREATE     = 0b00001000,
+            EXCLUSIVE  = 0b00010000,
+            TRUNCATE   = 0b00100000,
+            APPEND     = 0b01000000,
         };
 
-        static constexpr size_t FLAG_COUNT = 7;
-        using Flags = etl::vector<Flag, FLAG_COUNT>;
+        // Path path;
+        // Flags flags;
 
-        Path path;
-        Flags flags;
+        FileOpen() 
+        {
+            this->type = filesystem::message::Id::FILE_OPEN;
+        }
 
-        FileOpenRequest() : os::Message(ID) {}
+        void setFlags(Flag flags)
+        {
+            this->openClose.flags = static_cast<os::Message::OpenClose::Flags>(flags);
+        }
+
+        void setPath(const Path& path)
+        {
+            this->path = path;
+        }
     };
 
     struct FileOpenResponse : public os::Message

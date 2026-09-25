@@ -16,15 +16,11 @@ namespace npos::os
     class Bus
     {
     public:
-        static constexpr Pid BROADCAST = 255;
-
         virtual ~Bus() = default;
 
-        virtual void publish(Pid recipient, const Message& message) = 0;
-        virtual void publish(const Message& message) = 0;
-        virtual void release(const Message& message) = 0;
+        virtual void sendTo(Pid recipient, const Message&) = 0;
+        virtual void broadcast(const Message&) = 0;
+        virtual void respond(const Message&) = 0;
+        virtual void release(const Message const*) = 0;
     };
-
-
-   
 }

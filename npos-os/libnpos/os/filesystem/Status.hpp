@@ -6,11 +6,11 @@
  * @date 17-09-2026
  */
 
-#include <cstdint>
+#include <libnpos/os/Message.hpp>
 
 namespace npos::os::filesystem
 {
-    enum Status : uint8_t
+    enum Status : os::Message::Status
     {
         OK = 0x00,
         IO_ERROR,

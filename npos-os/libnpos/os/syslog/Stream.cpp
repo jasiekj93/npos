@@ -6,22 +6,22 @@ using namespace npos::os::syslog;
 
 static Level currentLevel;
 
-Stream::Stream(os::Message::SenderId senderId, Level level, Stream::SystemBus& bus)
+Stream::Stream(Pid senderId, Level level, Bus& bus)
     : bus(bus)
-    , stream(request.message)
+    , buffer((char*)(&request.payload[1]), MAX_MESSAGE_SIZE)
+    , stream(buffer)
 {
-    request.senderId = senderId;
-    request.level = level;
-    request.senderId = senderId;
+    request.sender = senderId;
+    request.setLevel(level);
 }
 
 Stream& Stream::operator<<(etl::string_view str) 
 { 
-    if(request.level > currentLevel or request.overflowFlag)
+    if(request.getLevel() > currentLevel or request.hasOverflow())
         return *this;
 
-    if(request.message.available() < str.size())
-        request.overflowFlag = true;
+    if(buffer.available() < str.size())
+        request.setOverflow();
     else
         stream << str;
 
@@ -40,11 +40,11 @@ inline Stream& Stream::operator<<(const etl::ivector<uint8_t>& vector)
 
 inline Stream& Stream::operator<<(const etl::span<const uint8_t>& span) 
 { 
-    if(request.level > currentLevel or request.overflowFlag)
+    if(request.getLevel() > currentLevel or request.hasOverflow())
         return *this; 
 
-    if(request.message.available() < span.size() * 2)
-        request.overflowFlag = true;
+    if(buffer.available() < span.size() * 2)
+        request.setOverflow();
     else
     {
         auto format = stream.get_format();
@@ -64,11 +64,11 @@ inline Stream& Stream::operator<<(const etl::span<const uint8_t>& span)
 
 inline Stream& Stream::operator<<(bool value) 
 { 
-    if(request.level > currentLevel or request.overflowFlag)
+    if(request.getLevel() > currentLevel or request.hasOverflow())
         return *this;
 
-    if(request.message.available() < 5) // "true" or "false" length
-        request.overflowFlag = true;
+    if(buffer.available() < 5) // "true" or "false" length
+        request.setOverflow();
     else
     {
         auto format = stream.get_format();
@@ -87,11 +87,11 @@ inline Stream& Stream::operator<<(int value)
 
 inline Stream& Stream::operator<<(uint8_t value) 
 { 
-    if(request.level > currentLevel or request.overflowFlag)
+    if(request.getLevel() > currentLevel or request.hasOverflow())
         return *this; 
 
-    if(request.message.available() < 2)
-        request.overflowFlag = true;
+    if(buffer.available() < 2)
+        request.setOverflow();
     else
     {
         auto format = stream.get_format();
@@ -120,7 +120,7 @@ inline Stream& Stream::operator<<(unsigned long value)
 
 inline Stream& Stream::operator<<(const etl::format_spec& format) 
 { 
-    if(request.level > currentLevel or request.overflowFlag)
+    if(request.getLevel() > currentLevel or request.hasOverflow())
         return *this;
 
     stream.set_format(format);
@@ -129,17 +129,20 @@ inline Stream& Stream::operator<<(const etl::format_spec& format)
 
 inline Stream& Stream::operator<<(const Endl&) 
 { 
-    if(request.level > currentLevel)
+    if(request.getLevel() > currentLevel)
         return *this;
 
-    bus.receive(request);
+    request.size = buffer.size();
 
-    request.message.clear();
-    request.overflowFlag = false;
+    bus.broadcast(request);
+
+    buffer.clear();
+    request.size = 0;
+    request.clearOverflow();
     return *this;
 }
 
-Stream npos::os::syslog::log(os::Message::SenderId senderId, Level level, Stream::SystemBus& bus)
+Stream npos::os::syslog::log(os::Pid senderId, Level level, Bus& bus)
 {
     return Stream(senderId, level, bus);
 }

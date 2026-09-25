@@ -13,11 +13,12 @@ namespace npos::os::error
     enum Code : uint8_t
     {
         MESSAGE_QUEUE_FULL = 0,
+        MESSAGE_POOL_FULL = 1,
     };
 
     struct Request : public os::Message
     {
-        static constexpr auto ID = os::Message::OS_ERROR;
+        static constexpr auto ID = os::OS_ERROR_MESSAGE_TYPE;
 
         Code code;
 

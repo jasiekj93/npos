@@ -12,33 +12,16 @@
 
 namespace npos::os::device::message
 {
-    struct BackupRegister
+    struct BackupRegister : public os::Message
     {
+        static constexpr auto ID = device::message::Id::BACKUP_REGISTER;
+
         using Register = uint8_t;
         using Value = uint32_t;
 
-        struct Request : public os::Message
+        BackupRegister() 
         {
-            static constexpr auto ID = device::message::Id::BACKUP_REGISTER_REQUEST;
-
-            Register reg;
-            /**
-             * @brief Set value for SET operation, ignored for GET operation.
-             * 
-             */
-            etl::optional<Value> value;
-
-            Request() : os::Message(ID) {}
-        };
-
-        struct Response : public os::message::Response
-        {
-            static constexpr auto ID = device::message::Id::BACKUP_REGISTER_RESPONSE;
-
-            Register reg;
-            etl::optional<Value> value;
-
-            Response() : os::Message(ID) {}
-        };
+            this->type = ID;
+        }
     };
 }
