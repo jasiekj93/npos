@@ -6,35 +6,96 @@
  * @date 18-09-2026
  */
 
-#include <libnpos/ipc/MessageRouter.hpp>
+#include <cstdint>
+#include <cstddef>
 
 namespace npos::os
 {
-    class Message : public ipc::Message
+    using Pid = uint8_t; 
+
+    struct Message 
     {
-    public:
-        using Type = ipc::Message::Id;
-        using SenderId = ipc::MessageRouter::Id;
+        static constexpr size_t RAW_SIZE = 32;
 
-        static constexpr Type OS_ERROR = 0x0000;
-        static constexpr Type OS_SYSLOG = 0x0100;
-        static constexpr Type DEVICE = 0x0200;
-        static constexpr Type DRIVER = 0x0300;
-        static constexpr Type FILESYSTEM = 0x0400;
-        static constexpr Type CLI = 0x0500;
-        static constexpr Type USER = 0x0600;
+        using Type = uint16_t;
+        using ObjectId = uint8_t;
+        using Priority = uint8_t;
+        using ReferenceCount = uint8_t;
 
-        Message(Type type)
-            : ipc::Message(static_cast<ipc::Message::Id>(type))
+        struct Input
         {
-        }
+            struct OpenClose
+            {
+                int flags;
+            };
 
-        SenderId senderId;
+            struct InputOutput
+            {
+                size_t offset;
+                size_t length;
+                unsigned mode;
+            };
 
-        inline Type getType() const
+            struct Attributes
+            {
+                uint64_t value;
+                int type;
+            };
+
+            union
+            {
+                OpenClose openClose;
+                InputOutput inputOutput;
+                Attributes attributes;
+
+                uint8_t raw[RAW_SIZE];
+            };
+
+            size_t size;
+            const uint8_t* data;
+        };
+
+        struct Output
         {
-            return static_cast<Type>(ipc::Message::getId());
-        }
+            using Status = uint8_t;
 
+            struct Attributes
+            {
+                uint64_t value;
+            };
+
+            struct Create
+            {
+                ObjectId object;
+            };
+
+            union 
+            {
+                Attributes attributes;
+                Create create;
+                uint8_t raw[RAW_SIZE];
+            };
+
+            Status status;
+            size_t size;
+            uint8_t* data;
+        };
+
+        Type type;
+        Pid sender;
+        ObjectId object;
+        Priority priority;
+        ReferenceCount referenceCount;
+
+        Input input;
+        Output output;
+    };
+
+    struct CompareMessage : public etl::binary_function<Message, Message, bool>
+    {
+        bool operator()(const Message& lhs, const Message& rhs) const
+        {
+            return lhs.priority < rhs.priority;
+        }
     };
 }

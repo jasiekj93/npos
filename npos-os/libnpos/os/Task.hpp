@@ -6,85 +6,88 @@
  * @date 24-09-2026
  */
 
-#include <libnpos/nps/Task.hpp>
+#include <etl/priority_queue.h>
+
+#include <libnpos/os/Message.hpp>
+#include <libnpos/os/Bus.hpp>
 #include <libnpos/os/Service.hpp>
 
 namespace npos::os
 {
-    class Task : public nps::Task, public os::Service
+    class Task
     {
     public:
-        using Tid = uint8_t;
-        using Priority = nps::Task::Priority;
-        using SystemBus = ipc::MessageRouter;
+        using Priority = uint8_t;
 
-        Task(Priority priority, Tid tid, SystemBus& bus) 
-            : nps::Task(priority)
-            , os::Service(bus)
-            , tid(tid) {}
+        Task(Priority priority) 
+            : priority(priority) {}
 
         virtual ~Task() = default;
 
-        // virtual void onReceive(const Message&) = 0;
-        // virtual bool accepts(Message::Id) const = 0;
+        virtual void initalize() {} 
 
-        // virtual bool isReady() const = 0;
-        // virtual void process() = 0;
+        virtual bool isReady() const = 0;
+        virtual void process()  = 0;
 
-        inline Tid getTid() const { return tid; }
+        inline auto getPriority() const { return priority; }
 
     private:
-        Tid tid;
+        Priority priority;
     };
 
-    template <typename... TMessageTypes>
-    class ServiceTask : public Task
+    class ServiceTask  : public Task, public Service 
     {
     public:
-        using MessagePacket = ipc::MessagePacket<TMessageTypes...>;
-        using MessageQueue = etl::iqueue<MessagePacket>;
+        using MessageQueue = etl::ipriority_queue<const Message const*, etl::ivector<Message>, CompareMessage>;
 
-        ServiceTask(Priority priority, Tid tid, SystemBus& bus, Service& service, MessageQueue& messageQueue)
-            : Task(priority, tid, bus)
-            , messageQueue(messageQueue)
+        ServiceTask(Priority priority, MessageQueue& messageQueue, Service& service) 
+            : Task(priority)
+            , Service(service.getId(), service.getBus())
             , service(service)
-        {
-        }
+            , messageQueue(messageQueue) {}
 
-        void onReceive(const ipc::Message& message) override
-        {
-            if(messageQueue.full())
-                //chociaż tu bardziej syslog? czy syslog to osobny proces?
-                broadcast(message::Error(message::Error::MESSAGE_QUEUE_FULL));
-            else
-                messageQueue.emplace(MessagePacket(message));
-        }
+        virtual ~ServiceTask() = default;
 
-        bool accepts(ipc::Message::Id id) const override
-        {
-            return MessagePacket::accepts(id);
-        }
+        virtual void initalize() { service.initalize(); } 
 
-        void initalize() override
-        {
-            service.initalize();
-        }
+        virtual bool isReady() const { return not messageQueue.empty(); }
+        virtual void process() 
+        { 
+            if(messageQueue.empty())
+                return;
 
-        bool isReady() const override
-        {
-            return (not messageQueue.empty());
-        }
-
-        void process() override
-        {
-            auto& packet = messageQueue.front();
-            auto& message = packet.get();
-            service.onReceive(message);
+            auto messagePtr = messageQueue.top();
+            service.onReceive(*messagePtr);
+            service.getBus().release(*messagePtr);
             messageQueue.pop();
         }
 
+        virtual bool accepts(Message::Type type) const
+        {
+            return service.accepts(type);
+        }
+
+        void onReceive(const Message& message)  
+        {
+            if(not messageQueue.full())
+                messageQueue.push(&message);
+            else
+                ; //TODO: Handle message queue overflow
+        }
+
+        inline auto getPid() const { return service.getId(); }
+
     private:
-        MessageQueue& messageQueue;
         Service& service;
+        MessageQueue& messageQueue;
+    };
+
+
+    struct CompareTask : public etl::binary_function<Task, Task, bool>
+    {
+        bool operator()(const Task& lhs, const Task& rhs) const
+        {
+            return lhs.getPriority() < rhs.getPriority();
+        }
     };
 }

@@ -6,47 +6,48 @@
  * @date 16-09-2026
  */
 
-#include <libnpos/os/Message.hpp>
+#include <libnpos/os/Bus.hpp>
 #include <libnpos/os/syslog/Stream.hpp>
 
 namespace npos::os
 {
-    class Service : public ipc::MessageRouter
+    class Service
     {
     public:
-        using Id = ipc::MessageRouter::Id;
-        using SystemBus = ipc::MessageRouter;
-
-        explicit Service(SystemBus& bus) 
-            : ipc::MessageRouter(0)
-            , bus(bus) {}
+        explicit Service(Pid id, Bus& bus) 
+            : bus(bus), id(id) {}
 
         virtual ~Service() = default;
 
         virtual void initalize() {}
 
-        // virtual void onReceive(const Message&) = 0;
-        // virtual bool accepts(Message::Id) const = 0;
+        virtual void onReceive(const Message& message) = 0;
+        virtual bool accepts(Message::Type) const = 0;
+
+        inline void setId(Pid newId) { id = newId; }
+        inline auto getId() const { return id; }
+        inline auto& getBus() const { return bus; }
 
     protected:
-        void sendTo(Id recipient, os::Message& message)
+        void sendTo(Pid recipient, os::Message& message)
         {
-            message.senderId = getId();
-            bus.receive(recipient, message);
+            message.sender = id;
+            bus.publish(recipient, message);
         }
 
         void broadcast(os::Message& message)
         {
-            message.senderId = getId();
-            bus.receive(message);
+            message.sender = id;
+            bus.publish(message);
         }
 
         syslog::Stream syslog(syslog::Level level)
         {
-            return syslog::log(getId(), level, bus);
+            return syslog::log(id, level, bus);
         }
 
     private:
-        SystemBus& bus;
+        Bus& bus;
+        Pid id;
     };
 }

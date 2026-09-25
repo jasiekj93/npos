@@ -3,11 +3,12 @@
 using namespace npos;
 using namespace npos::os;
 
-SystemBus::SystemBus(Service::Id startIndex, ServiceList& services)
-    : ipc::MessageRouter(BROADCAST)
+SystemBus::SystemBus(Pid startIndex, ServiceList& services, MessagePool& messagePool)
+    : Bus()
     , startId(startIndex)
     , services(services)
     , successor(nullptr)
+    , messagePool(messagePool)
 {
 }
 
@@ -21,38 +22,72 @@ bool SystemBus::subscribe(Service& service)
     return true;
 }
 
-void SystemBus::receive(ipc::MessageRouter::Id recipient, const ipc::Message& message)
+void SystemBus::publish(Pid recipient, const Message& message)
 {
     if(recipient == BROADCAST)
-        return receive(message);
+        return publish(message);
 
     if(recipient < startId)
         return;
 
-    auto index = getIndex(static_cast<Service::Id>(recipient));
+    auto index = getIndex(recipient);
 
     if(index < services.size())
-        services[index]->receive(message);
+    {
+        if(services[index]->accepts(message.type))
+        {
+            auto* allocatedMessage = new (messagePool.allocate<Message>()) Message(message);
+            allocatedMessage->referenceCount++;
+
+            services[index]->onReceive(*allocatedMessage);
+        }
+    }
     else if(successor)
-        successor->receive(recipient, message);
+        successor->publish(recipient, message);
 }
 
-void SystemBus::receive(const ipc::Message& message)
+void SystemBus::publish(const Message& message)
 {
+    auto* allocatedMessage = new (messagePool.allocate<Message>()) Message(message);
+
     for(auto& service : services)
-        service->receive(message);
+    {
+        if(service->accepts(message.type))
+        {
+            allocatedMessage->referenceCount++;
+            service->onReceive(*allocatedMessage);
+        }
+    }
+
+    if(allocatedMessage->referenceCount == 0)
+        messagePool.release(allocatedMessage);
 
     if(successor)
-        successor->receive(message);
+        successor->publish(message);
 }
 
-size_t SystemBus::getIndex(Service::Id id) const
+void SystemBus::release(const Message& message)
+{
+    if(not messagePool.is_in_pool(&message))
+        return;
+
+    if(message.referenceCount == 0)
+        return messagePool.release(&message);
+
+    auto* ptr = const_cast<Message*>(&message);
+    ptr->referenceCount--;
+
+    if(ptr->referenceCount == 0)
+        messagePool.release(ptr);
+}
+
+size_t SystemBus::getIndex(Pid id) const
 {
     auto index = static_cast<size_t>(id) - static_cast<size_t>(startId);
     return index;
 }
 
-Service::Id SystemBus::getServiceId(size_t index) const
+Pid SystemBus::getServiceId(size_t index) const
 {
-    return static_cast<Service::Id>(static_cast<size_t>(startId) + index);
+    return static_cast<Pid>(static_cast<size_t>(startId) + index);
 }
