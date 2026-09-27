@@ -7,13 +7,12 @@
  */
 
 
-#include <libnpos/os/driver/message/Clock.hpp>
-#include <libnpos/os/driver/hal/Rtc.hpp>
-#include <libnpos/os/Process.hpp>
+#include <libnpos/driver/hal/Rtc.hpp>
+#include <libnpos/kernel/Service.hpp>
 
-namespace npos::os::driver::service
+namespace npos::driver::service
 {
-    class RtcClock : public os::Service
+    class RtcClock : public kernel::Service
     {
     public:
         static constexpr os::Timestamp MAX_TIMESTAMP = 4102444799;
@@ -24,7 +23,7 @@ namespace npos::os::driver::service
         static os::Timestamp fromRtcTime(const hal::Rtc::Time&, const hal::Rtc::Date&);
         static etl::optional<DateTime> toRtcTime(os::Timestamp);
 
-        explicit RtcClock(hal::Rtc&, os::message::Bus&);
+        explicit RtcClock(kernel::Pid, kernel::Bus&, );
 
         void initalize() override;
         void onReceive(const ipc::Message&) override;
