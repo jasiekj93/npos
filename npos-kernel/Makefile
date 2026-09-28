@@ -10,7 +10,7 @@
 # supported_platforms := Pc32 Pc64 ArmA7-Linux ArmA9-Linux Rpi64
 
 # Target
-library_name := npos-os
+library_name := npos-kernel
 
 # Directories
 project_dir ?= ..
@@ -19,11 +19,9 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos/os/*.cpp) \
-$(wildcard libnpos/os/device/*.cpp) \
-$(wildcard libnpos/os/error/*.cpp) \
-$(wildcard libnpos/os/filesystem/*.cpp) \
-$(wildcard libnpos/os/syslog/*.cpp) \
+$(wildcard libnpos/kernel/*.cpp) \
+$(wildcard libnpos/kernel/error/*.cpp) \
+$(wildcard libnpos/kernel/syslog/*.cpp) \
 
 # c_sources := \
 
@@ -32,8 +30,6 @@ $(wildcard libnpos/os/syslog/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
--I$(project_dir)/npos-nps \
--I$(project_dir)/npos-ipc \
 
 # Defines
 cxx_defs := \

@@ -10,7 +10,7 @@
 
 #include <libnpos/kernel/Task.hpp>
 
-namespace npos::os
+namespace npos::kernel
 {
     class SchedulerSuccessor
     {

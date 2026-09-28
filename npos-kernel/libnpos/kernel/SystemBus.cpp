@@ -1,7 +1,7 @@
 #include "SystemBus.hpp"
 
 using namespace npos;
-using namespace npos::os;
+using namespace npos::kernel;
 
 SystemBus::SystemBus(Pid startIndex, ServiceList& services, MessagePool& messagePool)
     : Bus()
@@ -47,7 +47,7 @@ void SystemBus::sendTo(Pid recipient, const Message& message)
             }
 
             messagePtr->referenceCount++;
-            services[index]->onReceive(*messagePtr);
+            services[index]->receive(*messagePtr);
         }
     }
     else if(successor)
@@ -69,7 +69,7 @@ void SystemBus::broadcast(const Message& message)
         if(service->accepts(message.type))
         {
             allocatedMessage->referenceCount++;
-            service->onReceive(*allocatedMessage);
+            service->receive(*allocatedMessage);
         }
     }
 
@@ -105,14 +105,14 @@ void SystemBus::respond(const Message& message)
             }
 
             response->referenceCount++;
-            services[index]->onReceive(*response);
+            services[index]->receive(*response);
         }
     }
     else if(successor)
         successor->respond(message);
 }
 
-void SystemBus::release(const Message const* message)
+void SystemBus::release(const Message* const message)
 {
     if(not messagePool.is_in_pool(message))
         return;

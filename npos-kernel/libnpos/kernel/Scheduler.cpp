@@ -1,6 +1,6 @@
 #include "Scheduler.hpp"
 
-using namespace npos::os;
+using namespace npos::kernel;
 
 Scheduler::Scheduler(TaskQueue& queue)
     : taskQueue(queue)

@@ -4,7 +4,7 @@
 # ------------------------------------------------
 
 # Target
-tested_library_name := npos-os
+tested_library_name := npos-kernel
 
 # Directories
 project_dir ?= ../..

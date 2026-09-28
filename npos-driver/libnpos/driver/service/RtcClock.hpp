@@ -23,7 +23,7 @@ namespace npos::driver::service
         static os::Timestamp fromRtcTime(const hal::Rtc::Time&, const hal::Rtc::Date&);
         static etl::optional<DateTime> toRtcTime(os::Timestamp);
 
-        explicit RtcClock(kernel::Pid, kernel::Bus&, );
+        explicit RtcClock(kernel::Bus&, hal::Rtc&);
 
         void initalize() override;
         void onReceive(const ipc::Message&) override;

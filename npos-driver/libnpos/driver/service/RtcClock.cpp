@@ -106,7 +106,7 @@ etl::optional<RtcClock::DateTime> RtcClock::toRtcTime(Timestamp timestamp)
     return DateTime{ time, date };
 }
 
-RtcClock::RtcClock(hal::Rtc& rtc, os::message::Bus& bus)
+RtcClock::RtcClock(kernel::Bus& bus, hal::Rtc& rtc)
     : Service(bus)
     , rtc(rtc)
 {

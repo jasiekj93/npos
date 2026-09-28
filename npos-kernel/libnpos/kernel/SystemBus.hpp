@@ -9,10 +9,10 @@
 #include <etl/vector.h>
 #include <etl/pool.h>
 
-#include <libnpos/os/Message.hpp>
-#include <libnpos/os/Service.hpp>
+#include <libnpos/kernel/Message.hpp>
+#include <libnpos/kernel/Service.hpp>
 
-namespace npos::os
+namespace npos::kernel
 {
     class SystemBus : public Bus
     {
@@ -28,7 +28,7 @@ namespace npos::os
         void sendTo(Pid recipient, const Message&) override;
         void broadcast(const Message&) override;
         void respond(const Message&) override;
-        void release(const Message const*) override;
+        void release(const Message* const) override;
 
         inline void setSuccessor(SystemBus* next) { successor = next; }
 

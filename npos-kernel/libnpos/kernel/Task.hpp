@@ -38,11 +38,11 @@ namespace npos::kernel
     class ServiceTask  : public Task, public Service 
     {
     public:
-        using MessageQueue = etl::ipriority_queue<Message*, etl::ivector<Message>, CompareMessage>;
+        using MessageQueue = etl::ipriority_queue<Message*, etl::ivector<Message*>, CompareMessage>;
 
         ServiceTask(Priority priority, MessageQueue& messageQueue, Service& service) 
             : Task(priority)
-            , Service(service.getId(), service.getBus())
+            , Service(service.getBus())
             , service(service)
             , messageQueue(messageQueue) {}
 
@@ -84,9 +84,9 @@ namespace npos::kernel
 
     struct CompareTask : public etl::binary_function<Task, Task, bool>
     {
-        bool operator()(const Task& lhs, const Task& rhs) const
+        bool operator()(const Task* lhs, const Task* rhs) const
         {
-            return lhs.getPriority() < rhs.getPriority();
+            return lhs->getPriority() < rhs->getPriority();
         }
     };
 }

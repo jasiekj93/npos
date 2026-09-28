@@ -9,7 +9,7 @@
 #include <libnpos/kernel/Bus.hpp>
 #include <libnpos/kernel/syslog/Stream.hpp>
 
-namespace npos::os
+namespace npos::kernel
 {
     class Service
     {
@@ -36,19 +36,19 @@ namespace npos::os
     protected:
         virtual void onReceive(Message&) = 0;
 
-        void sendTo(Pid recipient, os::Message& message)
+        void sendTo(Pid recipient, Message& message)
         {
             message.sender = id;
             bus.sendTo(recipient, message);
         }
 
-        void broadcast(os::Message& message)
+        void broadcast(Message& message)
         {
             message.sender = id;
             bus.broadcast(message);
         }
 
-        void respond(os::Message& message)
+        void respond(Message& message)
         {
             bus.respond(message);
         }

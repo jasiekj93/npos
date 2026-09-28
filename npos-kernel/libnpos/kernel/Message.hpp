@@ -82,6 +82,11 @@ namespace npos::kernel
         {
             return lhs.priority < rhs.priority;
         }
+
+        bool operator()(const Message* lhs, const Message* rhs) const
+        {
+            return lhs->priority < rhs->priority;
+        }
     };
 
     static constexpr Message::Type OS_ERROR_MESSAGE_TYPE = 0x0000;

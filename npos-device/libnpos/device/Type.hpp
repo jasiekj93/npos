@@ -12,6 +12,6 @@ namespace npos::device
 {
     enum Type : kernel::Message::Type
     {
-        CLOCK = kernel::DEVICE_MESSAGE_TYPE;
+        CLOCK = kernel::DEVICE_MESSAGE_TYPE,
     };
 }

@@ -18,6 +18,6 @@ namespace npos::kernel
         virtual void sendTo(Pid recipient, const Message&) = 0;
         virtual void broadcast(const Message&) = 0;
         virtual void respond(const Message&) = 0;
-        virtual void release(const Message const*) = 0;
+        virtual void release(const Message* const) = 0;
     };
 }

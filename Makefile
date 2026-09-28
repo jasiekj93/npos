@@ -35,7 +35,8 @@ program_names = \
 
 # Project libraries
 library_names = \
-npos-nps \
+npos-kernel \
+# npos-nps \
 npos-ipc \
 npos-os \
 npos-fs \
