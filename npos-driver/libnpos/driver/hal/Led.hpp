@@ -8,7 +8,7 @@
 
 #include <cstdint>
 
-namespace npos::os::driver::hal
+namespace npos::driver::hal
 {
     class Led
     {

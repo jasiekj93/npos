@@ -1,13 +1,13 @@
 #include "RtcClock.hpp"
 
-#include <libnpos/os/driver/message/Error.hpp>
+#include <libnpos/device/Error.hpp>
+#include <libnpos/device/Clock.hpp>
 
 using namespace npos;
-using namespace npos::os;
-using namespace npos::os::driver;
-using namespace npos::os::driver::service;
+using namespace npos::driver;
+using namespace npos::driver::service;
 
-Timestamp RtcClock::fromRtcTime(const hal::Rtc::Time& time, const hal::Rtc::Date& date)
+device::Timestamp RtcClock::fromRtcTime(const hal::Rtc::Time& time, const hal::Rtc::Date& date)
 {
     int32_t year = 2000 + date.year;
     uint32_t month = date.month;
@@ -40,7 +40,7 @@ Timestamp RtcClock::fromRtcTime(const hal::Rtc::Time& time, const hal::Rtc::Date
     return days * 86400 + time.hours * 3600 + time.minutes * 60 + time.seconds;
 }
 
-etl::optional<RtcClock::DateTime> RtcClock::toRtcTime(Timestamp timestamp)
+etl::optional<RtcClock::DateTime> RtcClock::toRtcTime(device::Timestamp timestamp)
 {
     if(timestamp < MIN_TIMESTAMP or timestamp > MAX_TIMESTAMP)
         return etl::nullopt;
@@ -115,57 +115,51 @@ RtcClock::RtcClock(kernel::Bus& bus, hal::Rtc& rtc)
 void RtcClock::initalize()
 {
     if(not rtc.initalize())
-        bus.receive(message::Error(message::Error::Code::RTC_INITIALIZATION));
+        broadcast(device::Error(device::Error::Code::RTC_INITIALIZATION));
 }
 
-void RtcClock::onReceive(const ipc::Message& message)
+bool RtcClock::accepts(kernel::Message::Type type) const
 {
-    switch(message.getId())
-    {
-    case message::Clock::GetTimeRequest::ID:
-    {
-        auto& request = static_cast<const message::Clock::GetTimeRequest&>(message);
+    return type == device::Type::CLOCK; 
+}
 
+void RtcClock::onReceive(kernel::Message& message)
+{
+    auto& request = static_cast<device::ClockRequest&>(message);
+
+    switch(request.getOperation())
+    {
+    case device::ClockRequest::Operation::GET_TIME:
+    {
         hal::Rtc::Time time;
         hal::Rtc::Date date;
 
         if (not rtc.getTime(time))
-            return bus.receive(request.senderId, message::Clock::GetTimeResponse{});
+            return respond(request.setStatus(device::Status::DEVICE_ERROR));
 
         if (not rtc.getDate(date))
-            return bus.receive(request.senderId, message::Clock::GetTimeResponse{});
+            return respond(request.setStatus(device::Status::DEVICE_ERROR));
 
-        return bus.receive(request.senderId, message::Clock::GetTimeResponse{fromRtcTime(time, date)});
+        return respond(request.setStatus(device::Status::OK).setTimestamp(fromRtcTime(time, date)));
     }
-    case message::Clock::SetTimeRequest::ID:
+    case device::ClockRequest::Operation::SET_TIME:
     {
-        auto& request = static_cast<const message::Clock::SetTimeRequest&>(message);
-        auto result = toRtcTime(request.timestamp);
+        auto result = toRtcTime(request.getTimestamp());
 
         if(not result.has_value())
-            return bus.receive(request.senderId, 
-                message::Clock::SetTimeResponse{message::Clock::SetTimeResponse::Status::INVALID_TIMESTAMP});
+            return respond(request.setStatus(device::Status::INVALID_PARAMETER));
 
         auto [time, date] = result.value();
-
+        
         if(not rtc.setTime(time))
-            return bus.receive(request.senderId, 
-                message::Clock::SetTimeResponse{message::Clock::SetTimeResponse::Status::RTC_ERROR});
+            return respond(request.setStatus(device::Status::DEVICE_ERROR));
 
         if(not rtc.setDate(date))
-            return bus.receive(request.senderId, 
-                message::Clock::SetTimeResponse{message::Clock::SetTimeResponse::Status::RTC_ERROR});
+            return respond(request.setStatus(device::Status::DEVICE_ERROR));
         
-        return bus.receive(request.senderId, 
-            message::Clock::SetTimeResponse{message::Clock::SetTimeResponse::Status::OK, request.timestamp});
+        return respond(request.setStatus(device::Status::OK));
     }
     default:
         break;
     }
-}
-
-bool RtcClock::accepts(ipc::Message::Id id) const
-{
-    return id == message::Clock::GetTimeRequest::ID or
-           id == message::Clock::SetTimeRequest::ID;
 }

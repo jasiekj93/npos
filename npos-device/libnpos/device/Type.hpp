@@ -12,6 +12,12 @@ namespace npos::device
 {
     enum Type : kernel::Message::Type
     {
-        CLOCK = kernel::DEVICE_MESSAGE_TYPE,
+        ERROR = kernel::DEVICE_MESSAGE_TYPE,
+        CLOCK,
+        LED,
+        TRANSCEIVER_OPEN,
+        TRANSCEIVER_CLOSE,
+        TRANSCEIVER_READ,
+        TRANSCEIVER_WRITE,
     };
 }

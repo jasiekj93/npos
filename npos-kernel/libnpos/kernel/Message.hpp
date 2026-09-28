@@ -9,6 +9,8 @@
 #include <cstdint>
 #include <cstddef>
 
+#include <etl/functional.h>
+
 namespace npos::kernel
 {
     using Pid = uint8_t; 

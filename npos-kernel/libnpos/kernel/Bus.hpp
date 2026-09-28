@@ -15,9 +15,9 @@ namespace npos::kernel
     public:
         virtual ~Bus() = default;
 
-        virtual void sendTo(Pid recipient, const Message&) = 0;
-        virtual void broadcast(const Message&) = 0;
-        virtual void respond(const Message&) = 0;
+        virtual void sendTo(Pid recipient, Message&) = 0;
+        virtual void broadcast(Message&) = 0;
+        virtual void respond(Message&) = 0;
         virtual void release(const Message* const) = 0;
     };
 }

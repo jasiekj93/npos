@@ -2,12 +2,6 @@
 uboot - hal flash, czytanie, liczenie skrótu, itp.
 taski - własny do rozbudowy, scheduler
 
-## DEBUG
-Syslog - Message
-
-## Driver
-Hal repo
-Taski czy serwisy?
-
-## IPC
-Successor
+problemy mogą wynikać tylko z błędu hali lub plików
+więc OID może dotyczyć tylko tych rzeczy (jakby "obiektów" w systemie)
+obiektami nie są więc taski, serwisy.

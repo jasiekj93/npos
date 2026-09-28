@@ -4,7 +4,7 @@
 # ------------------------------------------------
 
 # Target
-tested_library_name := npos-driver
+tested_library_name := npos-device
 
 # Directories
 project_dir ?= ../..

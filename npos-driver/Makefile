@@ -19,7 +19,9 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos-driver/*.cpp) \
+$(wildcard libnpos/driver/*.cpp) \
+$(wildcard libnpos/driver/hal/*.cpp) \
+$(wildcard libnpos/driver/service/*.cpp) \
 
 # c_sources := \
 
@@ -28,6 +30,8 @@ $(wildcard libnpos-driver/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
+-I$(project_dir)/npos-kernel \
+-I$(project_dir)/npos-device \
 
 # Defines
 cxx_defs := \
@@ -39,6 +43,7 @@ cxx_defs := \
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 export external_library_include_path = \
+etl/include \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \

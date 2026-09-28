@@ -1,45 +1,40 @@
 #include "LedHandler.hpp"
 
 using namespace npos;
-using namespace npos::os;
-using namespace npos::os::driver;
-using namespace npos::os::driver::service;
+using namespace npos::driver;
+using namespace npos::driver::service;
 
-LedHandler::LedHandler(hal::Led& led, os::message::Bus& bus)
-    : os::Service(bus)
+LedHandler::LedHandler(hal::Led& led, kernel::Bus& bus)
+    : kernel::Service(bus)
     , led(led)
 {
 }
 
-void LedHandler::initalize()
+void LedHandler::onReceive(kernel::Message& message)
 {
-}
+    auto& request = static_cast<device::LedRequest&>(message);
 
-void LedHandler::onReceive(const ipc::Message& message)
-{
-    auto& request = static_cast<const message::LedRequest&>(message);
+    if(not led.available(request.getLedId()))
+        return respond(request.setStatus(device::Status::INVALID_PARAMETER));
 
-    if(not led.available(request.ledId))
+    switch(request.getOperation())
     {
-        //todo syslog
-        return;
-    }
-
-    switch(request.operation)
-    {
-        case message::LedRequest::OFF:
-            led.off(request.ledId);
+        case device::LedRequest::OFF:
+            led.off(request.getLedId());
             break;
-        case message::LedRequest::ON:
-            led.on(request.ledId);
+        case device::LedRequest::ON:
+            led.on(request.getLedId());
             break;
-        case message::LedRequest::TOGGLE:
-            led.toggle(request.ledId);
+        case device::LedRequest::TOGGLE:
+            led.toggle(request.getLedId());
+            break;
+        default:
+            return respond(request.setStatus(device::Status::INVALID_OPERATION));
             break;
     }
 }
 
-bool LedHandler::accepts(ipc::Message::Id id) const
+bool LedHandler::accepts(kernel::Message::Type type) const
 {
-    return (id == message::LedRequest::ID);
+    return (type == device::Type::LED);
 }

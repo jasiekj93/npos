@@ -9,25 +9,28 @@
 
 #include <libnpos/driver/hal/Rtc.hpp>
 #include <libnpos/kernel/Service.hpp>
+#include <libnpos/device/Timestamp.hpp>
 
 namespace npos::driver::service
 {
     class RtcClock : public kernel::Service
     {
     public:
-        static constexpr os::Timestamp MAX_TIMESTAMP = 4102444799;
-        static constexpr os::Timestamp MIN_TIMESTAMP = 946684800;
+        static constexpr device::Timestamp MAX_TIMESTAMP = 4102444799;
+        static constexpr device::Timestamp MIN_TIMESTAMP = 946684800;
 
         using DateTime = etl::pair<hal::Rtc::Time, hal::Rtc::Date>;
 
-        static os::Timestamp fromRtcTime(const hal::Rtc::Time&, const hal::Rtc::Date&);
-        static etl::optional<DateTime> toRtcTime(os::Timestamp);
+        static device::Timestamp fromRtcTime(const hal::Rtc::Time&, const hal::Rtc::Date&);
+        static etl::optional<DateTime> toRtcTime(device::Timestamp);
 
         explicit RtcClock(kernel::Bus&, hal::Rtc&);
 
         void initalize() override;
-        void onReceive(const ipc::Message&) override;
-        bool accepts(ipc::Message::Id) const override;
+        bool accepts(kernel::Message::Type) const override;
+
+    protected:
+        void onReceive(kernel::Message&) override;
 
     private:
         hal::Rtc& rtc;

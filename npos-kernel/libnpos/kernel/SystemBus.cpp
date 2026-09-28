@@ -22,7 +22,7 @@ bool SystemBus::subscribe(Service& service)
     return true;
 }
 
-void SystemBus::sendTo(Pid recipient, const Message& message)
+void SystemBus::sendTo(Pid recipient, Message& message)
 {
     if(recipient < startId)
         return;
@@ -33,7 +33,7 @@ void SystemBus::sendTo(Pid recipient, const Message& message)
     {
         if(services[index]->accepts(message.type))
         {
-            auto* messagePtr = const_cast<Message*>(&message);
+            auto* messagePtr = (&message);
 
             if(not messagePool.is_in_pool(messagePtr))
             {
@@ -54,7 +54,7 @@ void SystemBus::sendTo(Pid recipient, const Message& message)
         successor->sendTo(recipient, message);
 }
 
-void SystemBus::broadcast(const Message& message)
+void SystemBus::broadcast(Message& message)
 {
     if(messagePool.full())
     {
@@ -80,7 +80,7 @@ void SystemBus::broadcast(const Message& message)
         successor->broadcast(message);
 }
 
-void SystemBus::respond(const Message& message)
+void SystemBus::respond(Message& message)
 {
     if(message.sender < startId)
         return;

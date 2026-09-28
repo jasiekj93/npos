@@ -48,6 +48,12 @@ namespace npos::kernel
             bus.broadcast(message);
         }
 
+        void broadcast(Message&& message)
+        {
+            message.sender = id;
+            bus.broadcast(message);
+        }
+
         void respond(Message& message)
         {
             bus.respond(message);

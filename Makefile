@@ -36,6 +36,8 @@ program_names = \
 # Project libraries
 library_names = \
 npos-kernel \
+npos-device \
+npos-driver \
 # npos-nps \
 npos-ipc \
 npos-os \

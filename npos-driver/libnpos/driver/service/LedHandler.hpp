@@ -6,20 +6,21 @@
  * @date 16-09-2026
  */
 
-#include <libnpos/os/driver/message/Led.hpp>
-#include <libnpos/os/driver/hal/Led.hpp>
-#include <libnpos/os/Service.hpp>
+#include <libnpos/device/Led.hpp>
+#include <libnpos/driver/hal/Led.hpp>
+#include <libnpos/kernel/Service.hpp>
 
-namespace npos::os::driver::service
+namespace npos::driver::service
 {
-    class LedHandler : public os::Service
+    class LedHandler : public kernel::Service
     {
     public:
-        explicit LedHandler(hal::Led&, os::message::Bus&);
+        explicit LedHandler(hal::Led&, kernel::Bus&);
 
-        void initalize() override;
-        void onReceive(const ipc::Message&) override;
-        bool accepts(ipc::Message::Id) const override;
+        bool accepts(kernel::Message::Type) const override;
+
+    protected:
+        void onReceive(kernel::Message&) override;
 
     private:
         hal::Led& led;
