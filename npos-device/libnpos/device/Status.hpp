@@ -8,6 +8,7 @@ namespace npos::device
     {
         OK = 0,
         DEVICE_ERROR,
+        DEVICE_BUSY,
         INVALID_PARAMETER,
         INVALID_OPERATION
     };

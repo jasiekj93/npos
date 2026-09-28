@@ -15,9 +15,7 @@ namespace npos::device
         ERROR = kernel::DEVICE_MESSAGE_TYPE,
         CLOCK,
         LED,
-        TRANSCEIVER_OPEN,
-        TRANSCEIVER_CLOSE,
-        TRANSCEIVER_READ,
-        TRANSCEIVER_WRITE,
+        TRANSCEIVER,
+        HASH,
     };
 }

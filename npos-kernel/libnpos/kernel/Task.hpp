@@ -75,6 +75,7 @@ namespace npos::kernel
         }
 
         inline auto getPid() const { return service.getId(); }
+        inline void setId(Pid newId) override { service.setId(newId); }
 
     private:
         Service& service;

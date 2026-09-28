@@ -5,3 +5,13 @@ taski - własny do rozbudowy, scheduler
 problemy mogą wynikać tylko z błędu hali lub plików
 więc OID może dotyczyć tylko tych rzeczy (jakby "obiektów" w systemie)
 obiektami nie są więc taski, serwisy.
+
+OID składa się z portu i id
+Port jest adresem na magistrali
+
+Otrzymujemy go po zarejestrowaniu się 
+Serwis może mieć kontekst taska i za jego pomocą się komunikować 
+
+Task po dodaniu do schedulera otrzymuje pid.
+
+Przy requescie ważny jest oid.

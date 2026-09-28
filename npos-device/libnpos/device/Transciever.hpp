@@ -6,48 +6,57 @@
  * @date 28-09-2026
  */
 
-#include <etl/string.h>
+#include <etl/span.h>
 
 #include <libnpos/device/Type.hpp>
 #include <libnpos/device/Status.hpp>
 
 namespace npos::device
 {
-    struct TranscieverOpen : public kernel::Message
+    struct TranscieverRequest : public kernel::Message
     {
-        TranscieverOpen(etl::string_view name)
+        enum Mode : kernel::Message::InputOutput::Mode
         {
-            this->type = device::Type::TRANSCEIVER_OPEN;
-            this->data = reinterpret_cast<uint8_t*>(const_cast<char*>(name.data()));
-            this->size = name.size();
+            READ = 0,
+            WRITE,
+        };
+
+        using Id = kernel::Message::ObjectId;
+
+        TranscieverRequest(Id id, Mode mode, etl::span<uint8_t> buffer)
+        {
+            this->type = device::Type::TRANSCEIVER;
+            this->object = id;
+            this->inputOutput.mode = mode;
+            this->data = buffer.data();
+            this->size = buffer.size();
         }
 
-        inline etl::string_view getName() const
+        inline Id getId() const
         {
-            return etl::string_view(reinterpret_cast<const char*>(this->data), this->size);
+            return this->object;
         }
 
-        inline TranscieverOpen& setStatus(device::Status status)
+        inline Mode getMode() const
         {
-            this->status = status;
+            return static_cast<Mode>(this->inputOutput.mode);
+        }
+
+        inline Status getStatus() const
+        {
+            return static_cast<Status>(this->status);
+        }
+
+        inline TranscieverRequest& setStatus(Status status)
+        {
+            this->status = static_cast<kernel::Message::Status>(status);
             return *this;
         }
 
-        inline device::Status getStatus() const
+        inline TranscieverRequest& setLength(size_t length)
         {
-            return static_cast<device::Status>(this->status);
-        }
-
-        
-    };
-
-    struct ReadRequest : public kernel::Message
-    {
-
-    };
-
-    struct WriteRequest : public kernel::Message
-    {
-
+            this->inputOutput.length = length;
+            return *this;
+        }   
     };
 }

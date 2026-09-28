@@ -29,7 +29,7 @@ namespace npos::kernel
 
         virtual bool accepts(Message::Type) const = 0;
 
-        inline void setId(Pid newId) { id = newId; }
+        inline virtual void setId(Pid newId) { id = newId; }
         inline auto getId() const { return id; }
         inline auto& getBus() const { return bus; }
 

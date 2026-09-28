@@ -16,12 +16,14 @@ namespace npos::device
         {
             UNKNOWN,
             RTC_INITIALIZATION,
+            UART_INITIALIZATION,
         };
 
-        explicit Error(Code code)
+        explicit Error(Code code, kernel::Message::ObjectId objectId = 0)
         {
             this->type = device::Type::ERROR;
             this->attributes.value = static_cast<uint32_t>(code);
+            this->object = objectId;
         }
     };
 }

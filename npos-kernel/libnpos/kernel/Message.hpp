@@ -59,8 +59,8 @@ namespace npos::kernel
         Pid sender;
         ObjectId object;
 
-        Priority priority;
-        ReferenceCount referenceCount;
+        Priority priority = 0;
+        ReferenceCount referenceCount = 0;
 
         Status status;
 
