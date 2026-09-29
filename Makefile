@@ -31,13 +31,13 @@ internal_library_names = \
 
 # Project subprograms
 program_names = \
-# examples/blinking-led \
+examples/blinking-led \
 
 # Project libraries
 library_names = \
-npos-kernel \
-npos-device \
-npos-driver \
+npos-nps \
+npos-ipc \
+npos-dev \
 # npos-nps \
 npos-ipc \
 npos-os \

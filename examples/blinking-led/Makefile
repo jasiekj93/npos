@@ -13,7 +13,7 @@
 target := blinking-led
 
 # Directories
-project_dir ?= ..
+project_dir ?= ../..
 make_dir := $(project_dir)/make
 external_dir := $(project_dir)/external
 
@@ -42,12 +42,13 @@ required_internal_libraries = \
 required_libraries = \
 npos-nps \
 npos-ipc \
-npos-os \
+npos-dev \
 
 # external libraries
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 external_library_include_path = \
+etl/include \
 
 external_library_flags = \
 

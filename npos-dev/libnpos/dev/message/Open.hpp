@@ -6,6 +6,8 @@
  * @date 29-09-2026
  */
 
+#include <etl/string_view.h>
+
 #include <libnpos/dev/message/Type.hpp>
 #include <libnpos/ipc/Message.hpp>
 
@@ -22,7 +24,7 @@ namespace npos::dev::message
 
         OpenRequest(etl::string_view name)
         {
-            this->type = dev::Type::OPEN;
+            this->type = message::Type::OPEN;
             this->input.data = reinterpret_cast<const uint8_t*>(name.data());
             this->input.size = name.size();
         }
@@ -32,12 +34,12 @@ namespace npos::dev::message
             return etl::string_view(reinterpret_cast<const char*>(this->input.data), this->input.size);
         }
 
-        inline Oid getOpened() const
+        inline ipc::Oid getOpened() const
         {
             return this->output.open.opened;
         }
 
-        inline OpenRequest& setOpened(Oid opened)
+        inline OpenRequest& setOpened(ipc::Oid opened)
         {
             this->output.open.opened = opened;
             return *this;

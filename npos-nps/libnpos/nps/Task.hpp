@@ -21,7 +21,7 @@ namespace npos::nps
             : priority(p) 
         {}
 
-        virtual void initalize() {}
+        virtual void initialize() {}
         virtual bool isReady() const = 0;
         virtual void process() = 0;
 
@@ -31,7 +31,7 @@ namespace npos::nps
         Priority priority;
     };
 
-    struct CompareTask : public etl::binary_function<Task, Task, bool>
+    struct CompareTasks : public etl::binary_function<Task, Task, bool>
     {
         bool operator()(const Task* lhs, const Task* rhs) const
         {

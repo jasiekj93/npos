@@ -27,7 +27,6 @@ namespace npos::ipc
             , services(services)
             , messageQueue(messageQueue)
             , bus(bus)
-            , port(NULL_PORT)
         {
         }
 
@@ -65,6 +64,12 @@ namespace npos::ipc
         }
 
         //nps::Task
+        virtual void initialize() override
+        {
+            for (auto& service : services)
+                service->initialize();
+        }
+
         virtual bool isReady() const override
         {
             return not messageQueue.empty();
@@ -83,9 +88,9 @@ namespace npos::ipc
         //Service::Api
         void send(Message& message) override
         {
-            message.sender = port;
+            message.sender = getId();
 
-            if(message.recipient.portId == port)
+            if(message.recipient.portId == getId())
                 dispatch(message);
             else
                 bus.send(message);
@@ -93,7 +98,7 @@ namespace npos::ipc
 
         void respond(Message& message) override
         {
-            if(message.sender == port)
+            if(message.sender == getId())
                 dispatch(message);
             else
                 bus.respond(message);
@@ -101,7 +106,7 @@ namespace npos::ipc
 
         PortId getPortId() const override
         {
-            return port;
+            return getId();
         }
     
     protected:
@@ -126,6 +131,5 @@ namespace npos::ipc
         ServiceList& services;
         MessageQueue& messageQueue;
         Bus& bus;
-        PortId port;
     };
 }

@@ -20,7 +20,7 @@ namespace npos::dev::message
             SET_TIME
         };
 
-        enum Status : ipc::Message::Output::Status
+        enum Status : ipc::Message::Status
         {
             SUCCESS,
             DEVICE_FAILURE,
@@ -30,9 +30,9 @@ namespace npos::dev::message
 
         ClockRequest(ipc::Oid oid, Operation operation, Timestamp timestamp = 0)
         {
-            this->oid = oid;
-            this->type = dev::Type::CLOCK;
-            this->input.attributes.type = operation;
+            this->recipient = oid;
+            this->type = message::Type::CLOCK;
+            this->input.attributes.mode = operation;
             this->input.attributes.value = timestamp;
         }
 
@@ -54,7 +54,7 @@ namespace npos::dev::message
 
         inline Operation getOperation() const
         {
-            return static_cast<Operation>(this->input.attributes.type);
+            return static_cast<Operation>(this->input.attributes.mode);
         }
 
         inline Status getStatus() const
@@ -64,7 +64,7 @@ namespace npos::dev::message
 
         inline ClockRequest& setStatus(Status status)
         {
-            this->output.status = static_cast<kernel::Message::Status>(status);
+            this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;
         }
     };

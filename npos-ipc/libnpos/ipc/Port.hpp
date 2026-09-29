@@ -22,6 +22,6 @@ namespace npos::ipc
         inline PortId getId() const { return id; }
 
     private:
-        PortId id = 0;
+        PortId id = NULL_PORT;
     };
 }

@@ -18,7 +18,7 @@ namespace npos::ipc
         static constexpr size_t RAW_SIZE = 32;
 
         using Status = uint8_t;
-        using Type = uint8_t;
+        using Type = uint16_t;
 
         struct Input
         {

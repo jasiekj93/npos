@@ -26,6 +26,7 @@ namespace npos::ipc
         explicit Service(Api& api) : api(api) {}
         virtual ~Service() = default;
 
+        virtual void initialize() {}
         virtual void handle(Message&) = 0;
         virtual bool accepts(Message::Type) const = 0;
 

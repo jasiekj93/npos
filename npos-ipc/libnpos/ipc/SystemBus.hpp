@@ -16,9 +16,9 @@ namespace npos::ipc
     class SystemBus : public Bus
     {
     public:
-        using PortList = etl::ivector<Port>;
+        using PortList = etl::ivector<Port*>;
 
-        SystemBus(PortList ports, PortId initialPort)
+        SystemBus(PortList& ports, PortId initialPort)
             : ports(ports)
             , initialPort(initialPort)
         {
@@ -31,7 +31,7 @@ namespace npos::ipc
 
             auto portId = ports.size() + initialPort;
             port.setId(portId);
-            ports.push_back(port);
+            ports.push_back(&port);
             return true;
         }
 
@@ -59,10 +59,10 @@ namespace npos::ipc
         {
             for(auto& port : ports)
             {
-                if(port.getId() != message.sender and
-                    port.accepts(message.type))
+                if(port->getId() != message.sender and
+                    port->accepts(message.type))
                 {
-                    port.receive(message);
+                    port->receive(message);
                 }
             }
 
@@ -74,13 +74,13 @@ namespace npos::ipc
         {
             auto index = getIndex(portId);
 
-            if(index <= ports.size())
-                ports[index].receive(message);
+            if(index < ports.size())
+                ports[index]->receive(message);
             else if(successor)
                 successor->send(message);
         }
 
-        size_t SystemBus::getIndex(PortId id) const
+        size_t getIndex(PortId id) const
         {
             auto index = static_cast<size_t>(id) - static_cast<size_t>(initialPort);
             return index;

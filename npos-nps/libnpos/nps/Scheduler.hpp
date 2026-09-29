@@ -18,7 +18,7 @@ namespace npos::nps
         virtual ~SchedulerSuccessor() = default;
 
         virtual bool scheduleTasks() = 0;
-        virtual void initalizeTasks() = 0;
+        virtual void initializeTasks() = 0;
     };
 
 
@@ -38,7 +38,7 @@ namespace npos::nps
 
         void start()
         {
-            initalize();
+            initialize();
 
             runningFlag = true;
 
@@ -82,15 +82,12 @@ namespace npos::nps
             return false;
         }
 
-        void initalizeTasks() override
+        void initializeTasks() override
         {
-            etl::sort(taskList.begin(), taskList.end(), 
-                [](const Task* lhs, const Task* rhs) {
-                return *rhs < *lhs;  // descending
-            });
+            etl::sort(taskList.begin(), taskList.end(), CompareTasks{});
 
             for(auto& task : taskList)
-                task->initalize();
+                task->initialize();
         }
 
         inline void setSuccesor(SchedulerSuccessor& ss) { succesor = &ss; }
@@ -99,18 +96,18 @@ namespace npos::nps
         inline bool isRunning() const { return runningFlag; }
 
     protected:
-        void initalize()
+        void initialize()
         {
-            initalizeTasks();
+            initializeTasks();
 
             if(succesor)
-                succesor->initalizeTasks();
+                succesor->initializeTasks();
 
             if(watchdogTask)
-                watchdogTask->initalize();
+                watchdogTask->initialize();
 
             if(idleTask)
-                idleTask->initalize();
+                idleTask->initialize();
         }
 
         void processIdle()
