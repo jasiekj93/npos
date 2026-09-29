@@ -14,5 +14,6 @@ namespace npos::dev::message
     {
         OPEN = ipc::DEVICE_MESSAGE_TYPE,
         CLOCK,
+        LED,
     };
 }
