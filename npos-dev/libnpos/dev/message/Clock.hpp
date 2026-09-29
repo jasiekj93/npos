@@ -12,7 +12,7 @@
 
 namespace npos::dev::message
 {
-    struct ClockRequest : public ipc::Message
+    struct Clock: public ipc::Message
     {
         enum Operation : ipc::Message::Input::Attributes::Mode
         {
@@ -28,7 +28,7 @@ namespace npos::dev::message
             NOT_INITIALIZED
         };
 
-        ClockRequest(ipc::Oid oid, Operation operation, Timestamp timestamp = 0)
+        Clock(ipc::Oid oid, Operation operation, Timestamp timestamp = 0)
         {
             this->recipient = oid;
             this->type = message::Type::CLOCK;
@@ -46,7 +46,7 @@ namespace npos::dev::message
             return this->output.attributes.value;
         }
 
-        inline ClockRequest& setOutputTimestamp(Timestamp timestamp)
+        inline Clock& setOutputTimestamp(Timestamp timestamp)
         {
             this->output.attributes.value = timestamp;
             return *this;
@@ -62,7 +62,7 @@ namespace npos::dev::message
             return static_cast<Status>(this->output.status);
         }
 
-        inline ClockRequest& setStatus(Status status)
+        inline Clock& setStatus(Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;

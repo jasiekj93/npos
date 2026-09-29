@@ -13,7 +13,7 @@
 
 namespace npos::dev::message
 {
-    struct OpenRequest : public ipc::Message
+    struct Open: public ipc::Message
     {
         enum Status : ipc::Message::Status
         {
@@ -22,7 +22,7 @@ namespace npos::dev::message
             INIT_FAILURE = 0x02
         };
 
-        OpenRequest(etl::string_view name)
+        Open(etl::string_view name)
         {
             this->type = message::Type::OPEN;
             this->input.data = reinterpret_cast<const uint8_t*>(name.data());
@@ -39,7 +39,7 @@ namespace npos::dev::message
             return this->output.open.opened;
         }
 
-        inline OpenRequest& setOpened(ipc::Oid opened)
+        inline Open& setOpened(ipc::Oid opened)
         {
             this->output.open.opened = opened;
             return *this;
@@ -50,7 +50,7 @@ namespace npos::dev::message
             return static_cast<Status>(this->output.status);
         }
 
-        inline OpenRequest& setStatus(Status status)
+        inline Open& setStatus(Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;

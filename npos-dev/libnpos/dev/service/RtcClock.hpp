@@ -136,9 +136,9 @@ namespace npos::dev::service
         {
             if(message.type == message::Type::CLOCK)
             {
-                auto& request = static_cast<message::ClockRequest&>(message);
+                auto& request = static_cast<message::Clock&>(message);
 
-                if(request.getOperation() == message::ClockRequest::Operation::GET_TIME)
+                if(request.getOperation() == message::Clock::Operation::GET_TIME)
                     return getTime(request);
                 else
                     return setTime(request);
@@ -154,57 +154,57 @@ namespace npos::dev::service
         }
 
     protected:
-        void getTime(message::ClockRequest& request)
+        void getTime(message::Clock& request)
         {
             if(not isInitalized)
-                return api.respond(request.setStatus(message::ClockRequest::Status::NOT_INITIALIZED));
+                return api.respond(request.setStatus(message::Clock::Status::NOT_INITIALIZED));
 
             hal::Rtc::Time time;
             hal::Rtc::Date date;
 
             if (not rtc.getTime(time))
-                return api.respond(request.setStatus(message::ClockRequest::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
 
             if (not rtc.getDate(date))
-                return api.respond(request.setStatus(message::ClockRequest::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
 
-            return api.respond(request.setStatus(message::ClockRequest::Status::SUCCESS).setOutputTimestamp(fromRtcTime(time, date)));
+            return api.respond(request.setStatus(message::Clock::Status::SUCCESS).setOutputTimestamp(fromRtcTime(time, date)));
         }
 
-        void setTime(message::ClockRequest& request)
+        void setTime(message::Clock& request)
         {
             if(not isInitalized)
-                return api.respond(request.setStatus(message::ClockRequest::Status::NOT_INITIALIZED));
+                return api.respond(request.setStatus(message::Clock::Status::NOT_INITIALIZED));
 
             auto result = toRtcTime(request.getInputTimestamp());
 
             if(not result.has_value())
-                return api.respond(request.setStatus(message::ClockRequest::Status::INVALID_TIMESTAMP));
+                return api.respond(request.setStatus(message::Clock::Status::INVALID_TIMESTAMP));
 
             auto [time, date] = result.value();
             
             if(not rtc.setTime(time))
-                return api.respond(request.setStatus(message::ClockRequest::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
 
             if(not rtc.setDate(date))
-                return api.respond(request.setStatus(message::ClockRequest::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
             
-            return api.respond(request.setStatus(message::ClockRequest::Status::SUCCESS).setOutputTimestamp(request.getInputTimestamp()));
+            return api.respond(request.setStatus(message::Clock::Status::SUCCESS).setOutputTimestamp(request.getInputTimestamp()));
         }
 
         void open(ipc::Message& message)
         {
-            auto& request = static_cast<message::OpenRequest&>(message);
+            auto& request = static_cast<message::Open&>(message);
 
             if(request.getName() != name)
                 return;
 
-            auto status = message::OpenRequest::Status::SUCCESS;
+            auto status = message::Open::Status::SUCCESS;
 
             if(not isInitalized)
             {
                 if(not rtc.initalize())
-                    status = message::OpenRequest::Status::INIT_FAILURE;
+                    status = message::Open::Status::INIT_FAILURE;
                 else
                     isInitalized = true;
             }

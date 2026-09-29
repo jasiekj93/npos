@@ -29,9 +29,9 @@ public:
     {
         if (message.type == npos::dev::message::Type::OPEN) 
         {
-            auto& response = static_cast<npos::dev::message::OpenRequest&>(message);
+            auto& response = static_cast<npos::dev::message::Open&>(message);
 
-            if(response.getStatus() == npos::dev::message::OpenRequest::Status::SUCCESS)
+            if(response.getStatus() == npos::dev::message::Open::Status::SUCCESS)
             {
                 std::cout << "Device opened." << std::endl;
                 devOid = response.getOpened();
@@ -42,9 +42,9 @@ public:
         }
         else if (message.type == npos::dev::message::Type::CLOCK) 
         {
-            auto& response = static_cast<npos::dev::message::ClockRequest&>(message);
+            auto& response = static_cast<npos::dev::message::Clock&>(message);
 
-            if(response.getStatus() == npos::dev::message::ClockRequest::Status::SUCCESS)
+            if(response.getStatus() == npos::dev::message::Clock::Status::SUCCESS)
             {
                 auto timestamp = response.getOutputTimestamp();
                 std::cout << "Current time: " << timestamp << std::endl;
