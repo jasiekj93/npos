@@ -76,7 +76,37 @@ namespace npos::ipc
                 return; 
 
             auto message = messageQueue.front();
+            dispatch(message);
+            messageQueue.pop();
+        }
 
+        //Service::Api
+        void send(Message& message) override
+        {
+            message.sender = port;
+
+            if(message.recipient.portId == port)
+                dispatch(message);
+            else
+                bus.send(message);
+        }
+
+        void respond(Message& message) override
+        {
+            if(message.sender == port)
+                dispatch(message);
+            else
+                bus.respond(message);
+        }
+
+        PortId getPortId() const override
+        {
+            return port;
+        }
+    
+    protected:
+        void dispatch(Message& message)
+        {
             if(message.recipient.serviceId != NULL_SERVICE)
             {
                 if(message.recipient.serviceId < services.size())
@@ -90,24 +120,6 @@ namespace npos::ipc
                         service->handle(message);
                 }
             }
-
-            messageQueue.pop();
-        }
-
-        //Service::Api
-        void send(Message& message) override
-        {
-            message.sender = port;
-        }
-
-        void respond(Message& message) override
-        {
-            bus.respond(message);
-        }
-
-        PortId getPortId() const override
-        {
-            return port;
         }
 
     private:
