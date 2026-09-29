@@ -8,6 +8,8 @@
 
 #include <cstdint>
 
+#include <etl/functional.h>
+
 namespace npos::nps
 {
     class Task
@@ -25,12 +27,15 @@ namespace npos::nps
 
         inline auto getPriority() const { return priority; }
 
-        bool operator<(const Task& other) const
-        {
-            return (priority < other.priority);
-        }
-
     private:
         Priority priority;
+    };
+
+    struct CompareTask : public etl::binary_function<Task, Task, bool>
+    {
+        bool operator()(const Task* lhs, const Task* rhs) const
+        {
+            return lhs->getPriority() < rhs->getPriority();
+        }
     };
 }

@@ -14,9 +14,6 @@ namespace npos::kernel
     class Service
     {
     public:
-        explicit Service(Bus& bus) 
-            : bus(bus), id(0) {}
-
         virtual ~Service() = default;
 
         virtual void initalize() {}

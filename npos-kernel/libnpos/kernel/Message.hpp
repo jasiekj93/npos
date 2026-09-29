@@ -11,84 +11,101 @@
 
 #include <etl/functional.h>
 
+#include <libnpos/kernel/Oid.hpp>
+
 namespace npos::kernel
 {
-    using Pid = uint8_t; 
-
     struct Message 
     {
-        static constexpr size_t PAYLOAD_SIZE = 128;
+        static constexpr size_t RAW_SIZE = 32;
 
         using Type = uint16_t;
-        using ObjectId = uint8_t;
-        using Priority = uint8_t;
         using ReferenceCount = uint8_t;
         using Status = uint8_t;
 
-        struct OpenClose
+        struct Input
         {
-            using Flags = int;
+            struct OpenClose
+            {
+                using Flags = int;
 
-            Flags flags;
+                Flags flags;
+            };
+
+            struct IO
+            {
+                using Mode = uint8_t;
+
+                size_t offset;
+                size_t length;
+                Mode mode;
+            };
+
+            struct Attributes
+            {
+                using Type = uint32_t;
+                using Value = uint64_t;
+
+                Value value;
+                Type type;
+            };
+
+            struct Syslog
+            {
+                using Level = uint8_t;
+
+                Level level;
+                bool overflow;
+            };
+
+            union
+            {
+                OpenClose openClose;
+                IO io;
+                Attributes attributes;
+                Syslog syslog;
+
+                uint8_t raw[RAW_SIZE];
+            };
+
+            size_t size = 0;
+            const uint8_t* data = nullptr;
         };
 
-        struct InputOutput
+        struct Output
         {
-            using Mode = uint8_t;
+            struct Attributes
+            {
+                using Value = uint64_t;
 
-            size_t offset;
-            size_t length;
-            Mode mode;
-        };
+                Value value;
+            };
 
-        struct Attributes
-        {
-            using Type = uint32_t;
-            using Value = uint64_t;
+            struct Create
+            {
+                Oid object;
+            };
 
-            Value value;
-            Type type;
-        };
+            union
+            {
+                Attributes attributes;
+                Create create;
 
-        struct Create
-        {
-            ObjectId object;
+                uint8_t raw[RAW_SIZE];
+            };
+
+            Status status = 0;
+            size_t size = 0;
+            uint8_t* data = nullptr;
         };
 
         Type type;
-        Pid sender;
-        ObjectId object;
-
-        Priority priority = 0;
+        PortId sender;
+        Oid object;
         ReferenceCount referenceCount = 0;
 
-        Status status;
-
-        union
-        {
-            OpenClose openClose;
-            InputOutput inputOutput;
-            Attributes attributes;
-            Create create;
-
-            uint8_t payload[PAYLOAD_SIZE];
-        };
-
-        size_t size;
-        uint8_t* data;
-    };
-
-    struct CompareMessage : public etl::binary_function<Message, Message, bool>
-    {
-        bool operator()(const Message& lhs, const Message& rhs) const
-        {
-            return lhs.priority < rhs.priority;
-        }
-
-        bool operator()(const Message* lhs, const Message* rhs) const
-        {
-            return lhs->priority < rhs->priority;
-        }
+        Input input;
+        Output output;
     };
 
     static constexpr Message::Type OS_ERROR_MESSAGE_TYPE = 0x0000;
