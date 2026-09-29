@@ -14,7 +14,7 @@ namespace npos::device
 {
     struct ClockRequest : public kernel::Message
     {
-        enum Operation : kernel::Message::Attributes::Type
+        enum Operation : kernel::Message::Input::Attributes::Type
         {
             GET_TIME,
             SET_TIME
@@ -23,34 +23,39 @@ namespace npos::device
         ClockRequest(Operation operation, Timestamp timestamp = 0)
         {
             this->type = device::Type::CLOCK;
-            this->attributes.type = operation;
-            this->attributes.value = timestamp;
+            this->input.attributes.type = operation;
+            this->input.attributes.value = timestamp;
         }
 
-        inline Timestamp getTimestamp() const
+        inline Timestamp getInputTimestamp() const
         {
-            return this->attributes.value;
+            return this->input.attributes.value;
         }
 
-        inline ClockRequest& setTimestamp(Timestamp timestamp)
+        inline Timestamp getOutputTimestamp() const
         {
-            this->attributes.value = timestamp;
+            return this->output.attributes.value;
+        }
+
+        inline ClockRequest& setOutputTimestamp(Timestamp timestamp)
+        {
+            this->output.attributes.value = timestamp;
             return *this;
         }
 
         inline Operation getOperation() const
         {
-            return static_cast<Operation>(this->attributes.type);
+            return static_cast<Operation>(this->input.attributes.type);
         }
 
         inline Status getStatus() const
         {
-            return static_cast<Status>(this->status);
+            return static_cast<Status>(this->output.status);
         }
 
         inline ClockRequest& setStatus(Status status)
         {
-            this->status = static_cast<kernel::Message::Status>(status);
+            this->output.status = static_cast<kernel::Message::Status>(status);
             return *this;
         }
     };

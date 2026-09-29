@@ -28,7 +28,7 @@ namespace npos::driver::service
     private:
         hal::UartInterrupt& uart;
         device::TranscieverRequest::Id id;
-        kernel::Message* transmitRequest;
-        kernel::Message* receiveRequest;
+        device::TranscieverRequest* transmitRequest;
+        device::TranscieverRequest* receiveRequest;
     };
 }

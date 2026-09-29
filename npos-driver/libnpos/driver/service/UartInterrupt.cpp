@@ -36,7 +36,7 @@ void UartInterrupt::handleInterrupt(const hal::Interrupt& interrupt)
         if(receiveRequest == nullptr)
             return;
 
-        receiveRequest->setStatus(device::Status::OK).setLength(receiveRequest->size);
+        receiveRequest->setStatus(device::Status::OK).setOutputData(etl::span<uint8_t>(receiveRequest->getInputData()));
         receiveRequest->referenceCount--;
         respond(*receiveRequest);
         receiveRequest = nullptr;
@@ -46,7 +46,7 @@ void UartInterrupt::handleInterrupt(const hal::Interrupt& interrupt)
         if(transmitRequest == nullptr)
             return;
 
-        transmitRequest->setStatus(device::Status::OK).setLength(transmitRequest->size);
+        transmitRequest->setStatus(device::Status::OK).setOutputData(etl::span<uint8_t>(transmitRequest->getInputData()));
         transmitRequest->referenceCount--;
         respond(*transmitRequest);
         transmitRequest = nullptr;
@@ -55,7 +55,7 @@ void UartInterrupt::handleInterrupt(const hal::Interrupt& interrupt)
     {
         if(receiveRequest != nullptr)
         {
-            receiveRequest->setStatus(device::Status::DEVICE_ERROR).setLength(0);
+            receiveRequest->setStatus(device::Status::DEVICE_ERROR);
             receiveRequest->referenceCount--;
             respond(*receiveRequest);
             receiveRequest = nullptr;
@@ -63,7 +63,7 @@ void UartInterrupt::handleInterrupt(const hal::Interrupt& interrupt)
 
         if(transmitRequest != nullptr)
         {
-            transmitRequest->setStatus(device::Status::DEVICE_ERROR).setLength(0);
+            transmitRequest->setStatus(device::Status::DEVICE_ERROR);
             transmitRequest->referenceCount--;
             respond(*transmitRequest);
             transmitRequest = nullptr;
@@ -73,12 +73,13 @@ void UartInterrupt::handleInterrupt(const hal::Interrupt& interrupt)
 
 void UartInterrupt::onReceive(kernel::Message& message)
 {
+    auto& request = static_cast<device::TranscieverRequest&>(message);
+
     if(request.getId() != id)
         return;
 
-    auto& request = static_cast<device::TranscieverRequest&>(message);
-
-    bool result = false;
+    if(request.input.data == nullptr or request.input.size == 0)
+        return respond(request.setStatus(device::Status::INVALID_PARAMETER));
 
     if(request.getMode() == device::TranscieverRequest::Mode::READ)
     {
@@ -88,7 +89,7 @@ void UartInterrupt::onReceive(kernel::Message& message)
         request.referenceCount++;
         receiveRequest = &request;
 
-        if(not uart.receiveIt(request.buffer, request.size))
+        if(not uart.receiveIt(const_cast<uint8_t*>(request.input.data), request.input.io.length))
         {
             receiveRequest = nullptr;
             request.referenceCount--;
@@ -103,7 +104,7 @@ void UartInterrupt::onReceive(kernel::Message& message)
         request.referenceCount++;
         transmitRequest = &request;
 
-        if(not uart.transmitIt(request.buffer, request.size))
+        if(not uart.transmitIt(request.input.data, request.input.io.length))
         {
             transmitRequest = nullptr;
             request.referenceCount--;

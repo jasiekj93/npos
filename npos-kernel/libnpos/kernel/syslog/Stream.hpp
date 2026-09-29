@@ -21,6 +21,7 @@ namespace npos::kernel::syslog
     class Stream
     {
     public:
+        static constexpr size_t MAX_MESSAGE_SIZE = 128;
         static constexpr size_t MAX_NUMBER_LENGTH = 20; // max length of long in decimal
 
         Stream(kernel::Pid senderId, Level level, Bus& bus);
@@ -39,11 +40,13 @@ namespace npos::kernel::syslog
         Stream& operator<<(const Endl&);
 
     private:
-        Request request;
         Bus& bus;
-        etl::string_stream stream;
-        etl::string_ext buffer;
         etl::string<MAX_NUMBER_LENGTH> numberBuffer;
+        etl::string<MAX_MESSAGE_SIZE> buffer;
+        etl::string_stream stream;
+        bool overflowFlag;
+        Level level;
+        kernel::Pid senderId;
     };
 
     Stream log(kernel::Pid senderId, Level level, Bus& bus);

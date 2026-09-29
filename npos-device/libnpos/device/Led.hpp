@@ -25,28 +25,28 @@ namespace npos::device
         LedRequest(LedId ledId, Operation operation)
         {
             this->type = device::Type::LED; 
-            this->attributes.type = static_cast<uint8_t>(operation);
-            this->attributes.value = static_cast<uint8_t>(ledId);
+            this->input.attributes.type = static_cast<uint8_t>(operation);
+            this->input.attributes.value = static_cast<uint8_t>(ledId);
         }
 
         inline LedId getLedId() const
         {
-            return static_cast<LedId>(this->attributes.value);
+            return static_cast<LedId>(this->input.attributes.value);
         }
 
         inline Operation getOperation() const
         {
-            return static_cast<Operation>(this->attributes.type);
+            return static_cast<Operation>(this->input.attributes.type);
         }
 
         inline Status getStatus() const
         {
-            return static_cast<Status>(this->status);
+            return static_cast<Status>(this->output.status);
         }
 
         inline LedRequest& setStatus(Status status)
         {
-            this->status = static_cast<kernel::Message::Status>(status);
+            this->output.status = static_cast<kernel::Message::Status>(status);
             return *this;
         }
     };

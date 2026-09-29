@@ -14,9 +14,7 @@
 
 namespace npos::kernel::syslog
 {
-    static constexpr size_t MAX_MESSAGE_SIZE = kernel::Message::PAYLOAD_SIZE - 1;
-
-    enum Level : uint8_t
+    enum Level : kernel::Message::Input::Syslog::Level
     {
         DEBUG = 0,
         INFO,
@@ -28,48 +26,30 @@ namespace npos::kernel::syslog
     {
     public:
         static constexpr auto ID = kernel::OS_SYSLOG_MESSAGE_TYPE;
-        static constexpr Status OVERFLOW_FLAG = 1;
-        static constexpr Status NO_OVERFLOW_FLAG = 0;
-        static constexpr size_t MESSAGE_OFFSET = 1;
-        static constexpr size_t LEVEL_OFFSET = 0;
 
-        Request() 
+        Request(Pid sender, Level level, etl::string_view message, bool overflow = false) 
         {
             this->type = ID;
-            this->status = NO_OVERFLOW_FLAG;
-            this->data = &this->payload[MESSAGE_OFFSET];
-            this->size = 0;
-            setLevel(DEBUG);
-        }
-
-        void setLevel(Level level)
-        {
-            this->payload[LEVEL_OFFSET] = static_cast<uint8_t>(level);
+            this->sender = sender;
+            this->input.data = reinterpret_cast<const uint8_t*>(message.data());
+            this->input.size = message.size();
+            this->input.syslog.level = static_cast<kernel::Message::Input::Syslog::Level>(level);
+            this->input.syslog.overflow = overflow;
         }
 
         Level getLevel() const
         {
-            return static_cast<Level>(this->payload[LEVEL_OFFSET]);
+            return static_cast<Level>(this->input.syslog.level);
         }
 
         bool hasOverflow() const
         {
-            return this->status == OVERFLOW_FLAG;
-        }
-
-        void setOverflow()
-        {
-            this->status = OVERFLOW_FLAG;
-        }
-
-        void clearOverflow()
-        {
-            this->status = NO_OVERFLOW_FLAG;
+            return static_cast<bool>(this->input.syslog.overflow);
         }
 
         etl::string_view getMessage() const
         {
-            return etl::string_view((char*)data, size);
+            return etl::string_view(reinterpret_cast<const char*>(input.data), input.size);
         }
     };
 }

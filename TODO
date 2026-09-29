@@ -15,3 +15,10 @@ Serwis może mieć kontekst taska i za jego pomocą się komunikować
 Task po dodaniu do schedulera otrzymuje pid.
 
 Przy requescie ważny jest oid.
+
+
+każdy task ma port i do 256 sedrwisów po id (indeks w tablicy, task mu nadaje)
+jeżeli komunikacja odbywa się w ramach tego samego taska
+to wykonaj się bez kolejkowania.
+
+ale to już w ramach Serwis taska taka logika.

@@ -13,9 +13,9 @@
 
 namespace npos::device
 {
-    struct TranscieverRequest : public kernel::Message
+    struct TranscieverReadRequest : public kernel::Message
     {
-        enum Mode : kernel::Message::InputOutput::Mode
+        enum Mode : kernel::Message::Input::IO::Mode
         {
             READ = 0,
             WRITE,
@@ -23,13 +23,14 @@ namespace npos::device
 
         using Id = kernel::Message::ObjectId;
 
-        TranscieverRequest(Id id, Mode mode, etl::span<uint8_t> buffer)
+        TranscieverRequest(Id id, Mode mode, etl::span<uint8_t> inputBuffer, size_t length)
         {
             this->type = device::Type::TRANSCEIVER;
             this->object = id;
-            this->inputOutput.mode = mode;
-            this->data = buffer.data();
-            this->size = buffer.size();
+            this->input.io.mode = mode;
+            this->input.io.length = length;
+            this->input.data = inputBuffer.data();
+            this->input.size = inputBuffer.size();
         }
 
         inline Id getId() const
@@ -37,26 +38,32 @@ namespace npos::device
             return this->object;
         }
 
+        inline etl::span<const uint8_t> getInputData() const
+        {
+            return etl::span<const uint8_t>(this->input.data, this->input.size);
+        }
+
         inline Mode getMode() const
         {
-            return static_cast<Mode>(this->inputOutput.mode);
+            return static_cast<Mode>(this->input.io.mode);
         }
 
         inline Status getStatus() const
         {
-            return static_cast<Status>(this->status);
+            return static_cast<Status>(this->output.status);
         }
 
         inline TranscieverRequest& setStatus(Status status)
         {
-            this->status = static_cast<kernel::Message::Status>(status);
+            this->output.status = static_cast<kernel::Message::Status>(status);
             return *this;
         }
 
-        inline TranscieverRequest& setLength(size_t length)
+        inline TranscieverRequest& setOutputData(etl::span<uint8_t> buffer)
         {
-            this->inputOutput.length = length;
+            this->output.data = buffer.data();
+            this->output.size = buffer.size();
             return *this;
-        }   
+        }
     };
 }

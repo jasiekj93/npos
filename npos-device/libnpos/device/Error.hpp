@@ -12,7 +12,7 @@ namespace npos::device
 {
     struct Error : public kernel::Message
     {
-        enum Code : kernel::Message::Attributes::Value
+        enum Code : kernel::Message::Input::Attributes::Value
         {
             UNKNOWN,
             RTC_INITIALIZATION,
@@ -22,7 +22,7 @@ namespace npos::device
         explicit Error(Code code, kernel::Message::ObjectId objectId = 0)
         {
             this->type = device::Type::ERROR;
-            this->attributes.value = static_cast<uint32_t>(code);
+            this->input.attributes.value = static_cast<uint32_t>(code);
             this->object = objectId;
         }
     };

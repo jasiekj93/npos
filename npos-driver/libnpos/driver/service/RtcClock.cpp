@@ -140,11 +140,11 @@ void RtcClock::onReceive(kernel::Message& message)
         if (not rtc.getDate(date))
             return respond(request.setStatus(device::Status::DEVICE_ERROR));
 
-        return respond(request.setStatus(device::Status::OK).setTimestamp(fromRtcTime(time, date)));
+        return respond(request.setStatus(device::Status::OK).setOutputTimestamp(fromRtcTime(time, date)));
     }
     case device::ClockRequest::Operation::SET_TIME:
     {
-        auto result = toRtcTime(request.getTimestamp());
+        auto result = toRtcTime(request.getInputTimestamp());
 
         if(not result.has_value())
             return respond(request.setStatus(device::Status::INVALID_PARAMETER));
@@ -157,7 +157,7 @@ void RtcClock::onReceive(kernel::Message& message)
         if(not rtc.setDate(date))
             return respond(request.setStatus(device::Status::DEVICE_ERROR));
         
-        return respond(request.setStatus(device::Status::OK));
+        return respond(request.setStatus(device::Status::OK).setOutputTimestamp(request.getInputTimestamp()));
     }
     default:
         break;
