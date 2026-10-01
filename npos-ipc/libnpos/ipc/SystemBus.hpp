@@ -62,7 +62,7 @@ namespace npos::ipc
             if(respondToPort(message))
                 return;
             else if(succesor)
-                succesor->respondToPort(message);
+                succesor->respondToPort(message, true);
         }
 
         void release(Message* messagePtr) override
@@ -109,7 +109,7 @@ namespace npos::ipc
                     pool.release(messagePtr);
         }
 
-        bool respondToPort(Message& message)
+        bool respondToPort(Message& message, bool fromSuccesor = false)
         {
             auto index = getIndex(message.sender);
 
@@ -120,7 +120,8 @@ namespace npos::ipc
                 if(not pool.is_in_pool(&message))
                     messagePtr = new (pool.allocate<Message>()) Message(message);
 
-                messagePtr->referenceCount++;
+                if(not fromSuccesor)
+                    messagePtr->referenceCount++;
                 ports[index]->receive(*messagePtr);
                 return true;
             }
