@@ -8,10 +8,10 @@
 
 #include <etl/string_view.h>
 
-#include <libnpos/dev/message/Type.hpp>
+#include <libnpos/dev/msg/Type.hpp>
 #include <libnpos/ipc/Message.hpp>
 
-namespace npos::dev::message
+namespace npos::dev::msg
 {
     struct Open: public ipc::Message
     {
@@ -24,7 +24,7 @@ namespace npos::dev::message
 
         Open(etl::string_view name)
         {
-            this->type = message::Type::OPEN;
+            this->type = msg::Type::OPEN;
             this->input.data = reinterpret_cast<const uint8_t*>(name.data());
             this->input.size = name.size();
         }

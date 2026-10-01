@@ -7,10 +7,10 @@
  */
 
 #include <libnpos/ipc/Message.hpp>
-#include <libnpos/dev/message/Type.hpp>
+#include <libnpos/dev/msg/Type.hpp>
 #include <libnpos/dev/Timestamp.hpp>
 
-namespace npos::dev::message
+namespace npos::dev::msg
 {
     struct Clock: public ipc::Message
     {
@@ -31,7 +31,7 @@ namespace npos::dev::message
         Clock(ipc::Oid oid, Operation operation, Timestamp timestamp = 0)
         {
             this->recipient = oid;
-            this->type = message::Type::CLOCK;
+            this->type = msg::Type::CLOCK;
             this->input.attributes.mode = operation;
             this->input.attributes.value = timestamp;
         }

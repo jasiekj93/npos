@@ -8,7 +8,7 @@
 
 #include <libnpos/ipc/Message.hpp>
 
-namespace npos::dev::message
+namespace npos::dev::msg
 {
     enum Type : ipc::Message::Type
     {

@@ -7,9 +7,9 @@
  */
 
 #include <libnpos/ipc/Message.hpp>
-#include <libnpos/dev/message/Type.hpp>
+#include <libnpos/dev/msg/Type.hpp>
 
-namespace npos::dev::message
+namespace npos::dev::msg
 {
     struct Led: public ipc::Message
     {
@@ -31,7 +31,7 @@ namespace npos::dev::message
         Led(ipc::Oid oid, Id ledId, Operation operation)
         {
             this->recipient = oid;
-            this->type = message::Type::LED; 
+            this->type = msg::Type::LED; 
             this->input.attributes.mode = operation;
             this->input.attributes.value = ledId;
         }

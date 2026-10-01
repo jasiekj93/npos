@@ -27,11 +27,11 @@ public:
 
     void handle(npos::ipc::Message& message) override
     {
-        if (message.type == npos::dev::message::Type::OPEN) 
+        if (message.type == npos::dev::msg::Type::OPEN) 
         {
-            auto& response = static_cast<npos::dev::message::Open&>(message);
+            auto& response = static_cast<npos::dev::msg::Open&>(message);
 
-            if(response.getStatus() == npos::dev::message::Open::Status::SUCCESS)
+            if(response.getStatus() == npos::dev::msg::Open::Status::SUCCESS)
             {
                 std::cout << "Device opened." << std::endl;
                 devOid = response.getOpened();
@@ -40,11 +40,11 @@ public:
                 npos::dev::api::getTime(*this, devOid);
             }
         }
-        else if (message.type == npos::dev::message::Type::CLOCK) 
+        else if (message.type == npos::dev::msg::Type::CLOCK) 
         {
-            auto& response = static_cast<npos::dev::message::Clock&>(message);
+            auto& response = static_cast<npos::dev::msg::Clock&>(message);
 
-            if(response.getStatus() == npos::dev::message::Clock::Status::SUCCESS)
+            if(response.getStatus() == npos::dev::msg::Clock::Status::SUCCESS)
             {
                 auto timestamp = response.getOutputTimestamp();
                 std::cout << "Current time: " << timestamp << std::endl;
@@ -54,8 +54,8 @@ public:
 
     bool accepts(npos::ipc::Message::Type type) const override
     {
-        return type == npos::dev::message::Type::OPEN or
-            type == npos::dev::message::Type::CLOCK;
+        return type == npos::dev::msg::Type::OPEN or
+            type == npos::dev::msg::Type::CLOCK;
     }
 
 private:

@@ -11,8 +11,8 @@
 #include <etl/utility.h>
 
 #include <libnpos/ipc/Service.hpp>
-#include <libnpos/dev/message/Clock.hpp>
-#include <libnpos/dev/message/Open.hpp>
+#include <libnpos/dev/msg/Clock.hpp>
+#include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/hal/Rtc.hpp>
 
 namespace npos::dev::service
@@ -134,77 +134,77 @@ namespace npos::dev::service
 
         void handle(ipc::Message& message)
         {
-            if(message.type == message::Type::CLOCK)
+            if(message.type == msg::Type::CLOCK)
             {
-                auto& request = static_cast<message::Clock&>(message);
+                auto& request = static_cast<msg::Clock&>(message);
 
-                if(request.getOperation() == message::Clock::Operation::GET_TIME)
+                if(request.getOperation() == msg::Clock::Operation::GET_TIME)
                     return getTime(request);
                 else
                     return setTime(request);
             }
-            else if(message.type == message::Type::OPEN)
+            else if(message.type == msg::Type::OPEN)
                 return open(message);
         }
 
         bool accepts(ipc::Message::Type type) const override
         {
-            return (type == message::Type::CLOCK or 
-                    type == message::Type::OPEN);
+            return (type == msg::Type::CLOCK or 
+                    type == msg::Type::OPEN);
         }
 
     protected:
-        void getTime(message::Clock& request)
+        void getTime(msg::Clock& request)
         {
             if(not isInitalized)
-                return api.respond(request.setStatus(message::Clock::Status::NOT_INITIALIZED));
+                return api.respond(request.setStatus(msg::Clock::Status::NOT_INITIALIZED));
 
             hal::Rtc::Time time;
             hal::Rtc::Date date;
 
             if (not rtc.getTime(time))
-                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(msg::Clock::Status::DEVICE_FAILURE));
 
             if (not rtc.getDate(date))
-                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(msg::Clock::Status::DEVICE_FAILURE));
 
-            return api.respond(request.setStatus(message::Clock::Status::SUCCESS).setOutputTimestamp(fromRtcTime(time, date)));
+            return api.respond(request.setStatus(msg::Clock::Status::SUCCESS).setOutputTimestamp(fromRtcTime(time, date)));
         }
 
-        void setTime(message::Clock& request)
+        void setTime(msg::Clock& request)
         {
             if(not isInitalized)
-                return api.respond(request.setStatus(message::Clock::Status::NOT_INITIALIZED));
+                return api.respond(request.setStatus(msg::Clock::Status::NOT_INITIALIZED));
 
             auto result = toRtcTime(request.getInputTimestamp());
 
             if(not result.has_value())
-                return api.respond(request.setStatus(message::Clock::Status::INVALID_TIMESTAMP));
+                return api.respond(request.setStatus(msg::Clock::Status::INVALID_TIMESTAMP));
 
             auto [time, date] = result.value();
             
             if(not rtc.setTime(time))
-                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(msg::Clock::Status::DEVICE_FAILURE));
 
             if(not rtc.setDate(date))
-                return api.respond(request.setStatus(message::Clock::Status::DEVICE_FAILURE));
+                return api.respond(request.setStatus(msg::Clock::Status::DEVICE_FAILURE));
             
-            return api.respond(request.setStatus(message::Clock::Status::SUCCESS).setOutputTimestamp(request.getInputTimestamp()));
+            return api.respond(request.setStatus(msg::Clock::Status::SUCCESS).setOutputTimestamp(request.getInputTimestamp()));
         }
 
         void open(ipc::Message& message)
         {
-            auto& request = static_cast<message::Open&>(message);
+            auto& request = static_cast<msg::Open&>(message);
 
             if(request.getName() != name)
                 return;
 
-            auto status = message::Open::Status::SUCCESS;
+            auto status = msg::Open::Status::SUCCESS;
 
             if(not isInitalized)
             {
                 if(not rtc.initalize())
-                    status = message::Open::Status::INIT_FAILURE;
+                    status = msg::Open::Status::INIT_FAILURE;
                 else
                     isInitalized = true;
             }
