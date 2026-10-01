@@ -36,24 +36,18 @@ public:
                 std::cout << "Device opened." << std::endl;
                 devOid = response.getOpened();
 
-                std::cout << "Toggling led0" << std::endl;
-                npos::dev::api::ledToggle(*this, devOid, 0);
-
-                std::cout << "Toggling led1" << std::endl;
-                npos::dev::api::ledToggle(*this, devOid, 1);
+                std::cout << "Getting time from device." << std::endl;
+                npos::dev::api::getTime(*this, devOid);
             }
         }
-        else if (message.type == npos::dev::msg::Type::LED) 
+        else if (message.type == npos::dev::msg::Type::CLOCK) 
         {
-            auto& response = static_cast<npos::dev::msg::Led&>(message);
+            auto& response = static_cast<npos::dev::msg::Clock&>(message);
 
-            if(response.getStatus() == npos::dev::msg::Led::Status::SUCCESS)
+            if(response.getStatus() == npos::dev::msg::Clock::Status::SUCCESS)
             {
-                std::cout << "Led: " << response.getId() << " toggled." << std::endl;
-            }
-            else
-            {
-                std::cout << "Led: " << response.getId() << " failed to toggle." << std::endl;
+                auto timestamp = response.getOutputTimestamp();
+                std::cout << "Current time: " << timestamp << std::endl;
             }
         }
     }
@@ -61,7 +55,7 @@ public:
     bool accepts(npos::ipc::Message::Type type) const override
     {
         return type == npos::dev::msg::Type::OPEN or
-            type == npos::dev::msg::Type::LED;
+            type == npos::dev::msg::Type::CLOCK;
     }
 
 private:

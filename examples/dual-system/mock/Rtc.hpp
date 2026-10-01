@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file Rtc.hpp
+ * @author Adrian Szczepanski
+ * @date 01-10-2026
+ */
+
 #include <libnpos/dev/hal/Rtc.hpp>
 
 namespace mock

@@ -209,8 +209,7 @@ namespace npos::dev::service
                     isInitalized = true;
             }
 
-            ipc::Oid oid { api.getPortId(), getId() };
-            api.respond(request.setStatus(status).setOpened(oid));
+            api.respond(request.setStatus(status).setOpened(getOid()));
         }
 
     private:

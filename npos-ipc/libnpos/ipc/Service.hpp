@@ -35,6 +35,7 @@ namespace npos::ipc
 
     protected:
         inline ServiceId getId() const { return serviceId; }
+        inline ipc::Oid getOid() const { return { api.getPortId(), serviceId }; }
 
         Api& api;
 

@@ -33,6 +33,7 @@ internal_library_names = \
 program_names = \
 examples/blinking-led \
 examples/dual-system \
+examples/get-time \
 
 # Project libraries
 library_names = \
