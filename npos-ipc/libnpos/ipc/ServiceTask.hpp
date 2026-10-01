@@ -19,10 +19,16 @@ namespace npos::ipc
     class ServiceTask : public npos::nps::Task, public Port, public Service::Api
     {
     public:
-        using ServiceList = etl::ivector<Service*>;
-        using MessageQueue = etl::iqueue<Message>;
+        using ServiceListInt = etl::ivector<Service*>;
+        using MessageQueueInt = etl::iqueue<Message*>;
 
-        ServiceTask(Priority priority, ServiceList& services, MessageQueue& messageQueue, Bus& bus)
+        template<size_t N>
+        using MessageQueue = etl::queue<Message*, N>;
+
+        template<size_t N>
+        using ServiceList = etl::vector<Service*, N>;
+
+        ServiceTask(Priority priority, ServiceListInt& services, MessageQueueInt& messageQueue, Bus& bus)
             : nps::Task(priority)
             , services(services)
             , messageQueue(messageQueue)
@@ -60,7 +66,7 @@ namespace npos::ipc
             if(messageQueue.full())
                 return; //TODO handle
             else
-                messageQueue.push(message);
+                messageQueue.push(const_cast<Message*>(&message));
         }
 
         //nps::Task
@@ -81,8 +87,9 @@ namespace npos::ipc
                 return; 
 
             auto message = messageQueue.front();
-            dispatch(message);
+            dispatch(*message);
             messageQueue.pop();
+            bus.release(message);
         }
 
         //Service::Api
@@ -128,8 +135,8 @@ namespace npos::ipc
         }
 
     private:
-        ServiceList& services;
-        MessageQueue& messageQueue;
+        ServiceListInt& services;
+        MessageQueueInt& messageQueue;
         Bus& bus;
     };
 }

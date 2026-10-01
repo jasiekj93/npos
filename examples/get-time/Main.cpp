@@ -15,16 +15,17 @@
 int main(int argc, char* argv[])
 {
 	//scheduler
-	etl::vector<npos::nps::Task*, 32> taskList;
+	npos::nps::Scheduler::TaskList<32> taskList;
 	npos::nps::Scheduler scheduler(taskList);
 
 	//system bus
-	etl::vector<npos::ipc::Port*, 32> portList;
-	npos::ipc::SystemBus systemBus(portList, 0);
+	npos::ipc::SystemBus::PortList<32> portList;
+	etl::pool<npos::ipc::Message, 64> messagePool;
+	npos::ipc::SystemBus systemBus(portList, messagePool, 0);
 
 	//devices
-	etl::vector<npos::ipc::Service*, 32> devServiceList;
-	etl::queue<npos::ipc::Message, 32> devMessageQueue;
+	npos::ipc::ServiceTask::ServiceList<32> devServiceList;
+	npos::ipc::ServiceTask::MessageQueue<32> devMessageQueue;
 	npos::ipc::ServiceTask devTask(5, devServiceList, devMessageQueue, systemBus);
 	systemBus.addPort(devTask);
 	scheduler.addTask(devTask);
@@ -36,8 +37,8 @@ int main(int argc, char* argv[])
 
 
 	//userspace
-	etl::vector<npos::ipc::Service*, 32> userServiceList;
-	etl::queue<npos::ipc::Message, 32> userMessageQueue;
+	npos::ipc::ServiceTask::ServiceList<32> userServiceList;
+	npos::ipc::ServiceTask::MessageQueue<32> userMessageQueue;
 	npos::ipc::ServiceTask userTask(1, userServiceList, userMessageQueue, systemBus);
 	systemBus.addPort(userTask);
 	scheduler.addTask(userTask);

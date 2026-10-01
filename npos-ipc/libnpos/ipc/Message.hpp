@@ -19,6 +19,7 @@ namespace npos::ipc
 
         using Status = uint8_t;
         using Type = uint16_t;
+        using ReferenceCount = uint8_t;
 
         struct Input
         {
@@ -73,6 +74,7 @@ namespace npos::ipc
         PortId sender = NULL_PORT;
         Oid recipient = NULL_OID;
         Type type;
+        ReferenceCount referenceCount = 0;
 
         Input input;
         Output output;

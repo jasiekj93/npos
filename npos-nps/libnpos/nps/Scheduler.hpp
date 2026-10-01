@@ -25,9 +25,12 @@ namespace npos::nps
     class Scheduler : public SchedulerSuccessor
     {
     public:
-        using TaskList = etl::ivector<Task*>;
+        using TaskListInt = etl::ivector<Task*>;
 
-        explicit Scheduler(TaskList& taskList)
+        template<size_t N>
+        using TaskList = etl::vector<Task*, N>;
+
+        explicit Scheduler(TaskListInt& taskList)
             : taskList(taskList)
             , runningFlag(false)
             , succesor(nullptr)
@@ -123,7 +126,7 @@ namespace npos::nps
         }
 
     private:
-        TaskList& taskList;
+        TaskListInt& taskList;
         bool runningFlag;
         SchedulerSuccessor* succesor;
         Task* idleTask;

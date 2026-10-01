@@ -15,23 +15,25 @@
 int main(int argc, char* argv[])
 {
 	//scheduler
-	etl::vector<npos::nps::Task*, 32> primaryTaskList;
+	npos::nps::Scheduler::TaskList<32> primaryTaskList;
 	npos::nps::Scheduler primaryScheduler(primaryTaskList);
-	etl::vector<npos::nps::Task*, 32> secondaryTaskList;
+	npos::nps::Scheduler::TaskList<32> secondaryTaskList;
 	npos::nps::Scheduler secondaryScheduler(secondaryTaskList);
 	primaryScheduler.setSuccesor(secondaryScheduler);
 
 	//system bus
-	etl::vector<npos::ipc::Port*, 32> primaryPortList;
-	npos::ipc::SystemBus primarySystemBus(primaryPortList, 0);
-	etl::vector<npos::ipc::Port*, 32> secondaryPortList;
-	npos::ipc::SystemBus secondarySystemBus(secondaryPortList, 128);
+	npos::ipc::SystemBus::PortList<32> primaryPortList;
+	etl::pool<npos::ipc::Message, 64> primaryMessagePool;
+	npos::ipc::SystemBus primarySystemBus(primaryPortList, primaryMessagePool, 0);
+	npos::ipc::SystemBus::PortList<32> secondaryPortList;
+	etl::pool<npos::ipc::Message, 64> secondaryMessagePool;
+	npos::ipc::SystemBus secondarySystemBus(secondaryPortList, secondaryMessagePool, 128);
 	primarySystemBus.setSuccesor(secondarySystemBus);
 	secondarySystemBus.setSuccesor(primarySystemBus);
 
 	//devices
-	etl::vector<npos::ipc::Service*, 32> devServiceList;
-	etl::queue<npos::ipc::Message, 32> devMessageQueue;
+	npos::ipc::ServiceTask::ServiceList<32> devServiceList;
+	npos::ipc::ServiceTask::MessageQueue<32> devMessageQueue;
 	npos::ipc::ServiceTask devTask(5, devServiceList, devMessageQueue, primarySystemBus);
 	primarySystemBus.addPort(devTask);
 	primaryScheduler.addTask(devTask);
@@ -43,8 +45,8 @@ int main(int argc, char* argv[])
 
 
 	//userspace
-	etl::vector<npos::ipc::Service*, 32> userServiceList;
-	etl::queue<npos::ipc::Message, 32> userMessageQueue;
+	npos::ipc::ServiceTask::ServiceList<32> userServiceList;
+	npos::ipc::ServiceTask::MessageQueue<32> userMessageQueue;
 	npos::ipc::ServiceTask userTask(1, userServiceList, userMessageQueue, secondarySystemBus);
 	secondarySystemBus.addPort(userTask);
 	secondaryScheduler.addTask(userTask);

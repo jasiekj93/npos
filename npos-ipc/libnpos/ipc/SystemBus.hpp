@@ -7,6 +7,7 @@
  */
 
 #include <etl/vector.h>
+#include <etl/pool.h>
 
 #include <libnpos/ipc/Port.hpp>
 #include <libnpos/ipc/Bus.hpp>
@@ -16,10 +17,18 @@ namespace npos::ipc
     class SystemBus : public Bus
     {
     public:
-        using PortList = etl::ivector<Port*>;
+        using PortListInt = etl::ivector<Port*>;
+        using PoolInt = etl::ipool;
+        
+        template <size_t N>
+        using Pool = etl::pool<Message, N>;
 
-        SystemBus(PortList& ports, PortId initialPort)
+        template <size_t N>
+        using PortList = etl::vector<Port*, N>;
+
+        SystemBus(PortListInt& ports, PoolInt& pool, PortId initialPort)
             : ports(ports)
+            , pool(pool)
             , initialPort(initialPort)
         {
         }
@@ -40,7 +49,7 @@ namespace npos::ipc
             succesor = &succ;
         }
 
-        void send(Message& message)
+        void send(Message& message) override
         {
             if(message.recipient.portId != NULL_PORT)
                 sendTo(message.recipient.portId, message);
@@ -48,7 +57,7 @@ namespace npos::ipc
                 broadcast(message);
         }
 
-        void respond(Message& message)
+        void respond(Message& message) override
         {
             if(respondToPort(message))
                 return;
@@ -56,6 +65,18 @@ namespace npos::ipc
                 succesor->respondToPort(message);
         }
 
+        void release(Message* messagePtr) override
+        {
+            if(not messagePtr or not pool.is_in_pool(messagePtr))
+                return;
+
+            if(messagePtr->referenceCount > 0)
+                messagePtr->referenceCount--;
+
+            if(messagePtr->referenceCount == 0)
+                return pool.release(const_cast<Message*>(messagePtr));
+
+        }
 
     protected:
         void broadcast(Message& message)
@@ -68,14 +89,24 @@ namespace npos::ipc
 
         void broadcastToPorts(Message& message)
         {
+            auto messagePtr = &message;
+
+            if(not pool.is_in_pool(&message))
+                messagePtr = new (pool.allocate<Message>()) Message(message);
+
             for(auto& port : ports)
             {
                 if(port->getId() != message.sender and
                     port->accepts(message.type))
                 {
-                    port->receive(message);
+                    messagePtr->referenceCount++;
+                    port->receive(*messagePtr);
                 }
             }
+
+            if(messagePtr->referenceCount == 0)
+                if(pool.is_in_pool(messagePtr))
+                    pool.release(messagePtr);
         }
 
         bool respondToPort(Message& message)
@@ -84,7 +115,13 @@ namespace npos::ipc
 
             if(index < ports.size())
             {
-                ports[index]->receive(message);
+                auto messagePtr = &message;
+
+                if(not pool.is_in_pool(&message))
+                    messagePtr = new (pool.allocate<Message>()) Message(message);
+
+                messagePtr->referenceCount++;
+                ports[index]->receive(*messagePtr);
                 return true;
             }
             return false;
@@ -95,7 +132,15 @@ namespace npos::ipc
             auto index = getIndex(portId);
 
             if(index < ports.size())
-                ports[index]->receive(message);
+            {
+                auto messagePtr = &message;
+                if(not pool.is_in_pool(&message))
+                    messagePtr = new (pool.allocate<Message>()) Message(message);
+                
+                messagePtr->referenceCount++;
+                ports[index]->receive(*messagePtr);
+            }
+
             else if(succesor)
                 succesor->send(message);
         }
@@ -107,7 +152,8 @@ namespace npos::ipc
         }
 
     private:
-        PortList& ports;
+        PortListInt& ports;
+        PoolInt& pool;
         PortId initialPort;
         SystemBus* succesor;
     };
