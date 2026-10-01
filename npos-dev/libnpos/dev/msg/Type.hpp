@@ -15,5 +15,6 @@ namespace npos::dev::msg
         OPEN = ipc::DEVICE_MESSAGE_TYPE,
         CLOCK,
         LED,
+        HASH,
     };
 }

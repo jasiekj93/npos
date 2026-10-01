@@ -32,9 +32,21 @@ namespace npos::ipc
                 Value value;
             };
 
+            struct ReadWrite
+            {
+                using Offset = uint64_t;
+                using Length = size_t;
+                using Mode = uint8_t;
+
+                Offset offset;
+                Length length;
+                Mode mode;
+            };
+
             union
             {
                 Attributes attributes;
+                ReadWrite readWrite;
 
                 uint8_t raw[RAW_SIZE];
             };

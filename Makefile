@@ -34,6 +34,7 @@ program_names = \
 examples/blinking-led \
 examples/dual-system \
 examples/get-time \
+examples/compute-hash \
 
 # Project libraries
 library_names = \

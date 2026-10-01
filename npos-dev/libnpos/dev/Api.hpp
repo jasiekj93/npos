@@ -10,6 +10,7 @@
 #include <libnpos/dev/msg/Clock.hpp>
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Led.hpp>
+#include <libnpos/dev/msg/Hash.hpp>
 
 namespace npos::dev::api
 {
@@ -46,6 +47,18 @@ namespace npos::dev::api
     void ledToggle(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::Led::Id ledId)
     {
         npos::dev::msg::Led request(oid, ledId, npos::dev::msg::Led::TOGGLE);
+        sender.getApi().send(request);
+    }
+
+    void hashAccumulate(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input)
+    {
+        npos::dev::msg::Hash request(oid, npos::dev::msg::Hash::ACCUMULATE, input);
+        sender.getApi().send(request);
+    }
+
+    void hashAccumulateEnd(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input, etl::span<uint8_t> output)
+    {
+        npos::dev::msg::Hash request(oid, npos::dev::msg::Hash::ACCUMULATE_END, input, output);
         sender.getApi().send(request);
     }
 }

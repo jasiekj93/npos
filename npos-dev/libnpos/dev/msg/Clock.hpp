@@ -12,7 +12,7 @@
 
 namespace npos::dev::msg
 {
-    struct Clock: public ipc::Message
+    struct Clock : public ipc::Message
     {
         enum Operation : ipc::Message::Input::Attributes::Mode
         {
