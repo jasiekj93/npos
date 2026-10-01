@@ -35,9 +35,9 @@ namespace npos::ipc
             return true;
         }
 
-        inline void setSuccessor(SystemBus* succ)
+        inline void setSuccesor(SystemBus& succ)
         {
-            successor = succ;
+            succesor = &succ;
         }
 
         void send(Message& message)
@@ -50,12 +50,23 @@ namespace npos::ipc
 
         void respond(Message& message)
         {
-            sendTo(message.sender, message);
+            if(respondToPort(message))
+                return;
+            else if(succesor)
+                succesor->respondToPort(message);
         }
 
 
     protected:
         void broadcast(Message& message)
+        {
+            broadcastToPorts(message);
+
+            if(succesor)
+                succesor->broadcastToPorts(message);
+        }
+
+        void broadcastToPorts(Message& message)
         {
             for(auto& port : ports)
             {
@@ -65,9 +76,18 @@ namespace npos::ipc
                     port->receive(message);
                 }
             }
+        }
 
-            if(successor)
-                successor->send(message);
+        bool respondToPort(Message& message)
+        {
+            auto index = getIndex(message.sender);
+
+            if(index < ports.size())
+            {
+                ports[index]->receive(message);
+                return true;
+            }
+            return false;
         }
 
         void sendTo(PortId portId, Message& message)
@@ -76,8 +96,8 @@ namespace npos::ipc
 
             if(index < ports.size())
                 ports[index]->receive(message);
-            else if(successor)
-                successor->send(message);
+            else if(succesor)
+                succesor->send(message);
         }
 
         size_t getIndex(PortId id) const
@@ -89,6 +109,6 @@ namespace npos::ipc
     private:
         PortList& ports;
         PortId initialPort;
-        SystemBus* successor;
+        SystemBus* succesor;
     };
 }
