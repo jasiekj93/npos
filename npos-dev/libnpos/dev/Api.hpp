@@ -12,6 +12,7 @@
 #include <libnpos/dev/msg/Led.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
 #include <libnpos/dev/msg/BackupRegisters.hpp>
+#include <libnpos/dev/msg/Transciever.hpp>
 
 namespace npos::dev::api
 {
@@ -72,6 +73,18 @@ namespace npos::dev::api
     void backupWrite(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::BackupRegisters::Register reg, npos::dev::msg::BackupRegisters::Value& input)
     {
         npos::dev::msg::BackupRegisters request(oid, npos::dev::msg::BackupRegisters::WRITE, reg, &input);
+        sender.getApi().send(request);
+    }
+
+    void transcieverRead(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::Transciever::Length maxLength, etl::span<uint8_t> output)
+    {
+        npos::dev::msg::Transciever request(oid, npos::dev::msg::Transciever::READ, maxLength, output);
+        sender.getApi().send(request);
+    }
+
+    void transcieverWrite(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input)
+    {
+        npos::dev::msg::Transciever request(oid, npos::dev::msg::Transciever::WRITE, input.size(), reinterpret_cast<etl::span<uint8_t>&>(input));
         sender.getApi().send(request);
     }
 }

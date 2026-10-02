@@ -17,5 +17,6 @@ namespace npos::dev::msg
         LED,
         HASH,
         BACKUP_REGISTERS,
+        TRANSCIEVER,
     };
 }

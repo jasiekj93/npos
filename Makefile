@@ -35,6 +35,7 @@ examples/blinking-led \
 examples/dual-system \
 examples/get-time \
 examples/compute-hash \
+examples/uart-read-write \
 
 # Project libraries
 library_names = \

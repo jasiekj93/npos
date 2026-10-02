@@ -12,7 +12,7 @@
 #include <etl/vector.h>
 #include <etl/queue.h>
 
-#include <libnpos/ipc/Service.hpp>
+#include <libnpos/dev/InterruptService.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/hal/Hash.hpp>

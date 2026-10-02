@@ -11,7 +11,7 @@
 
 namespace npos::dev::msg
 {
-    struct Led: public ipc::Message
+    struct Led : public ipc::Message
     {
         using Id = ipc::Message::Input::Attributes::Value;
 
