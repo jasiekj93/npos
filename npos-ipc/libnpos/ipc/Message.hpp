@@ -34,7 +34,7 @@ namespace npos::ipc
 
             struct ReadWrite
             {
-                using Offset = uint64_t;
+                using Offset = uint32_t;
                 using Length = size_t;
                 using Mode = uint8_t;
 

@@ -11,6 +11,7 @@
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Led.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
+#include <libnpos/dev/msg/BackupRegisters.hpp>
 
 namespace npos::dev::api
 {
@@ -59,6 +60,18 @@ namespace npos::dev::api
     void hashAccumulateEnd(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input, etl::span<uint8_t> output)
     {
         npos::dev::msg::Hash request(oid, npos::dev::msg::Hash::ACCUMULATE_END, input, output);
+        sender.getApi().send(request);
+    }
+
+    void backupRead(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::BackupRegisters::Register reg, npos::dev::msg::BackupRegisters::Value& output)
+    {
+        npos::dev::msg::BackupRegisters request(oid, npos::dev::msg::BackupRegisters::READ, reg, &output);
+        sender.getApi().send(request);
+    }
+
+    void backupWrite(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::BackupRegisters::Register reg, npos::dev::msg::BackupRegisters::Value& input)
+    {
+        npos::dev::msg::BackupRegisters request(oid, npos::dev::msg::BackupRegisters::WRITE, reg, &input);
         sender.getApi().send(request);
     }
 }

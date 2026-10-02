@@ -29,7 +29,7 @@ namespace npos::dev::service
         {
         }
 
-        void handle(ipc::Message& message)
+        void handle(ipc::Message& message) override
         {
             if(message.type == msg::Type::HASH)
             {

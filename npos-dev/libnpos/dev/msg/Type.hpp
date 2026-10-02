@@ -16,5 +16,6 @@ namespace npos::dev::msg
         CLOCK,
         LED,
         HASH,
+        BACKUP_REGISTERS,
     };
 }
