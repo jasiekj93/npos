@@ -32,11 +32,9 @@ namespace npos::ipc
 
         inline void setId(ServiceId id) { serviceId = id; }
         inline Api& getApi() const { return api; }
-
-    protected:
-        inline ServiceId getId() const { return serviceId; }
         inline ipc::Oid getOid() const { return { api.getPortId(), serviceId }; }
 
+    protected:
         Api& api;
 
     private:

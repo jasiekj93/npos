@@ -43,10 +43,17 @@ namespace npos::ipc
                 Mode mode;
             };
 
+            struct Link
+            {
+                Oid target;
+                Attributes attributes;
+            };
+
             union
             {
                 Attributes attributes;
                 ReadWrite readWrite;
+                Link link;
 
                 uint8_t raw[RAW_SIZE];
             };
