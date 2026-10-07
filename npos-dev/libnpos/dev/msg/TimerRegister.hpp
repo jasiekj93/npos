@@ -1,7 +1,7 @@
 #pragma once
 
 /**
- * @file Timer.hpp
+ * @file TimerRegister.hpp
  * @author Adrian Szczepanski
  * @date 02-10-2026
  */
@@ -12,7 +12,7 @@
 
 namespace npos::dev::msg
 {
-    struct Timer : public ipc::Message
+    struct TimerRegister : public ipc::Message
     {
         enum Mode : ipc::Message::Input::Attributes::Mode
         {
@@ -26,11 +26,10 @@ namespace npos::dev::msg
             NO_MEMORY
         };
 
-        Timer(ipc::Oid device, ipc::Oid sender, Mode mode, Tick interval)
+        TimerRegister(ipc::Oid sender, Mode mode, Tick interval)
         {
-            this->recipient = device;
-            this->type = msg::Type::TIMER;
-            this->input.link.target = device;
+            this->type = msg::Type::TIMER_REGISTER;
+            this->input.link.target = sender;
             this->input.link.attributes.mode = static_cast<ipc::Message::Input::Attributes::Mode>(mode);
             this->input.link.attributes.value = static_cast<ipc::Message::Input::Attributes::Value>(interval);
         }
@@ -55,7 +54,7 @@ namespace npos::dev::msg
             return static_cast<Status>(this->output.status);
         }
 
-        inline Timer& setStatus(Status status)
+        inline TimerRegister& setStatus(Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;
