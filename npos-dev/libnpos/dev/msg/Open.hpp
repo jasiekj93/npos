@@ -13,7 +13,7 @@
 
 namespace npos::dev::msg
 {
-    struct Open: public ipc::Message
+    struct Open : public ipc::Message
     {
         enum Status : ipc::Message::Status
         {

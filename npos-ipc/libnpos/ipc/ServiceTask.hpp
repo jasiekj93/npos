@@ -134,7 +134,6 @@ namespace npos::ipc
             }
         }
 
-    protected:
         inline auto& getServices() { return services; }
         inline const auto& getServices() const { return services; }
 

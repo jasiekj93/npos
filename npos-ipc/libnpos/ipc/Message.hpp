@@ -15,7 +15,7 @@ namespace npos::ipc
 {
     struct Message
     {
-        static constexpr size_t RAW_SIZE = 32;
+        static constexpr size_t RAW_SIZE = 16;
 
         using Status = uint8_t;
         using Type = uint16_t;
@@ -23,6 +23,13 @@ namespace npos::ipc
 
         struct Input
         {
+            struct Open
+            {
+                using Flags = uint32_t;
+
+                Flags flags;
+            };
+
             struct Attributes
             {
                 using Value = uint64_t;
@@ -51,6 +58,7 @@ namespace npos::ipc
 
             union
             {
+                Open open;
                 Attributes attributes;
                 ReadWrite readWrite;
                 Link link;
