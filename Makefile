@@ -36,6 +36,7 @@ examples/dual-system \
 examples/get-time \
 examples/compute-hash \
 examples/uart-read-write \
+examples/filesystem \
 
 # Project libraries
 library_names = \

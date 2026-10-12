@@ -27,5 +27,6 @@ namespace npos::fs::msg
         NO_MEMORY,
         NO_ATTRIBUTE,
         NAME_TOO_LONG,
+        UNKNOWN_ERROR,
     };
 }

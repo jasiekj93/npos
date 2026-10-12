@@ -85,6 +85,13 @@ namespace npos::ipc
                 Oid opened;
             };
 
+            struct ReadWrite
+            {
+                using Length = size_t;
+
+                Length length;
+            };
+
             union
             {
                 Attributes attributes;

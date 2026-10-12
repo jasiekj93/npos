@@ -20,6 +20,11 @@ namespace npos::fs::msg::file
             this->type = ipc::Message::Type::FILE_CLOSE;
         }
 
+        inline ipc::Oid getFile() const
+        {
+            return this->recipient;
+        }
+
         inline msg::Status getStatus() const
         {
             return static_cast<msg::Status>(this->output.status);

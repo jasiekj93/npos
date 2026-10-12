@@ -36,11 +36,14 @@ namespace npos::fs::task
         template<size_t N>
         using MessageQueue = etl::queue<ipc::Message*, N>;
 
-        Littlefs(Priority priority, MessageQueueInt& messageQueue, Bus& bus)
+        Littlefs(Priority priority, MessageQueueInt& messageQueue, Bus& bus, hal::Flash& flash, hal::ICache* icache)
             : nps::Task(priority)
             , messageQueue(messageQueue)
             , bus(bus)
+            , flash(flash)
+            , icache(icache)
         {
+            //mount?
         }
 
         //Port
@@ -71,6 +74,39 @@ namespace npos::fs::task
         {
             for (auto& file : files)
                 file.free = true;
+
+            config.read = [](const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) -> int
+            {
+                auto fs = reinterpret_cast<Littlefs*>(c->context);
+                return fs->readDisk(block, off, buffer,size);
+            };
+
+            config.prog = [](const struct lfs_config *c, lfs_block_t block, lfs_off_t off, const void *buffer, lfs_size_t size) -> int
+            {
+                auto fs = reinterpret_cast<Littlefs*>(c->context);
+                return fs->programDisk(block, off, buffer, size);
+            };
+
+            config.erase = [](const struct lfs_config *c, lfs_block_t block) -> int
+            {
+                auto fs = reinterpret_cast<Littlefs*>(c->context);
+                return fs->eraseDisk(block);
+            };
+
+            config.sync = [](const struct lfs_config *c) -> int
+            {
+                auto fs = reinterpret_cast<Littlefs*>(c->context);
+                return fs->syncDisk();
+            };
+
+            config.read_size = READ_SIZE;
+            config.prog_size = flash.getProgramSize();
+            config.block_size = flash.getBlockSize();
+            config.block_count = flash.getBlockCount();
+            config.cache_size = READ_SIZE;
+            config.lookahead_size = READ_SIZE;
+            config.block_cycles = flash.getBlockCycles();
+            config.context = this;
         }
 
         virtual bool isReady() const override
@@ -87,6 +123,81 @@ namespace npos::fs::task
             handle(*message);
             messageQueue.pop();
             bus.release(message);
+        }
+
+        //Littlefs disk operations
+        int readDisk(lfs_block_t block, lfs_off_t off, void* buffer, lfs_size_t size)
+        {
+            size_t address = flash.getStartAddress() + (block * flash.getBlockSize()) + offset;
+            flash.read(address, static_cast<uint8_t*>(buffer), size);
+            return LFS_ERR_OK;
+        }
+
+        int programDisk(lfs_block_t block, lfs_off_t off, const void* buff, lfs_size_t size)
+        {
+            size_t address = flash.getStartAddress() + (block * flash.getBlockSize()) + offset;
+            auto buffer = reinterpret_cast<const uint8_t*>(buff);
+
+            if(icache != nullptr)
+                if(not icache->disable())
+                    return LFS_ERR_IO;
+
+            if(not flash.unlock())
+                return LFS_ERR_IO;
+
+            for(size_t i = 0; i < size; i += flash.getProgramSize())
+            {
+                if(not flash.waitForLastOperation(0x10000))
+                {
+                    flash.lock();
+                    return LFS_ERR_IO;
+                }
+
+                if(not flash.program(address, buffer))
+                {
+                    flash.lock();
+                    return LFS_ERR_IO;
+                }
+
+                address += flash.getProgramSize();
+                buffer += flash.getProgramSize();
+            }
+
+            if(not flash.lock())
+                return LFS_ERR_IO;
+
+            if(icache != nullptr)
+                if(not icache->enable())
+                    return LFS_ERR_IO;
+
+            return LFS_ERR_OK;
+        }
+
+        int eraseDisk(lfs_block_t block)
+        {
+            if (not flash.unlock())
+                return LFS_ERR_IO;
+
+            if(not flash.eraseBlocks(block, 1))
+            {
+                flash.lock();
+                return LFS_ERR_IO;
+            }
+
+            if(not flash.lock())
+                return LFS_ERR_IO;
+
+            return LFS_ERR_OK;
+        }
+
+        int syncDisk()
+        {
+            if(not flash.waitForLastOperation(0x10000))
+            {
+                flash.lock();
+                return LFS_ERR_IO;
+            }
+            return LFS_ERR_OK;
         }
 
     protected:
@@ -109,27 +220,100 @@ namespace npos::fs::task
 
         void fileOpen(msg::file::Open& request)
         {
-            
+            for(auto i = 0; i < files.size; i++)
+            {
+                if(files[i].free)
+                {
+                    auto result = lfs_file_open(filesystem, files[i].handle, 
+                        request.getPath().c_str(), static_cast<int>(request.getFlags()));
+
+                    if(result == LFS_ERR_OK)
+                    {
+                        file.free = false;
+                        request.setOpened(ipc::Oid{ getId(), i });
+                    }
+
+                    bus.respond(request.setStatus(fromLfsStatus(result)));
+                }
+            }
         }
 
-        void fileClose(msg::file::Open& request)
+        void fileClose(msg::file::Close& request)
         {
+            if(request.getFile().serviceId >= files.size() or
+                files[request.getFile().serviceId].free)
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+
+            auto& file = files[request.getFile().serviceId];
+            auto result = lfs_file_close(filesystem, file.handle);
+
+            if(result == LFS_ERR_OK)
+                file.free = true;
+
+            bus.respond(request.setStatus(fromLfsStatus(result)));
+        }
+
+        void fileRead(msg::file::Read& request)
+        {
+            if(request.getFile().serviceId >= files.size() or
+                files[request.getFile().serviceId].free)
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+
+            auto& file = files[request.getFile().serviceId];
+            auto result = lfs_file_read(filesystem, file.handle, request.getBuffer().data(), request.getBuffer().size());
+
+            if(result >= 0)
+                bus.respond(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
+            else
+                bus.respond(request.setStatus(fromLfsStatus(result)));
 
         }
 
-        void fileRead(msg::file::Open& request)
+        void fileWrite(msg::file::Write& request)
         {
+            if(request.getFile().serviceId >= files.size() or
+                files[request.getFile().serviceId].free)
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
 
+            auto& file = files[request.getFile().serviceId];
+            auto result = lfs_file_write(filesystem, file.handle, request.getBuffer().data(), request.getBuffer().size());
+
+            if(result >= 0)
+                bus.respond(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
+            else
+                bus.respond(request.setStatus(fromLfsStatus(result)));
         }
 
-        void fileWrite(msg::file::Open& request)
+        msg::Status fromLfsStatus(int status)
         {
-
+            switch(status)
+            {
+                case LFS_ERR_OK: return msg::Status::SUCCESS;
+                case LFS_ERR_IO: return msg::Status::IO_ERROR;
+                case LFS_ERR_CORRUPT: return msg::Status::CORRUPT;
+                case LFS_ERR_NOENT: return msg::Status::NO_ENTRY;
+                case LFS_ERR_EXIST: return msg::Status::ALREADY_EXISTS;
+                case LFS_ERR_NOTDIR: return msg::Status::NOT_A_DIRECTORY;
+                case LFS_ERR_ISDIR: return msg::Status::IS_A_DIRECTORY;
+                case LFS_ERR_NOTEMPTY: return msg::Status::DIRECTORY_NOT_EMPTY;
+                case LFS_ERR_BADF: return msg::Status::BAD_FILE_NUMBER;
+                case LFS_ERR_FBIG: return msg::Status::FILE_TOO_LARGE;
+                case LFS_ERR_INVAL: return msg::Status::INVALID_ARGUMENT;
+                case LFS_ERR_NOSPC: return msg::Status::NO_SPACE;
+                case LFS_ERR_NOMEM: return msg::Status::NO_MEMORY;
+                case LFS_ERR_NOATTR: return msg::Status::NO_ATTRIBUTE;
+                case LFS_ERR_NAMETOOLONG: return msg::Status::NAME_TOO_LONG;
+                default: return msg::Status::UNKNOWN_ERROR;
+            }
         }
 
     private:
         MessageQueueInt& messageQueue;
         ipc::Bus& bus;
+        hal::Flash& flash;
+        hal::ICache* icache;
         etl::array<File, N> files;
+        lfs_t filesystem;
+        lfs_config config;
     };
 }

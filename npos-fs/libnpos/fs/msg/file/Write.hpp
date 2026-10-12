@@ -27,9 +27,20 @@ namespace npos::fs::msg::file
             this->input.size = buffer.size();
         }
 
-        inline Length getLength() const
+        inline Length getInputLength() const
         {
             return this->input.readWrite.length;
+        }
+
+        inline Length getOutputLength() const
+        {
+            return this->output.readWrite.length;
+        }
+
+        inline Write& setOutputLength(Length length)
+        {
+            this->output.readWrite.length = length;
+            return *this;
         }
 
         inline msg::Status getStatus() const

@@ -9,6 +9,7 @@
 #include <etl/string_view.h>
 #include <etl/initializer_list.h>
 
+#include <libnpos/fs/Flags.hpp>
 #include <libnpos/fs/msg/Type.hpp>
 #include <libnpos/fs/msg/Status.hpp>
 #include <libnpos/ipc/Message.hpp>
@@ -17,24 +18,11 @@ namespace npos::fs::msg::file
 {
     struct Open : public ipc::Message
     {
-        enum Flag : ipc::Message::Input::Open::Flags
-        {
-            READ_ONLY = 0x01,
-            WRITE_ONLY = 0x02,
-            READ_WRITE = 0x03,
-            CREATE = 0x0100,
-            EXCLUSIVE = 0x0200,
-            TRUNCATE = 0x0400,
-            APPEND = 0x0800,
-        };
-
-        using Flags = etl::initializer_list<Flag>;
-
-        Open(etl::string_view name, Flags flags)
+        Open(etl::string_view path, Flags flags)
         {
             this->type = msg::Type::FILE_OPEN;
-            this->input.data = reinterpret_cast<const uint8_t*>(name.data());
-            this->input.size = name.size();
+            this->input.data = reinterpret_cast<const uint8_t*>(path.data());
+            this->input.size = path.size();
             this->input.open.flags = 0;
 
             for (auto flag : flags)
@@ -43,7 +31,7 @@ namespace npos::fs::msg::file
             }
         }
 
-        inline etl::string_view getName() const
+        inline etl::string_view getPath() const
         {
             return etl::string_view(reinterpret_cast<const char*>(this->input.data), this->input.size);
         }
