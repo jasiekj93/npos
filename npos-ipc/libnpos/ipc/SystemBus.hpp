@@ -30,6 +30,7 @@ namespace npos::ipc
             : ports(ports)
             , pool(pool)
             , initialPort(initialPort)
+            , succesor(nullptr)
         {
         }
 

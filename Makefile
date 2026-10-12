@@ -37,12 +37,15 @@ examples/get-time \
 examples/compute-hash \
 examples/uart-read-write \
 examples/filesystem \
+# examples/cli \
 
 # Project libraries
 library_names = \
 npos-nps \
 npos-ipc \
 npos-dev \
+npos-fs \
+npos-cli \
 # npos-nps \
 npos-ipc \
 npos-os \
