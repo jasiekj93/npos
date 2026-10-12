@@ -12,7 +12,7 @@
 
 namespace npos::fs
 {
-    enum Flag : ipc::Message::Input::Open::Flags
+    enum Flags : ipc::Message::Input::Open::Flags
     {
         READ_ONLY = 0x01,
         WRITE_ONLY = 0x02,
@@ -22,6 +22,4 @@ namespace npos::fs
         TRUNCATE = 0x0400,
         APPEND = 0x0800,
     };
-
-    using Flags = etl::initializer_list<Flag>;
 }

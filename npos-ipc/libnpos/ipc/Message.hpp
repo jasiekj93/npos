@@ -96,6 +96,7 @@ namespace npos::ipc
             {
                 Attributes attributes;
                 Open open;
+                ReadWrite readWrite;
 
                 uint8_t raw[RAW_SIZE];
             };

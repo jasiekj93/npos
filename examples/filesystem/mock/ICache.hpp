@@ -14,6 +14,12 @@ namespace mock
     class ICache : public npos::fs::hal::ICache
     {
     public:
+        bool init() override
+        {
+            std::cout << "Emulator: ICache init" << std::endl;
+            return true;
+        }
+
         bool enable() override 
         {
             std::cout << "Emulator: ICache enable" << std::endl;

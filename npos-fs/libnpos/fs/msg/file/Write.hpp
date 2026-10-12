@@ -43,12 +43,17 @@ namespace npos::fs::msg::file
             return *this;
         }
 
+        inline ipc::Oid getFile() const
+        {
+            return this->recipient;
+        }
+
         inline msg::Status getStatus() const
         {
             return static_cast<msg::Status>(this->output.status);
         }
 
-        inline Read& setStatus(msg::Status status)
+        inline Write& setStatus(msg::Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;
@@ -56,7 +61,7 @@ namespace npos::fs::msg::file
 
         inline etl::span<const uint8_t> getBuffer() const
         {
-            return etl::span<uint8_t>(this->input.data, this->input.size);
+            return etl::span<const uint8_t>(this->input.data, this->input.size);
         }
     };
 }

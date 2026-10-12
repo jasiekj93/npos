@@ -18,17 +18,12 @@ namespace npos::fs::msg::file
 {
     struct Open : public ipc::Message
     {
-        Open(etl::string_view path, Flags flags)
+        Open(etl::string_view path, ipc::Message::Input::Open::Flags flags)
         {
             this->type = msg::Type::FILE_OPEN;
             this->input.data = reinterpret_cast<const uint8_t*>(path.data());
             this->input.size = path.size();
-            this->input.open.flags = 0;
-
-            for (auto flag : flags)
-            {
-                this->input.open.flags |= static_cast<uint32_t>(flag);
-            }
+            this->input.open.flags = flags;
         }
 
         inline etl::string_view getPath() const

@@ -49,6 +49,11 @@ namespace npos::fs::msg::file
             return static_cast<msg::Status>(this->output.status);
         }
 
+        inline ipc::Oid getFile() const
+        {
+            return this->recipient;
+        }
+
         inline Read& setStatus(msg::Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);

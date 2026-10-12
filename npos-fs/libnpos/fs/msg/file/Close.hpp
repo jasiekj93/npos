@@ -17,7 +17,7 @@ namespace npos::fs::msg::file
         Close(ipc::Oid file)
         {
             this->recipient = file;
-            this->type = ipc::Message::Type::FILE_CLOSE;
+            this->type = msg::Type::FILE_CLOSE;
         }
 
         inline ipc::Oid getFile() const

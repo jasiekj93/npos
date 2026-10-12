@@ -20,7 +20,7 @@ public:
 
     void initialize() override
     {
-        npos::fs::api::file::open(*this, "hello.txt", { npos::fs::Flag::WRITE_ONLY | npos::fs::Flag::CREATE });
+        npos::fs::api::file::open(*this, "hello.txt", npos::fs::Flags::WRITE_ONLY | npos::fs::Flags::CREATE );
         std::cout << "UserApplication initialized." << std::endl;
     }
 
@@ -38,12 +38,12 @@ public:
                 if(not fileOpenedForReading)
                 {
                     std::cout << "Writing to file." << std::endl;
-                    npos::fs::api::file::write(*this, devOid, "Hello, World!", 13);
+                    npos::fs::api::file::write(*this, devOid, etl::span<const uint8_t>(reinterpret_cast<const uint8_t*>("Hello, World!"), 13));
                 }
                 else
                 {
                     std::cout << "Reading from file." << std::endl;
-                    npos::fs::api::file::read(*this, devOid, 128, buffer);
+                    npos::fs::api::file::read(*this, devOid, sizeof(buffer) - 1, etl::span<uint8_t>(reinterpret_cast<uint8_t*>(buffer), sizeof(buffer) - 1));
                 }
             }
         }
@@ -68,7 +68,7 @@ public:
                 if(not fileOpenedForReading)
                 {
                     std::cout << "Now opening for reading." << std::endl;
-                    npos::fs::api::file::open(*this, "hello.txt", { npos::fs::Flag::READ_ONLY });
+                    npos::fs::api::file::open(*this, "hello.txt", npos::fs::Flags::READ_ONLY);
                     fileOpenedForReading = true;
                 }
                 else
@@ -83,9 +83,8 @@ public:
 
             if(response.getStatus() == npos::fs::msg::Status::SUCCESS)
             {
-                std::cout << "File read successfully: " << buffer << std::endl;
                 buffer[response.getOutputLength()] = '\0';
-                std::cout << "Buffer after null-termination: " << buffer << std::endl;
+                std::cout << "File read successfully: " << buffer << std::endl;
 
                 std::cout << "Closing file after reading." << std::endl;
                 npos::fs::api::file::close(*this, devOid);
@@ -95,8 +94,10 @@ public:
 
     bool accepts(npos::ipc::Message::Type type) const override
     {
-        return type == npos::dev::msg::Type::OPEN or
-            type == npos::dev::msg::Type::CLOCK;
+        return type == npos::fs::msg::Type::FILE_OPEN or
+            type == npos::fs::msg::Type::FILE_CLOSE or
+            type == npos::fs::msg::Type::FILE_READ or
+            type == npos::fs::msg::Type::FILE_WRITE;
     }
 
 private:

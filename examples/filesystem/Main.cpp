@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 	systemBus.addPort(userTask);
 	scheduler.addTask(userTask);
 
-	UserApplication userApp(userTask, "clock");
+	UserApplication userApp(userTask);
 	userTask.subscribe(userApp);
 
 	scheduler.start();
