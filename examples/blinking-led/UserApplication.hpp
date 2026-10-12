@@ -36,11 +36,9 @@ public:
                 std::cout << "Device opened." << std::endl;
                 devOid = response.getOpened();
 
-                std::cout << "Toggling led0" << std::endl;
-                npos::dev::api::ledToggle(*this, devOid, 0);
+                std::cout << "Setting timer periodic for 1s" << std::endl;
+                npos::dev::api::timerRegister(*this, npos::dev::msg::Timer::Mode::SINGLE_SHOT, 1000);
 
-                std::cout << "Toggling led1" << std::endl;
-                npos::dev::api::ledToggle(*this, devOid, 1);
             }
         }
         else if (message.type == npos::dev::msg::Type::LED) 
@@ -56,12 +54,32 @@ public:
                 std::cout << "Led: " << response.getId() << " failed to toggle." << std::endl;
             }
         }
+
+        else if (message.type == npos::dev::msg::Type::TIMER) 
+        {
+            auto& response = static_cast<npos::dev::msg::Timer&>(message);
+
+            if(response.getStatus() == npos::dev::msg::Timer::Status::NO_MEMORY)
+            {
+                std::cout << "Timer registration failed: No memory." << std::endl;
+            }
+            else
+            {
+                std::cout << "Toggling led0" << std::endl;
+                npos::dev::api::ledToggle(*this, devOid, 0);
+
+                std::cout << "Toggling led1" << std::endl;
+                npos::dev::api::ledToggle(*this, devOid, 1); 
+            }
+
+        }
     }
 
     bool accepts(npos::ipc::Message::Type type) const override
     {
         return type == npos::dev::msg::Type::OPEN or
-            type == npos::dev::msg::Type::LED;
+            type == npos::dev::msg::Type::LED or
+            type == npos::dev::msg::Type::TIMER;
     }
 
 private:

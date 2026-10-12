@@ -6,54 +6,97 @@
  * @date 02-10-2026
  */
 
-#include <etl/list.h>
+#include <etl/priority_queue.h>
 
 #include <libnpos/dev/msg/Timer.hpp>
 #include <libnpos/nps/Task.hpp>
-#include <libnpos/ipc/Port.hpp>
-#include <libnpos/ipc/Bus.hpp>
+#include <libnpos/ipc/ServiceTask.hpp>
 #include <libnpos/dev/hal/SystemTick.hpp>
 
 namespace npos::dev::task
 {
+    struct CompareTimerMessage : public etl::binary_function<msg::Timer*, msg::Timer*, bool>
+    {
+        bool operator()(const msg::Timer* lhs, const msg::Timer* rhs) const
+        {
+            return lhs->getInterval() < rhs->getInterval();
+        }
+    };
+
     class Timer : public nps::Task, public ipc::Port
     {
     public:
-        struct Event
+        using MessageQueueInt = etl::ipriority_queue<msg::Timer*, etl::ivector<msg::Timer*>, CompareTimerMessage>;
+
+        template <size_t N>
+        using MessageQueue = etl::priority_queue<msg::Timer*, N, etl::vector<msg::Timer*, N>, CompareTimerMessage>;
+
+        Timer(Priority priority, MessageQueueInt& messageQueue, ipc::Bus& bus, hal::SystemTick& systemTick)
+            : nps::Task(priority)
+            , messageQueue(messageQueue)
+            , systemTick(systemTick)
+            , bus(bus)
         {
-            Tick nextEvent;
-            ipc::Oid oid;
-            msg::Timer::Mode mode;
-        };
+        }
 
-        using EventListInt = etl::ilist<Event>;
+        //Port
+        bool accepts(ipc::Message::Type type) const override
+        {
+            return type == msg::Type::TIMER;
+        }
 
-        //open, timerRegister
-        // virtual void initialize() {}
+        void receive(const ipc::Message& message) override
+        {
+            if(message.type != msg::Type::TIMER)
+                return;
+
+            auto& timerMessage = const_cast<msg::Timer&>(static_cast<const msg::Timer&>(message));
+            if(messageQueue.full())
+            {
+                bus.respond(timerMessage.setStatus(msg::Timer::Status::NO_MEMORY));
+                bus.release(&timerMessage);
+            }
+            else
+            {
+                timerMessage.setEventTick(systemTick.getTick() + timerMessage.getInterval());
+                timerMessage.recipient = timerMessage.getTarget();
+                messageQueue.push(&timerMessage);
+            }
+        }
+
+        //nps::Task
         bool isReady() const override
         {
-            for(auto event : eventList)
-            {
-                if(event.nextEvent <= systemTick.getTick())
-                    return true;
-            }
-
-            return false;
+            if(messageQueue.empty())
+                return false;
+            else
+                return messageQueue.top()->getInterval() <= systemTick.getTick();
         }
         
         void process() override
         {
-            for(auto& event : eventList)
+            if(messageQueue.empty())
+                return;
+
+            auto& timerMessage = messageQueue.top();
+
+            if(timerMessage->getEventTick() > systemTick.getTick())
+                return;
+                
+            bus.respond(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
+            messageQueue.pop();
+
+            if(timerMessage->getMode() == msg::Timer::Mode::REPEATING)
             {
-                if(event.nextEvent <= systemTick.getTick())
-                {
-                    
-                }
+                timerMessage->setEventTick(systemTick.getTick() + timerMessage->getInterval());
+                messageQueue.push(timerMessage);
             }
+            else
+                bus.release(timerMessage);
         }
 
     private:
-        EventListInt& eventList;
+        MessageQueueInt& messageQueue;
         hal::SystemTick& systemTick;
         ipc::Bus& bus;
     };

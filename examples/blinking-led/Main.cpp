@@ -7,9 +7,11 @@
 #include <libnpos/ipc/ServiceTask.hpp>
 #include <libnpos/ipc/SystemBus.hpp>
 #include <libnpos/dev/service/LedHandler.hpp>
+#include <libnpos/dev/task/Timer.hpp>
 #include <libnpos/nps/Scheduler.hpp>
 
 #include "mock/Led.hpp"
+#include "mock/SystemTick.hpp"
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
@@ -34,6 +36,13 @@ int main(int argc, char* argv[])
 	etl::vector<npos::dev::hal::Led*, 32> leds { &led0 }; 
 	npos::dev::service::LedHandler ledHandler(devTask, leds, "leds");
 	devTask.subscribe(ledHandler);
+
+	//timer
+	mock::SystemTick systemTick;
+	npos::dev::task::Timer::MessageQueue<32> timerMessageQueue;
+	npos::dev::task::Timer timerTask(9, timerMessageQueue, systemBus, systemTick);
+	systemBus.addPort(timerTask);
+	scheduler.addTask(timerTask);
 
 	//userspace
 	npos::ipc::ServiceTask::ServiceList<32> userServiceList;

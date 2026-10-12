@@ -18,7 +18,6 @@ namespace npos::dev::msg
         HASH,
         BACKUP_REGISTERS,
         TRANSCIEVER,
-        TIMER_REGISTER,
-        TIMER_ELAPSED
+        TIMER,
     };
 }

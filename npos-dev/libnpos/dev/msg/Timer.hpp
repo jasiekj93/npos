@@ -12,7 +12,7 @@
 
 namespace npos::dev::msg
 {
-    struct TimerRegister : public ipc::Message
+    struct Timer : public ipc::Message
     {
         enum Mode : ipc::Message::Input::Attributes::Mode
         {
@@ -26,9 +26,9 @@ namespace npos::dev::msg
             NO_MEMORY
         };
 
-        TimerRegister(ipc::Oid sender, Mode mode, Tick interval)
+        Timer(ipc::Oid sender, Mode mode, Tick interval)
         {
-            this->type = msg::Type::TIMER_REGISTER;
+            this->type = msg::Type::TIMER;
             this->input.link.target = sender;
             this->input.link.attributes.mode = static_cast<ipc::Message::Input::Attributes::Mode>(mode);
             this->input.link.attributes.value = static_cast<ipc::Message::Input::Attributes::Value>(interval);
@@ -54,9 +54,20 @@ namespace npos::dev::msg
             return static_cast<Status>(this->output.status);
         }
 
-        inline TimerRegister& setStatus(Status status)
+        inline Timer& setStatus(Status status)
         {
             this->output.status = static_cast<ipc::Message::Status>(status);
+            return *this;
+        }
+
+        inline Tick getEventTick() const
+        {
+            return static_cast<Tick>(this->output.attributes.value);
+        }
+
+        inline Timer& setEventTick(Tick tick)
+        {
+            this->output.attributes.value = static_cast<ipc::Message::Input::Attributes::Value>(tick);
             return *this;
         }
     };

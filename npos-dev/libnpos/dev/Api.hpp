@@ -89,9 +89,9 @@ namespace npos::dev::api
         sender.getApi().send(request);
     }
 
-    void timerRegister(ipc::Service& sender, ipc::Oid oid, npos::dev::msg::Timer::Mode mode, Tick interval)
+    void timerRegister(ipc::Service& sender, npos::dev::msg::Timer::Mode mode, Tick interval)
     {
-        npos::dev::msg::Timer request(oid, sender.getOid(), mode, interval);
+        npos::dev::msg::Timer request(sender.getOid(), mode, interval);
         sender.getApi().send(request);
     }
 }
