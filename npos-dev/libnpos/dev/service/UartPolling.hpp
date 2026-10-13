@@ -51,10 +51,10 @@ namespace npos::dev::service
         void read(msg::Transciever& request)
         {
             auto buffer = request.getOutputBuffer();
-            auto result = uart.receive(buffer.data(), request.getLength());
+            auto result = uart.receive(buffer.data(), request.getInputLength());
             auto status = (result == true ? msg::Transciever::Status::SUCCESS : msg::Transciever::Status::DEVICE_ERROR);
 
-            getApi().respond(request.setStatus(status));
+            getApi().respond(request.setStatus(status).setOutputLength(result ? request.getInputLength() : 0));
         }
 
         void write(msg::Transciever& request)
@@ -63,7 +63,7 @@ namespace npos::dev::service
             auto result = uart.transmit(buffer.data(), buffer.size());
             auto status = (result == true ? msg::Transciever::Status::SUCCESS : msg::Transciever::Status::DEVICE_ERROR);
 
-            getApi().respond(request.setStatus(status));
+            getApi().respond(request.setStatus(status).setOutputLength(result ? request.getInputLength() : 0));
         }
 
         void open(ipc::Message& message)

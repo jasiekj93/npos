@@ -35,25 +35,25 @@ namespace npos::dev::service
                 if(request.getOperation() == msg::Transciever::Operation::READ)
                 {
                     if(readRequest != nullptr)
-                        return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY));
+                        return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
                     request.referenceCount++;
                     readRequest = &request;
 
                     auto buffer = request.getOutputBuffer();
-                    auto result = uart.receiveIt(buffer.data(), request.getLength());
+                    auto result = uart.receiveIt(buffer.data(), request.getInputLength());
 
                     if(not result)
                     {
                         request.referenceCount--;
                         readRequest = nullptr;
-                        return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR));
+                        return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
                 else if(request.getOperation() == msg::Transciever::Operation::WRITE)
                 {
                     if(writeRequest != nullptr)
-                        return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY));
+                        return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
                     request.referenceCount++;
                     writeRequest = &request;
@@ -65,7 +65,7 @@ namespace npos::dev::service
                     {
                         request.referenceCount--;
                         writeRequest = nullptr;
-                        return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR));
+                        return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
 
@@ -95,7 +95,7 @@ namespace npos::dev::service
                 auto* request = writeRequest;
                 request->referenceCount--;
                 writeRequest = nullptr;
-                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS));
+                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
 
             case hal::UartInterrupt::Event::RECEIVE_COMPLETE:
@@ -106,7 +106,7 @@ namespace npos::dev::service
                 auto* request = readRequest;
                 request->referenceCount--;
                 readRequest = nullptr;
-                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS));
+                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
             
             case hal::UartInterrupt::Event::ERROR:
@@ -116,7 +116,7 @@ namespace npos::dev::service
                     auto* request = readRequest;
                     request->referenceCount--;
                     readRequest = nullptr;
-                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR));
+                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
 
                 if(writeRequest != nullptr)
@@ -124,7 +124,7 @@ namespace npos::dev::service
                     auto* request = writeRequest;
                     request->referenceCount--;
                     writeRequest = nullptr;
-                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR));
+                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
             }
             default:

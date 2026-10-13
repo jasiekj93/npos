@@ -55,9 +55,20 @@ namespace npos::dev::msg
             return static_cast<Operation>(this->input.readWrite.mode);
         }
 
-        inline Length getLength() const
+        inline Length getInputLength() const
         {
             return this->input.readWrite.length;
+        }
+
+        inline Length getOutputLength() const
+        {
+            return this->output.readWrite.length;
+        }
+
+        inline Transciever& setOutputLength(Length length)
+        {
+            this->output.readWrite.length = length;
+            return *this;
         }
 
         inline Status getStatus() const
