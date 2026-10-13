@@ -14,7 +14,7 @@ namespace npos::ipc
     class Service
     {
     public:
-        class Api
+        class Api : public log::Stream::Transmitter
         {
         public:
             virtual ~Api() = default;
@@ -23,7 +23,7 @@ namespace npos::ipc
             virtual void respond(Message& message) = 0;
             virtual PortId getPortId() const = 0;
 
-            virtual log::Stream log(log::Level level, ServiceId serviceId) = 0;
+            void sendSyslog(log::Syslog& message) override { send(message); }
         };
 
         explicit Service(Api& api) : api(api) {}
@@ -36,6 +36,7 @@ namespace npos::ipc
         inline void setId(ServiceId id) { serviceId = id; }
         inline Api& getApi() const { return api; }
         inline ipc::Oid getOid() const { return { api.getPortId(), serviceId }; }
+        inline log::Stream log(log::Level level) { return log::Stream(level, getOid(), api); }
 
     protected:
         Api& api;
