@@ -9,7 +9,7 @@ System nie przydziela własnych kontenerów. Użytkownik podaje strukturę
 .CW os::Memory
 ze referencjami do interfejsów: lista zadań, lista portów, pula wiadomości,
 pula serwisów urządzeń, listy serwisów i kolejki wiadomości zadań oraz kolejka timera
-i kolejka systemu plików. Gotowy zestaw o ustalonych rozmiarach daje szablon
+kolejka systemu plików, kolejka terminala oraz pula slotów na teksty logów terminala. Gotowy zestaw o ustalonych rozmiarach daje szablon
 .CW "os::Storage<Zadania, Serwisy, Kolejka, Wiadomości, SerwisyUrządzeń, Programy>" ,
 którego metoda
 .CW memory()
@@ -53,7 +53,7 @@ Struktura
 zawiera flagę
 .CW cli ,
 nazwę urządzenia terminala oraz priorytety zadań:
-użytkownik 1, system plików 4, urządzenia 5, urządzenia z przerwaniami 6, timer 9.
+użytkownik 1, terminal 2, system plików 4, urządzenia 5, urządzenia z przerwaniami 6, timer 9.
 Wszystkie mają wartości domyślne.
 .PP
 Serwisy użytkownika powstają przed systemem, więc potrzebują obiektu

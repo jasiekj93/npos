@@ -63,13 +63,6 @@ namespace npos::ipc
 
         void receive(const Message& message) override
         {
-            if(message.immediate)
-            {
-                dispatch(const_cast<Message&>(message));
-                bus.release(const_cast<Message*>(&message));
-                return;
-            }
-
             if(messageQueue.full())
                 return; //TODO handle
             else

@@ -10,9 +10,10 @@
 
 #include <etl/string.h>
 
-#include <libnpos/dev/Api.hpp>
 
-#include "RecordingApi.hpp"
+#include <libnpos/cli/task/Terminal.hpp>
+
+#include "RecordingBus.hpp"
 
 namespace mock
 {
@@ -20,41 +21,48 @@ namespace mock
     class Console
     {
     public:
-        Console(npos::ipc::Service& terminal, RecordingApi& api)
+        Console(npos::cli::task::Terminal& terminal, RecordingBus& bus)
             : terminal(terminal)
-            , api(api)
+            , bus(bus)
         {
         }
 
         // Answers the device open request.
         void open(bool success = true)
         {
-            auto message = api.sent.front();
-            api.sent.erase(api.sent.begin());
+            auto message = bus.sent.front();
+            bus.sent.erase(bus.sent.begin());
             auto& response = reinterpret_cast<npos::dev::msg::Open&>(message);
             response.setStatus(success ? npos::dev::msg::Open::SUCCESS : npos::dev::msg::Open::INIT_FAILURE).setOpened({ 5, 0 });
-            message.sender = api.portId;
-            terminal.handle(message);
+            message.sender = terminal.getId();
+            feed(message);
             pump();
+        }
+
+        // Delivers a message the way the bus does.
+        void feed(npos::ipc::Message& message)
+        {
+            terminal.receive(message);
+            terminal.process();
         }
 
         // Handles pending requests: writes are captured and completed, reads wait for keys.
         void pump()
         {
-            while(not api.sent.empty())
+            while(not bus.sent.empty())
             {
                 // The open request waits for open().
-                if(api.sent.front().type == npos::dev::msg::Type::OPEN)
+                if(bus.sent.front().type == npos::dev::msg::Type::OPEN)
                     break;
 
-                auto message = api.sent.front();
-                api.sent.erase(api.sent.begin());
+                auto message = bus.sent.front();
+                bus.sent.erase(bus.sent.begin());
 
                 if(message.type != npos::dev::msg::Type::TRANSCIEVER)
                     continue;
 
                 auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(message);
-                message.sender = api.portId;
+                message.sender = terminal.getId();
 
                 if(request.getOperation() == npos::dev::msg::Transciever::WRITE)
                 {
@@ -65,7 +73,7 @@ namespace mock
                     if(not holdWrites)
                     {
                         request.setStatus(npos::dev::msg::Transciever::SUCCESS).setOutputLength(data.size());
-                        terminal.handle(message);
+                        feed(message);
                     }
                     else
                         heldWrite = message;
@@ -84,7 +92,7 @@ namespace mock
             auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(heldWrite);
             request.setStatus(npos::dev::msg::Transciever::SUCCESS).setOutputLength(request.getInputLength());
             holdWrites = false;
-            terminal.handle(heldWrite);
+            feed(heldWrite);
             pump();
         }
 
@@ -114,7 +122,7 @@ namespace mock
             std::memset(readRequest.output.data, 0, readRequest.output.size);
             std::memcpy(readRequest.output.data, bytes.data(), bytes.size());
             request.setStatus(npos::dev::msg::Transciever::SUCCESS).setOutputLength(readRequest.output.size);
-            terminal.handle(readRequest);
+            feed(readRequest);
             pump();
         }
 
@@ -129,7 +137,7 @@ namespace mock
             reading = false;
             auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(readRequest);
             request.setStatus(status).setOutputLength(0);
-            terminal.handle(readRequest);
+            feed(readRequest);
             pump();
         }
 
@@ -142,8 +150,8 @@ namespace mock
             return result;
         }
 
-        npos::ipc::Service& terminal;
-        RecordingApi& api;
+        npos::cli::task::Terminal& terminal;
+        RecordingBus& bus;
         etl::string<4096> output;
         bool reading = false;
         bool holdWrites = false;

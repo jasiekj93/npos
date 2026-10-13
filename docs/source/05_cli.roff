@@ -5,9 +5,9 @@ Biblioteka
 zawiera terminal tekstowy oraz programy uruchamiane z jego linii poleceń.
 .subchapter "Terminal"
 .PP
-Serwis
-.CW cli::service::Terminal
-otwiera urządzenie wskazane nazwą i wysyła do niego
+Zadanie
+.CW cli::task::Terminal
+(wzorowane na zadaniu timera: zadanie, port i kolejka wiadomości) otwiera urządzenie wskazane nazwą i wysyła do niego
 .CW Transciever
 w trybie odczytu na do 64 bajtów. Każdy odebrany bajt jest naciśnięciem klawisza.
 Wyjście jest kolejkowane i wysyłane porcjami, a gdy poprzedni zapis jeszcze trwa,
@@ -29,9 +29,18 @@ wraz z kursorem.
 .IP_dot
 Terminal śledzi bieżący katalog (najwyżej 64 znaki) i pokazuje go w znaku zachęty.
 .LP
-Ponieważ odpowiedzi trafiają do serwisu po identyfikatorze zapisanym w Oid urządzenia lub pliku,
-terminal jest subskrybowany jako pierwszy serwis zadania użytkownika, a odpowiedzi na cudze
-żądania są pomijane po porcie nadawcy.
+Terminal jest własnym zadaniem i własnym portem na magistrali, a jednocześnie
+.CW Service::Api
+swoich programów, więc dostaje wszystkie odpowiedzi do swoich żądań niezależnie od
+identyfikatorów serwisów w innych zadaniach. Odpowiedzi na cudze żądania są pomijane po porcie nadawcy.
+.PP
+Tekst logu leży w buforze nadawcy, który istnieje tylko w czasie wysyłania. Dlatego przy odbiorze
+terminal kopiuje go do slotu puli (
+.CW PayloadPoolInt ),
+podmienia
+.CW input.data
+i dopiero wtedy kolejkuje wiadomość. Slot jest zwalniany po obsłużeniu logu. Gdy brakuje slotu,
+tekst jest za długi albo kolejka jest pełna, log jest odrzucany.
 .subchapter "Programy"
 .PP
 Program (

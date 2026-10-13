@@ -30,7 +30,7 @@
 #include <libnpos/dev/task/Timer.hpp>
 #include <libnpos/dev/task/Watchdog.hpp>
 #include <libnpos/fs/task/Littlefs.hpp>
-#include <libnpos/cli/service/Terminal.hpp>
+#include <libnpos/cli/task/Terminal.hpp>
 #include <libnpos/cli/program/Cat.hpp>
 #include <libnpos/cli/program/Echo.hpp>
 #include <libnpos/cli/program/Touch.hpp>
@@ -89,6 +89,7 @@ namespace npos::os
     struct Priorities
     {
         nps::Task::Priority user = 1;
+        nps::Task::Priority terminal = 2;
         nps::Task::Priority filesystem = 4;
         nps::Task::Priority devices = 5;
         nps::Task::Priority interruptDevices = 6;
@@ -132,17 +133,20 @@ namespace npos::os
         ipc::ServiceTask::MessageQueueInt& userQueue;
         dev::task::Timer::MessageQueueInt& timerQueue;
         ipc::ServiceTask::MessageQueueInt& filesystemQueue;
-        cli::service::Terminal::ProgramListInt& programs;
+        cli::task::Terminal::MessageQueueInt& terminalQueue;
+        // Slots of ipc::log::Stream::MAX_MESSAGE_LENGTH bytes, the terminal keeps the text of queued logs in them.
+        cli::task::Terminal::PayloadPoolInt& logPayloads;
+        cli::task::Terminal::ProgramListInt& programs;
     };
 
-    template<size_t Tasks = 8, size_t Services = 32, size_t Queue = 32, size_t Messages = 64, size_t DeviceServices = 16, size_t Programs = 16>
+    template<size_t Tasks = 8, size_t Services = 32, size_t Queue = 32, size_t Messages = 64, size_t DeviceServices = 16, size_t Programs = 16, size_t Logs = 8>
     class Storage
     {
     public:
         Memory memory()
         {
             return Memory{ taskList, portList, messagePool, deviceServicePool, deviceServiceList, deviceQueue,
-                interruptServiceList, interruptQueue, userServiceList, userQueue, timerQueue, filesystemQueue, programList };
+                interruptServiceList, interruptQueue, userServiceList, userQueue, timerQueue, filesystemQueue, terminalQueue, logPayloadPool, programList };
         }
 
     private:
@@ -158,7 +162,9 @@ namespace npos::os
         ipc::ServiceTask::MessageQueue<Queue> userQueue;
         dev::task::Timer::MessageQueue<Queue> timerQueue;
         ipc::ServiceTask::MessageQueue<Queue> filesystemQueue;
-        cli::service::Terminal::ProgramList<Programs> programList;
+        cli::task::Terminal::MessageQueue<Queue> terminalQueue;
+        etl::generic_pool<ipc::log::Stream::MAX_MESSAGE_LENGTH, 1, Logs> logPayloadPool;
+        cli::task::Terminal::ProgramList<Programs> programList;
     };
 
     // Builds the whole system from hal interfaces: user, devices, interrupt devices, filesystem, timer, idle and watchdog tasks.
@@ -200,20 +206,19 @@ namespace npos::os
         inline ipc::SystemBus& getBus() { return bus; }
         inline ipc::ServiceTask& getUserTask() { return userTask; }
         inline bool hasFilesystem() const { return filesystemTask.has_value(); }
-        inline bool hasCli() const { return cli.has_value(); }
+        inline bool hasCli() const { return terminal.has_value(); }
+        inline cli::task::Terminal* getTerminal() { return terminal ? &*terminal : nullptr; }
         inline bool hasIdleTask() const { return idleTask.has_value(); }
         inline bool hasWatchdogTask() const { return watchdogTask.has_value(); }
 
     private:
-        struct Cli
+        struct Programs
         {
-            Cli(ipc::Service::Api& api, cli::service::Terminal::ProgramListInt& programs, etl::string_view device)
-                : terminal(api, programs, device)
-                , cat(api), echo(api), touch(api), ls(api), cd(api), pwd(api), mkdir(api)
+            explicit Programs(ipc::Service::Api& api)
+                : cat(api), echo(api), touch(api), ls(api), cd(api), pwd(api), mkdir(api)
             {
             }
 
-            cli::service::Terminal terminal;
             cli::program::Cat cat;
             cli::program::Echo echo;
             cli::program::Touch touch;
@@ -305,19 +310,20 @@ namespace npos::os
 
         void buildUser(const Config& config, ServiceList userServices, UserApi& userApi)
         {
-            // The terminal is subscribed first: ipc routes responses by recipient service id.
             if(config.cli)
             {
-                cli.emplace(userTask, memory.programs, config.terminalDevice);
-                userTask.subscribe(cli->terminal);
+                terminal.emplace(config.priorities.terminal, memory.terminalQueue, memory.logPayloads, memory.programs,
+                    bus, config.terminalDevice);
+                programs.emplace(*terminal);
 
-                cli->terminal.addProgram(cli->cat);
-                cli->terminal.addProgram(cli->echo);
-                cli->terminal.addProgram(cli->touch);
-                cli->terminal.addProgram(cli->ls);
-                cli->terminal.addProgram(cli->cd);
-                cli->terminal.addProgram(cli->pwd);
-                cli->terminal.addProgram(cli->mkdir);
+                terminal->addProgram(programs->cat);
+                terminal->addProgram(programs->echo);
+                terminal->addProgram(programs->touch);
+                terminal->addProgram(programs->ls);
+                terminal->addProgram(programs->cd);
+                terminal->addProgram(programs->pwd);
+                terminal->addProgram(programs->mkdir);
+                addTask(*terminal, *terminal);
             }
 
             for(auto service : userServices)
@@ -339,7 +345,8 @@ namespace npos::os
         etl::optional<fs::task::Littlefs<MaxOpen>> filesystemTask;
         etl::optional<dev::task::Idle> idleTask;
         etl::optional<dev::task::Watchdog> watchdogTask;
-        etl::optional<Cli> cli;
+        etl::optional<cli::task::Terminal> terminal;
+        etl::optional<Programs> programs;
     };
 
     using System = BasicSystem<>;

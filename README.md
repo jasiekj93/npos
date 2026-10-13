@@ -16,7 +16,7 @@ the result is `docs/technical/manual.pdf`. Sources are the `*.roff` chapters in
 | `npos-ipc` | Messages, `Oid` addressing, services, `ServiceTask`, `SystemBus`, `FsmService` |
 | `npos-dev` | Device services (LED, RTC, backup registers, UART polling/interrupt, hash), timer, idle, watchdog |
 | `npos-fs` | File and directory messages and the littlefs based `Littlefs` task |
-| `npos-cli` | Terminal service (line editing, history, logs) and programs |
+| `npos-cli` | Terminal task (line editing, history, logs) and programs |
 | `npos-os` | `os::System` builds a whole system from HAL interfaces |
 | `npos-emulator` | HAL implementations for running on a PC |
 

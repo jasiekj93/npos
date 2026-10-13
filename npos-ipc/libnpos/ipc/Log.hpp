@@ -31,7 +31,6 @@ namespace npos::ipc::log
         Syslog(Oid sender, Level level, etl::string_view message, bool overflow)
         {
             this->type = OS_SYSLOG_MESSAGE_TYPE;
-            this->immediate = true;
             this->input.link.target = sender;
             this->input.link.attributes.value = level;
             this->input.link.attributes.mode = overflow;

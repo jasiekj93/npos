@@ -149,26 +149,49 @@ TEST(System, CliIsOptional)
     CHECK_TRUE(system.hasCli());
 }
 
-TEST(System, TerminalReceivesLogsOnlyWhenCliIsEnabled)
+TEST(System, TerminalIsATaskOfItsOwn)
 {
     {
         os::System system(hal, storage.memory(), {}, api);
-        CHECK_FALSE(system.getUserTask().accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
+        CHECK_TRUE(system.getTerminal() == nullptr);
     }
 
     os::Storage<> other;
     config.cli = true;
     os::System system(hal, other.memory(), {}, api, config);
 
-    CHECK_TRUE(system.getUserTask().accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
+    CHECK_TRUE(system.getTerminal() != nullptr);
+    CHECK_TRUE(system.getTerminal()->accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
+    CHECK_FALSE(system.getUserTask().accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
 }
 
-TEST(System, TerminalIsTheFirstUserService)
+TEST(System, TerminalPriorityIsConfigurable)
+{
+    config.cli = true;
+    config.priorities.terminal = 7;
+    os::System system(hal, storage.memory(), {}, api, config);
+
+    CHECK_EQUAL(7, system.getTerminal()->getPriority());
+}
+
+TEST(System, LogsOfUserServicesReachTheTerminal)
 {
     config.cli = true;
     os::System system(hal, storage.memory(), services, api, config);
 
-    CHECK_EQUAL(1, probe.getOid().serviceId);
+    CHECK_FALSE(system.getTerminal()->isReady());
+
+    probe.log(ipc::log::INFO) << "hello " << 5 << ipc::log::endl;
+
+    CHECK_TRUE(system.getTerminal()->isReady());
+}
+
+TEST(System, CliDoesNotChangeUserServiceIds)
+{
+    config.cli = true;
+    os::System system(hal, storage.memory(), services, api, config);
+
+    CHECK_EQUAL(0, probe.getOid().serviceId);
 }
 
 TEST(System, UserServicesAreSubscribedInGivenOrder)

@@ -6,22 +6,30 @@
  * @date 13-10-2026
  */
 
+#include <cstring>
+
 #include <etl/algorithm.h>
+#include <etl/pool.h>
+#include <etl/queue.h>
 #include <etl/span.h>
 #include <etl/string.h>
 #include <etl/string_view.h>
 #include <etl/vector.h>
 
+#include <libnpos/nps/Task.hpp>
+#include <libnpos/ipc/Bus.hpp>
+#include <libnpos/ipc/Port.hpp>
 #include <libnpos/cli/Program.hpp>
 #include <libnpos/cli/Text.hpp>
-#include <libnpos/dev/Api.hpp>
+#include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Transciever.hpp>
 #include <libnpos/fs/msg/Type.hpp>
 
-namespace npos::cli::service
+namespace npos::cli::task
 {
     // Line terminal over a dev::msg::Transciever device (e.g. uart). Runs registered programs.
-    // Subscribe it first in its task: ipc routes responses by recipient service id, which is 0 for the device and the first file.
-    class Terminal : public ipc::Service, public Program::Host
+    // It is a task of its own and the Api of its programs, so it gets every answer addressed to it.
+    class Terminal : public nps::Task, public ipc::Port, public ipc::Service::Api, public Program::Host
     {
     public:
         static constexpr size_t LINE_SIZE = 128;
@@ -31,19 +39,28 @@ namespace npos::cli::service
         static constexpr size_t MAX_READ_ERRORS = 3;
         static constexpr size_t HISTORY_SIZE = 5;
 
+        using MessageQueueInt = etl::iqueue<ipc::Message*>;
+        using PayloadPoolInt = etl::ipool;
         using ProgramListInt = etl::ivector<Program*>;
+
+        template<size_t N>
+        using MessageQueue = etl::queue<ipc::Message*, N>;
 
         template<size_t N>
         using ProgramList = etl::vector<Program*, N>;
 
-        Terminal(Api& api, ProgramListInt& programs, etl::string_view deviceName)
-            : ipc::Service(api)
+        // Slots of the payload pool hold the text of one log each.
+        Terminal(Priority priority, MessageQueueInt& messageQueue, PayloadPoolInt& payloads, ProgramListInt& programs,
+            ipc::Bus& bus, etl::string_view deviceName)
+            : nps::Task(priority)
+            , messageQueue(messageQueue)
+            , payloads(payloads)
             , programs(programs)
+            , bus(bus)
             , deviceName(deviceName)
         {
         }
 
-        // Programs are driven by the terminal, they must not be subscribed to the task.
         bool addProgram(Program& program)
         {
             if(programs.full())
@@ -53,28 +70,7 @@ namespace npos::cli::service
             return true;
         }
 
-        void initialize() override
-        {
-            dev::api::open(*this, deviceName);
-        }
-
-        void handle(ipc::Message& message) override
-        {
-            if(message.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
-                return onLog(message);
-
-            // Others are broadcast to every accepting port, only answers to our own requests matter.
-            if(message.sender != api.getPortId())
-                return;
-
-            if(message.type == dev::msg::Type::OPEN)
-                onOpen(static_cast<dev::msg::Open&>(message));
-            else if(message.type == dev::msg::Type::TRANSCIEVER)
-                onTransciever(static_cast<dev::msg::Transciever&>(message));
-            else if(running)
-                running->handle(message);
-        }
-
+        //Port
         bool accepts(ipc::Message::Type type) const override
         {
             switch(type)
@@ -94,6 +90,75 @@ namespace npos::cli::service
             default:
                 return false;
             }
+        }
+
+        // The log text lives in the sender's buffer, so it is moved to a slot of the payload pool before queueing.
+        void receive(const ipc::Message& message) override
+        {
+            auto& request = const_cast<ipc::Message&>(message);
+
+            if(request.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+            {
+                if(not storeLog(request))
+                    return bus.release(&request);
+            }
+            // Others are broadcast to every accepting port, only answers to our own requests matter.
+            else if(request.sender != getId())
+                return bus.release(&request);
+
+            if(messageQueue.full())
+            {
+                if(request.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+                    payloads.release(request.input.data);
+
+                return bus.release(&request);
+            }
+
+            messageQueue.push(&request);
+        }
+
+        //nps::Task
+        void initialize() override
+        {
+            dev::msg::Open request(deviceName);
+            send(request);
+        }
+
+        bool isReady() const override
+        {
+            return not messageQueue.empty();
+        }
+
+        void process() override
+        {
+            if(messageQueue.empty())
+                return;
+
+            auto message = messageQueue.front();
+            handle(*message);
+
+            if(message->type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+                payloads.release(message->input.data);
+
+            messageQueue.pop();
+            bus.release(message);
+        }
+
+        //Service::Api
+        void send(ipc::Message& message) override
+        {
+            message.sender = getId();
+            bus.send(message);
+        }
+
+        void respond(ipc::Message& message) override
+        {
+            bus.respond(message);
+        }
+
+        ipc::PortId getPortId() const override
+        {
+            return getId();
         }
 
         // Program::Host
@@ -145,6 +210,29 @@ namespace npos::cli::service
 
     private:
         enum class Escape { NONE, ESC, CSI, SS3 };
+
+        bool storeLog(ipc::Message& message)
+        {
+            if(not message.input.data or message.input.size > payloads.max_item_size() or payloads.full())
+                return false;
+
+            auto slot = payloads.allocate<uint8_t>();
+            std::memcpy(slot, message.input.data, message.input.size);
+            message.input.data = slot;
+            return true;
+        }
+
+        void handle(ipc::Message& message)
+        {
+            if(message.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+                onLog(message);
+            else if(message.type == dev::msg::Type::OPEN)
+                onOpen(static_cast<dev::msg::Open&>(message));
+            else if(message.type == dev::msg::Type::TRANSCIEVER)
+                onTransciever(static_cast<dev::msg::Transciever&>(message));
+            else if(running)
+                running->handle(message);
+        }
 
         void onOpen(dev::msg::Open& response)
         {
@@ -502,7 +590,8 @@ namespace npos::cli::service
 
         void startRead()
         {
-            dev::api::transcieverRead(*this, device, READ_SIZE, etl::span<uint8_t>(rxBuffer, READ_SIZE));
+            dev::msg::Transciever request(device, dev::msg::Transciever::READ, READ_SIZE, etl::span<uint8_t>(rxBuffer, READ_SIZE));
+            send(request);
         }
 
         void flush()
@@ -515,10 +604,14 @@ namespace npos::cli::service
             pending.erase(pending.begin(), pending.begin() + size);
 
             writing = true;
-            dev::api::transcieverWrite(*this, device, etl::span<const uint8_t>(chunk, size));
+            dev::msg::Transciever request(device, dev::msg::Transciever::WRITE, size, etl::span<uint8_t>(chunk, size));
+            send(request);
         }
 
+        MessageQueueInt& messageQueue;
+        PayloadPoolInt& payloads;
         ProgramListInt& programs;
+        ipc::Bus& bus;
         etl::string_view deviceName;
         ipc::Oid device = ipc::NULL_OID;
         bool opened = false;

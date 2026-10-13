@@ -6,12 +6,13 @@
 
 #include "mock/Console.hpp"
 #include "mock/FakeProgram.hpp"
+#include "mock/RecordingApi.hpp"
 
-#include <libnpos/cli/service/Terminal.hpp>
+#include <libnpos/cli/task/Terminal.hpp>
 
 #include <CppUTest/TestHarness.h>
 
-using npos::cli::service::Terminal;
+using npos::cli::task::Terminal;
 
 #define CHECK_OUTPUT(expected) STRCMP_EQUAL(expected, console.take().c_str())
 
@@ -21,10 +22,15 @@ TEST_GROUP(Terminal)
     static constexpr const char* BANNER = "\r\nnpos terminal, type 'help'\r\nnpos:/> ";
 
     mock::RecordingApi api;
+    mock::RecordingBus bus;
+    Terminal::MessageQueue<8> queue;
+    etl::generic_pool<npos::ipc::log::Stream::MAX_MESSAGE_LENGTH, 1, 4> payloads;
     Terminal::ProgramList<2> programList;
-    Terminal terminal{api, programList, "uart0"};
-    mock::Console console{terminal, api};
+    Terminal terminal{2, queue, payloads, programList, bus, "uart0"};
+    mock::Console console{terminal, bus};
     mock::FakeProgram program{api};
+
+    void setup() override { terminal.setId(3); }
 
     void start()
     {
@@ -63,7 +69,9 @@ TEST_GROUP(Terminal)
     {
         npos::ipc::Oid sender{10, 0};
         npos::ipc::log::Syslog message(sender, npos::ipc::log::Level::INFO, text, false);
-        terminal.handle(message);
+        message.sender = 10;
+        terminal.receive(message);
+        terminal.process();
         console.pump();
     }
 };
@@ -72,10 +80,10 @@ TEST(Terminal, InitializeBroadcastsOpenRequestForTheDevice)
 {
     terminal.initialize();
 
-    CHECK_EQUAL(1, api.sent.size());
-    CHECK_EQUAL(npos::dev::msg::Type::OPEN, api.sent[0].type);
-    CHECK_EQUAL(npos::ipc::NULL_PORT, api.sent[0].recipient.portId);
-    CHECK_TRUE(reinterpret_cast<npos::dev::msg::Open&>(api.sent[0]).getName() == "uart0");
+    CHECK_EQUAL(1, bus.sent.size());
+    CHECK_EQUAL(npos::dev::msg::Type::OPEN, bus.sent[0].type);
+    CHECK_EQUAL(npos::ipc::NULL_PORT, bus.sent[0].recipient.portId);
+    CHECK_TRUE(reinterpret_cast<npos::dev::msg::Open&>(bus.sent[0]).getName() == "uart0");
 }
 
 TEST(Terminal, OpenedDeviceShowsBannerAndPromptAndStartsReading)
@@ -106,7 +114,7 @@ TEST(Terminal, FailedOpenShowsNothingAndDoesNotRead)
 
     CHECK_OUTPUT("");
     CHECK_FALSE(console.reading);
-    CHECK_EQUAL(0, api.sent.size());
+    CHECK_EQUAL(0, bus.sent.size());
 }
 
 TEST(Terminal, TypedCharactersAreEchoed)
@@ -603,9 +611,9 @@ TEST(Terminal, ResponsesAreForwardedToRunningProgram)
     console.type("fake\r");
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
-    response.sender = api.portId;
+    response.sender = terminal.getId();
 
-    terminal.handle(response);
+    console.feed(response);
 
     CHECK_EQUAL(1, program.handled.size());
     CHECK_EQUAL(npos::fs::msg::Type::FILE_OPEN, program.handled[0]);
@@ -616,9 +624,9 @@ TEST(Terminal, ResponsesWithoutRunningProgramAreDropped)
     start();
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
-    response.sender = api.portId;
+    response.sender = terminal.getId();
 
-    terminal.handle(response);
+    console.feed(response);
 
     CHECK_EQUAL(0, program.handled.size());
 }
@@ -626,12 +634,12 @@ TEST(Terminal, ResponsesWithoutRunningProgramAreDropped)
 TEST(Terminal, MessagesFromOtherPortsAreIgnored)
 {
     terminal.initialize();
-    npos::ipc::Message foreign = api.sent[0];
-    api.sent.clear();
+    npos::ipc::Message foreign = bus.sent[0];
+    bus.sent.clear();
     foreign.sender = 9;
     reinterpret_cast<npos::dev::msg::Open&>(foreign).setStatus(npos::dev::msg::Open::SUCCESS).setOpened({ 5, 0 });
 
-    terminal.handle(foreign);
+    console.feed(foreign);
 
     CHECK_OUTPUT("");
     CHECK_FALSE(console.reading);
@@ -703,7 +711,7 @@ TEST(Terminal, LogWithoutTextIsIgnored)
     message.sender = 9;
     message.input.data = nullptr;
 
-    terminal.handle(message);
+    console.feed(message);
 
     CHECK_OUTPUT("");
 }
@@ -857,11 +865,164 @@ TEST(Terminal, FailedWriteDoesNotStallOutput)
     auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(console.heldWrite);
     request.setStatus(npos::dev::msg::Transciever::DEVICE_ERROR);
     console.holdWrites = false;
-    terminal.handle(console.heldWrite);
+    console.feed(console.heldWrite);
     console.pump();
     console.take();
 
     console.type("b");
 
     CHECK_OUTPUT("b");
+}
+
+TEST(Terminal, KeepsPriority)
+{
+    CHECK_EQUAL(2, terminal.getPriority());
+}
+
+TEST(Terminal, IsReadyOnlyWithQueuedMessages)
+{
+    npos::ipc::Message message;
+    message.type = npos::dev::msg::Type::OPEN;
+    message.sender = terminal.getId();
+
+    CHECK_FALSE(terminal.isReady());
+
+    terminal.receive(message);
+
+    CHECK_TRUE(terminal.isReady());
+
+    terminal.process();
+
+    CHECK_FALSE(terminal.isReady());
+}
+
+TEST(Terminal, ProcessWithoutMessagesDoesNothing)
+{
+    terminal.process();
+
+    CHECK_EQUAL(0, bus.released.size());
+}
+
+TEST(Terminal, ProcessedMessagesAreReleasedToTheBus)
+{
+    start();
+    npos::ipc::Message response;
+    response.type = npos::fs::msg::Type::FILE_OPEN;
+    response.sender = terminal.getId();
+    auto before = bus.released.size();
+
+    console.feed(response);
+
+    CHECK_EQUAL(before + 1, bus.released.size());
+    POINTERS_EQUAL(&response, bus.released.back());
+}
+
+TEST(Terminal, MessagesFromOtherPortsAreReleasedWithoutQueueing)
+{
+    npos::ipc::Message foreign;
+    foreign.type = npos::dev::msg::Type::OPEN;
+    foreign.sender = 9;
+
+    terminal.receive(foreign);
+
+    CHECK_FALSE(terminal.isReady());
+    CHECK_EQUAL(1, bus.released.size());
+}
+
+TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
+{
+    start();
+    char text[] = "original";
+    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, text, false);
+    message.sender = 10;
+
+    terminal.receive(message);
+    text[0] = 'X';
+    terminal.process();
+    console.pump();
+
+    CHECK_TRUE(strstr(console.take().c_str(), "original") != nullptr);
+}
+
+TEST(Terminal, QueuedLogPointsAtAPayloadSlot)
+{
+    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, "abc", false);
+
+    terminal.receive(message);
+
+    CHECK_TRUE(payloads.is_in_pool(message.input.data));
+    CHECK_EQUAL(3, payloads.available());
+}
+
+TEST(Terminal, PayloadSlotIsFreedAfterTheLogIsHandled)
+{
+    start();
+
+    log("one");
+    log("two");
+
+    CHECK_EQUAL(4, payloads.available());
+}
+
+TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
+{
+    npos::ipc::log::Syslog logs[5] = {
+        { { 10, 0 }, npos::ipc::log::Level::INFO, "a", false }, { { 10, 0 }, npos::ipc::log::Level::INFO, "b", false },
+        { { 10, 0 }, npos::ipc::log::Level::INFO, "c", false }, { { 10, 0 }, npos::ipc::log::Level::INFO, "d", false },
+        { { 10, 0 }, npos::ipc::log::Level::INFO, "e", false } };
+
+    for(auto& message : logs)
+        terminal.receive(message);
+
+    CHECK_EQUAL(0, payloads.available());
+    CHECK_EQUAL(1, bus.released.size());
+    POINTERS_EQUAL(&logs[4], bus.released[0]);
+}
+
+TEST(Terminal, TooLongLogIsDropped)
+{
+    etl::string<200> text(npos::ipc::log::Stream::MAX_MESSAGE_LENGTH + 1, 'x');
+    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
+
+    terminal.receive(message);
+
+    CHECK_FALSE(terminal.isReady());
+    CHECK_EQUAL(4, payloads.available());
+    CHECK_EQUAL(1, bus.released.size());
+}
+
+TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
+{
+    Terminal::MessageQueue<1> smallQueue;
+    Terminal small{2, smallQueue, payloads, programList, bus, "uart0"};
+    npos::ipc::log::Syslog first({ 10, 0 }, npos::ipc::log::Level::INFO, "a", false);
+    npos::ipc::log::Syslog second({ 10, 0 }, npos::ipc::log::Level::INFO, "b", false);
+
+    small.receive(first);
+    small.receive(second);
+
+    CHECK_EQUAL(3, payloads.available());
+    CHECK_EQUAL(1, bus.released.size());
+    POINTERS_EQUAL(&second, bus.released[0]);
+}
+
+TEST(Terminal, RequestsAreSentFromTheTerminalPort)
+{
+    terminal.initialize();
+
+    CHECK_EQUAL(3, bus.sent[0].sender);
+}
+
+TEST(Terminal, ActsAsApiOfItsPrograms)
+{
+    npos::ipc::Service::Api& api = terminal;
+    npos::ipc::Message message;
+    message.type = npos::fs::msg::Type::FILE_OPEN;
+
+    api.send(message);
+    api.respond(message);
+
+    CHECK_EQUAL(3, api.getPortId());
+    CHECK_EQUAL(3, bus.sent[0].sender);
+    CHECK_EQUAL(1, bus.responded.size());
 }

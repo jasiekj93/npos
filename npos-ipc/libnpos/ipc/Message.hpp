@@ -110,7 +110,6 @@ namespace npos::ipc
         Oid recipient = NULL_OID;
         Type type;
         ReferenceCount referenceCount = 0;
-        bool immediate = false;
 
         Input input;
         Output output;
