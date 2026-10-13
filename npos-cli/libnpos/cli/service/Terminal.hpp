@@ -188,13 +188,22 @@ namespace npos::cli::service
         // Prints the log above the edited line, then restores the line.
         void onLog(ipc::Message& message)
         {
+            auto& request = static_cast<ipc::log::Syslog&>(message);
+
             if(not message.input.data)
                 return;
 
             if(promptShown)
                 print("\r\x1b[K");
 
-            print(etl::string_view(reinterpret_cast<const char*>(message.input.data), message.input.size));
+            print("[");
+            print(text::printOid(request.getSender()));
+            print(" ");
+            print(text::syslogLevel(request.getLevel()));
+            if(request.getOverflow())
+                print("!!!");
+            print("] ");
+            print(request.getMessage());
             print("\r\n");
 
             if(promptShown)

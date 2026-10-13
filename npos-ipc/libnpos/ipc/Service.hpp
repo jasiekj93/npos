@@ -7,6 +7,7 @@
  */
 
 #include <libnpos/ipc/Message.hpp>
+#include <libnpos/ipc/Log.hpp>
 
 namespace npos::ipc
 {
@@ -21,6 +22,8 @@ namespace npos::ipc
             virtual void send(Message& message) = 0;
             virtual void respond(Message& message) = 0;
             virtual PortId getPortId() const = 0;
+
+            virtual log::Stream log(log::Level level, ServiceId serviceId) = 0;
         };
 
         explicit Service(Api& api) : api(api) {}

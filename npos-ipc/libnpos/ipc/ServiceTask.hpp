@@ -16,7 +16,7 @@
 
 namespace npos::ipc
 {
-    class ServiceTask : public npos::nps::Task, public Port, public Service::Api
+    class ServiceTask : public npos::nps::Task, public Port, public Service::Api, public log::Stream::Transmitter
     {
     public:
         using ServiceListInt = etl::ivector<Service*>;
@@ -63,6 +63,13 @@ namespace npos::ipc
 
         void receive(const Message& message) override
         {
+            if(message.immediate)
+            {
+                dispatch(const_cast<Message&>(message));
+                bus.release(const_cast<Message*>(&message));
+                return;
+            }
+
             if(messageQueue.full())
                 return; //TODO handle
             else
@@ -114,6 +121,17 @@ namespace npos::ipc
         PortId getPortId() const override
         {
             return getId();
+        }
+
+        log::Stream log(log::Level level, ServiceId serviceId) override
+        {
+            return log::Stream(level, { getId(), serviceId }, *this);
+        }
+
+        //log::Stream::Transmitter
+        void sendSyslog(log::Syslog& message) override
+        {
+            bus.send(message);
         }
     
     protected:

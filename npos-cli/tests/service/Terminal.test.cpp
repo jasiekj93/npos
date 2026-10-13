@@ -61,11 +61,8 @@ TEST_GROUP(Terminal)
 
     void log(const char* text)
     {
-        npos::ipc::Message message;
-        message.type = npos::ipc::OS_SYSLOG_MESSAGE_TYPE;
-        message.sender = 9;
-        message.input.data = reinterpret_cast<const uint8_t*>(text);
-        message.input.size = strlen(text);
+        npos::ipc::Oid sender{10, 0};
+        npos::ipc::log::Syslog message(sender, npos::ipc::log::Level::INFO, text, false);
         terminal.handle(message);
         console.pump();
     }
@@ -664,7 +661,7 @@ TEST(Terminal, LogReplacesPromptLineAndRestoresIt)
 
     log("disk full");
 
-    CHECK_OUTPUT("\r\x1b[Kdisk full\r\n\rnpos:/> ab\x1b[K");
+    CHECK_OUTPUT("\r\x1b[K[{10:0} info] disk full\r\n\rnpos:/> ab\x1b[K");
 }
 
 TEST(Terminal, LogRestoresCursorPosition)
@@ -675,7 +672,7 @@ TEST(Terminal, LogRestoresCursorPosition)
 
     log("note");
 
-    CHECK_OUTPUT("\r\x1b[Knote\r\n\rnpos:/> ab\x1b[K\x1b[1D");
+    CHECK_OUTPUT("\r\x1b[K[{10:0} info] note\r\n\rnpos:/> ab\x1b[K\x1b[1D");
 }
 
 TEST(Terminal, LogOnEmptyPromptKeepsPrompt)
@@ -684,7 +681,7 @@ TEST(Terminal, LogOnEmptyPromptKeepsPrompt)
 
     log("boot");
 
-    CHECK_OUTPUT("\r\x1b[Kboot\r\n\rnpos:/> \x1b[K");
+    CHECK_OUTPUT("\r\x1b[K[{10:0} info] boot\r\n\rnpos:/> \x1b[K");
 }
 
 TEST(Terminal, LogWhileProgramRunsIsJustPrinted)
@@ -695,7 +692,7 @@ TEST(Terminal, LogWhileProgramRunsIsJustPrinted)
 
     log("busy");
 
-    CHECK_OUTPUT("busy\r\n");
+    CHECK_OUTPUT("[{10:0} info] busy\r\n");
 }
 
 TEST(Terminal, LogWithoutTextIsIgnored)
@@ -718,7 +715,7 @@ TEST(Terminal, LogBeforeDeviceIsOpenedIsShownAfterOpening)
     log("early");
     console.open();
 
-    CHECK_OUTPUT("early\r\n\r\nnpos terminal, type 'help'\r\nnpos:/> ");
+    CHECK_OUTPUT("[{10:0} info] early\r\n\r\nnpos terminal, type 'help'\r\nnpos:/> ");
 }
 
 TEST(Terminal, LogsAreHandledWhileOutputIsStillBeingSent)
@@ -732,8 +729,8 @@ TEST(Terminal, LogsAreHandledWhileOutputIsStillBeingSent)
     console.completeHeldWrite();
 
     auto text = console.take();
-    CHECK_TRUE(strstr(text.c_str(), "one") != nullptr);
-    CHECK_TRUE(strstr(text.c_str(), "two") != nullptr);
+    CHECK_TRUE(strstr(text.c_str(), "[{10:0} info] one") != nullptr);
+    CHECK_TRUE(strstr(text.c_str(), "[{10:0} info] two") != nullptr);
 }
 
 TEST(Terminal, PrintExpandsLineFeedsOnce)

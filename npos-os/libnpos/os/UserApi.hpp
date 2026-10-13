@@ -11,7 +11,7 @@
 namespace npos::os
 {
     // Lets user services be created before the system that runs them; System binds it to the user task.
-    class UserApi : public ipc::Service::Api
+    class UserApi : public ipc::Service::Api, public ipc::log::Stream::Transmitter
     {
     public:
         inline void bind(ipc::Service::Api& target) { api = &target; }
@@ -32,6 +32,18 @@ namespace npos::os
         ipc::PortId getPortId() const override
         {
             return api ? api->getPortId() : ipc::NULL_PORT;
+        }
+
+        ipc::log::Stream log(ipc::log::Level level, ipc::ServiceId serviceId) override
+        {
+            return ipc::log::Stream(level, { getPortId(), serviceId }, *this);
+        }
+
+        void sendSyslog(ipc::log::Syslog& message) override
+        {
+            // if(api)
+            //     api->sendSyslog(message);
+            //TODO
         }
 
     private:

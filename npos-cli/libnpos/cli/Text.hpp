@@ -9,9 +9,10 @@
 #include <cstdint>
 
 #include <etl/string.h>
-#include <etl/string_view.h>
+#include <etl/string_stream.h>
 
 #include <libnpos/fs/msg/Status.hpp>
+#include <libnpos/ipc/Log.hpp>
 
 namespace npos::cli::text
 {
@@ -129,5 +130,26 @@ namespace npos::cli::text
         case fs::msg::Status::END_OF_DIRECTORY: return "end of directory";
         default: return "unknown error";
         }
+    }
+
+    inline etl::string_view syslogLevel(ipc::log::Level level)
+    {
+        switch(level)
+        {
+        case ipc::log::Level::DEBUG: return "debug";
+        case ipc::log::Level::INFO: return "info";
+        case ipc::log::Level::WARNING: return "warning";
+        case ipc::log::Level::ERROR: return "error";
+        default: return "unknown";
+        }
+    }
+
+    inline etl::string<10> printOid(ipc::Oid oid)
+    {
+        etl::string<10> out;
+        etl::string_stream stream(out);
+
+        stream << "{" << static_cast<int>(oid.portId) << ":" << static_cast<int>(oid.serviceId) << "}";
+        return out;
     }
 }
