@@ -8,24 +8,30 @@
 #include <libnpos/emulator/Flash.hpp>
 #include <libnpos/emulator/ICache.hpp>
 #include <libnpos/emulator/ConsoleUart.hpp>
+#include <libnpos/emulator/SystemTick.hpp>
 
 int main(int argc, char* argv[])
 {
+	npos::emulator::SystemTick systemTick;
+	npos::os::Storage<> storage;
 	npos::emulator::Flash flash;
 	npos::emulator::ICache icache;
 	npos::emulator::ConsoleUart uart;
+	npos::dev::InterruptService::InterruptQueue<32> uartQueue;
+	npos::os::InterruptDevice<npos::dev::hal::UartInterrupt> uarts[] = { { uart, "uart0", uartQueue } };
 
-	npos::os::System::Hal hal;
+	npos::os::UserApi api;
+
+	npos::os::Hal hal(systemTick);
 	hal.flash = &flash;
 	hal.icache = &icache;
-	hal.uart.hal = &uart;
+	hal.uarts = uarts;
 
-	npos::os::System::Config config;
+	npos::os::Config config;
 	config.cli = true;
 	config.terminalDevice = "uart0";
 
-	npos::os::UserApi api;
-	npos::os::System system(hal, {}, api, config);
+	npos::os::System system(hal, storage.memory(), etl::span<npos::ipc::Service* const>(), api, config);
 	system.start();
 
 	return 0;

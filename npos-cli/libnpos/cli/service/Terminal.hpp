@@ -89,6 +89,7 @@ namespace npos::cli::service
             case fs::msg::Type::DIR_OPEN:
             case fs::msg::Type::DIR_CLOSE:
             case fs::msg::Type::DIR_READ:
+            case fs::msg::Type::DIR_MAKE:
                 return true;
             default:
                 return false;

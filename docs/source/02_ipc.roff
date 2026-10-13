@@ -1,0 +1,135 @@
+.chapter "Komunikacja międzyprocesowa"
+.PP
+Biblioteka
+.B npos-ipc
+definiuje wiadomości, adresowanie oraz magistralę łączącą zadania.
+.subchapter "Adresowanie"
+.PP
+Obiekt systemu jest adresowany przez
+.CW ipc::Oid ,
+czyli parę (port, serwis). Port to adres zadania na magistrali, a identyfikator
+serwisu to indeks serwisu w zadaniu. Wartości
+.CW NULL_PORT
+i
+.CW NULL_SERVICE
+(255) oznaczają brak adresu. Adres
+.CW NULL_OID
+oznacza rozgłaszanie.
+.PP
+Oid wskazuje wyłącznie na obiekty, które mogą zawieść z powodu sprzętu lub plików,
+na przykład otwarte urządzenie albo otwarty plik. Zadania i serwisy nie są obiektami.
+.subchapter "Wiadomość"
+.PP
+Struktura
+.CW ipc::Message
+ma stały rozmiar. Zawiera:
+.IP_bold sender
+port nadawcy,
+.IP_bold recipient
+adres odbiorcy (Oid),
+.IP_bold type
+typ wiadomości,
+.IP_bold referenceCount
+licznik odwołań, gdy wiadomość jest przechowywana w puli,
+.IP_bold input
+dane wejściowe: unia pól typowanych (otwarcie, atrybuty, odczyt lub zapis, połączenie)
+oraz wskaźnik i rozmiar bufora,
+.IP_bold output
+analogiczna część wyjściowa ze statusem odpowiedzi.
+.LP
+Typy wiadomości są podzielone na zakresy: błędy i logi systemowe, urządzenia,
+sterowniki, system plików, cli oraz użytkownika. Konkretne wiadomości dziedziczą po
+.CW ipc::Message
+i dodają wyłącznie akcesory, bez nowych pól. Bufory nie są kopiowane, więc muszą
+istnieć do czasu obsłużenia odpowiedzi.
+.subchapter "Serwis"
+.PP
+Serwis (
+.CW ipc::Service )
+implementuje metody
+.CW handle() ,
+.CW accepts()
+oraz opcjonalnie
+.CW initialize() .
+Komunikuje się przez interfejs
+.CW Service::Api :
+.CW send() ,
+.CW respond()
+i
+.CW getPortId() .
+Obiekt
+.CW Api
+jest podawany w konstruktorze, a implementuje go zadanie serwisów.
+.PP
+.CW ipc::FsmService
+to serwis będący automatem skończonym. Stany dziedziczą po
+.CW FsmService::State
+(metody
+.CW onEnter() ,
+.CW onExit() ,
+.CW accepts() ,
+.CW handle()
+i
+.CW handleUnknown() ).
+Obsługa zwraca identyfikator następnego stanu albo
+.CW NO_STATE_CHANGE .
+Serwis akceptuje typy wiadomości wyłącznie bieżącego stanu, a po
+.CW start()
+wchodzi w stan o indeksie 0.
+.subchapter "Zadanie serwisów"
+.PP
+Klasa
+.CW ipc::ServiceTask
+jest jednocześnie zadaniem, portem na magistrali i
+.CW Service::Api .
+Listę serwisów i kolejkę wiadomości dostaje od użytkownika jako interfejsy
+.CW ServiceListInt&
+i
+.CW MessageQueueInt& .
+.IP_dot
+.CW subscribe()
+nadaje serwisowi identyfikator równy indeksowi w liście,
+.IP_dot
+wiadomość do tego samego portu jest obsługiwana od razu, bez kolejkowania,
+.IP_dot
+wiadomość do innego portu trafia na magistralę,
+.IP_dot
+odbiorca z konkretnym identyfikatorem serwisu dostaje wiadomość bezpośrednio, a przy
+.CW NULL_SERVICE
+wiadomość trafia do wszystkich serwisów, które akceptują jej typ.
+.LP
+Odpowiedzi są adresowane po polu
+.CW sender
+z żądania. Serwis, który tylko czeka na odpowiedzi, powinien rozróżniać własne żądania
+od cudzych po porcie nadawcy.
+.subchapter "Magistrala"
+.PP
+Interfejs
+.CW ipc::Bus
+ma metody
+.CW send() ,
+.CW respond()
+i
+.CW release() .
+Implementacja
+.CW ipc::SystemBus
+przyjmuje listę portów oraz pulę wiadomości od użytkownika. Numery portów
+są nadawane od wartości początkowej, więc dwie magistrale mogą mieć rozłączne zakresy
+i być połączone jako następcy.
+.IP_dot
+Wiadomość spoza puli jest kopiowana do puli przed doręczeniem.
+.IP_dot
+Każde doręczenie zwiększa licznik odwołań, a
+.CW release()
+zmniejsza go i zwraca wiadomość do puli, gdy licznik spadnie do zera.
+.IP_dot
+Rozgłaszanie omija port nadawcy i porty, które nie akceptują typu wiadomości.
+.IP_dot
+Odpowiedź wraca do portu zapisanego w polu
+.CW sender .
+.IP_dot
+Nieznany port jest przekazywany następcy, o ile istnieje.
+.LP
+Usługa
+.CW OS_SYSLOG_MESSAGE_TYPE
+służy do przesyłania logów, które wyświetla terminal.

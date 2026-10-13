@@ -1,0 +1,60 @@
+.chapter "System plików"
+.PP
+Biblioteka
+.B npos-fs
+definiuje interfejs systemu plików, a zadanie
+.CW fs::task::Littlefs<N>
+implementuje go na bibliotece littlefs. Parametr N to liczba jednocześnie otwartych
+plików oraz, osobno, katalogów.
+.subchapter "Obsługa sprzętu"
+.PP
+Pamięć opisuje
+.CW fs::hal::Flash
+(blokowy dostęp do pamięci flash) i opcjonalnie
+.CW fs::hal::ICache
+(pamięć podręczna instrukcji jest wyłączana na czas programowania). Jeżeli
+montowanie się nie powiedzie, zadanie formatuje pamięć i montuje ją ponownie.
+.subchapter "Wiadomości"
+.TS
+center box;
+lb lb
+lw(5.5c) lw(8c).
+Wiadomość	T{
+Znaczenie
+T}
+file::Open	T{
+otwarcie pliku z flagami (READ_ONLY, WRITE_ONLY, CREATE, TRUNCATE, APPEND, EXCLUSIVE)
+T}
+file::Read, file::Write	T{
+odczyt i zapis do bufora użytkownika
+T}
+file::Close	T{
+zamknięcie pliku
+T}
+dir::Open, dir::Close	T{
+otwarcie i zamknięcie katalogu
+T}
+dir::Read	T{
+odczyt kolejnego wpisu (typ, rozmiar, nazwa do 64 znaków)
+T}
+dir::Make	T{
+utworzenie katalogu
+T}
+.TE
+.PP
+Otwarcie zwraca Oid pliku lub katalogu. Pole identyfikatora serwisu w tym Oid to
+indeks slotu w zadaniu. Odczyt katalogu kończy status
+.CW END_OF_DIRECTORY ;
+wpisy
+.CW .
+i
+.CW ..
+nie są zwracane. Brak wolnego slotu skutkuje odpowiedzią
+.CW NO_MEMORY .
+.PP
+Ścieżki w żądaniach otwarcia i utworzenia katalogu muszą być zakończone zerem,
+ponieważ trafiają bezpośrednio do littlefs. Funkcje
+.CW fs::api::file::*
+i
+.CW fs::api::dir::*
+wysyłają żądania w imieniu serwisu.

@@ -75,6 +75,13 @@ TEST(FsApi, DirCloseSendsCloseRequestToDirectory)
     CHECK_EQUAL(3, api.sent[0].recipient.serviceId);
 }
 
+TEST(FsApi, DirMakeSendsMakeRequest)
+{
+    npos::fs::api::dir::make(sender, "/new");
+
+    CHECK_EQUAL(npos::fs::msg::Type::DIR_MAKE, api.sent[0].type);
+}
+
 TEST(FsApi, DirReadSendsReadRequestWithEntryBuffer)
 {
     npos::fs::msg::dir::Entry entry;

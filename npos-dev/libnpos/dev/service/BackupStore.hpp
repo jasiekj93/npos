@@ -55,13 +55,13 @@ namespace npos::dev::service
         }
 
     protected:
-        void backupRead(device::msg::BackupRegisters& request)
+        void backupRead(msg::BackupRegisters& request)
         {
             request.setValue(backupRegisters.read(request.getRegister()));
             getApi().respond(request.setStatus(msg::BackupRegisters::Status::SUCCESS));
         }
 
-        void backupWrite(device::msg::BackupRegisters& request)
+        void backupWrite(msg::BackupRegisters& request)
         {
             backupRegisters.write(request.getRegister(), *request.getValue());
             getApi().respond(request.setStatus(msg::BackupRegisters::Status::SUCCESS));

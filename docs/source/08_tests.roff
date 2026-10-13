@@ -1,0 +1,34 @@
+.chapter "Testy i przykłady"
+.subchapter "Testy jednostkowe"
+.PP
+Każda biblioteka ma katalog
+.CW tests
+z testami w CppUTest. Testy są uruchamiane przez Makefile z głównego katalogu przy budowaniu
+biblioteki, a niepowodzenie testu przerywa budowanie.
+.IP_dot
+Plik testowy modułu ma nazwę
+.CW Moduł.test.cpp ,
+a pliki są pogrupowane w katalogach jak w bibliotece.
+.IP_dot
+Pliki obiektowe są nazywane bez katalogu, więc gdy dwa moduły mają tę samą nazwę,
+do nazwy testu dodaje się przedrostek (na przykład
+.CW DirOpen.test.cpp ).
+.IP_dot
+Atrapy znajdują się w
+.CW tests/mock .
+.IP_dot
+Nagłówki projektu należy dołączać przed
+.CW CppUTest/TestHarness.h ,
+ponieważ ten nagłówek podmienia operator
+.CW new .
+.subchapter "Przykłady"
+.PP
+Katalog
+.CW examples
+zawiera programy korzystające z
+.CW os::System
+i emulatora: blinking-led, get-time, compute-hash, uart-read-write, filesystem, dual-system
+oraz cli (terminal na stdin i stdout, na przykład
+.CW "printf 'ls\\\\n' | ./bin/Pc32/debug/cli.elf" ).
+Wskazówka: polecenia podawane przez potok należy rozdzielać pauzami, ponieważ terminal
+ignoruje bajty wpisane w trakcie działania programu.

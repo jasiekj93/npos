@@ -89,15 +89,3 @@ TEST(EmulatorFlash, WaitForLastOperationSucceeds)
 {
     CHECK_TRUE(flash.waitForLastOperation(100));
 }
-
-TEST(EmulatorFlash, VerboseModeDoesNotChangeBehaviour)
-{
-    npos::emulator::Flash verbose(true);
-
-    CHECK_TRUE(verbose.unlock());
-    CHECK_TRUE(verbose.waitForLastOperation(1));
-    CHECK_TRUE(verbose.program(0, page));
-    CHECK_TRUE(verbose.eraseBlocks(0, 1));
-    CHECK_TRUE(verbose.read(0, page, 1));
-    CHECK_TRUE(verbose.lock());
-}

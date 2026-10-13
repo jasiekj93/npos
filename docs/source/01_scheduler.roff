@@ -1,0 +1,67 @@
+.chapter "Scheduler"
+.PP
+Biblioteka
+.B npos-nps
+zawiera planistę zadań. Jest to planista kooperacyjny: zadanie wykonuje
+jedną porcję pracy w metodzie
+.CW process()
+i oddaje sterowanie. Nie ma wywłaszczania.
+.subchapter "Zadanie"
+.PP
+Klasa
+.CW nps::Task
+opisuje zadanie. Zadanie ma priorytet (liczba całkowita bez znaku) oraz trzy metody:
+.IP_bold initialize()
+wywoływana raz przed pierwszym przebiegiem pętli,
+.IP_bold isReady()
+informuje, czy zadanie ma coś do zrobienia,
+.IP_bold process()
+wykonuje jedną porcję pracy.
+.LP
+Mniejsza wartość priorytetu oznacza wcześniejsze wykonanie. Porównanie zadań
+realizuje obiekt funkcyjny
+.CW nps::CompareTasks .
+.subchapter "Pętla planisty"
+.PP
+Klasa
+.CW nps::Scheduler
+nie przydziela pamięci. Lista zadań jest podawana przez użytkownika jako
+.CW Scheduler::TaskListInt& ,
+a gotowy kontener o stałym rozmiarze to
+.CW Scheduler::TaskList<N> .
+Zadania dodaje się metodą
+.CW addTask() ,
+która zwraca
+.CW false
+gdy lista jest pełna.
+.PP
+Metoda
+.CW start()
+działa następująco:
+.IP_dot
+sortuje zadania rosnąco po priorytecie i wywołuje
+.CW initialize()
+każdego z nich, następnie to samo dla następcy (planisty podłączonego przez
+.CW setSuccesor() ),
+zadania nadzorcy (watchdog) i zadania bezczynności (idle),
+.IP_dot
+w każdym obiegu pętli wykonuje zadanie watchdog, jeżeli jest gotowe,
+.IP_dot
+wykonuje pierwsze gotowe zadanie z listy; jeżeli żadne nie jest gotowe, pyta następcę,
+.IP_dot
+gdy nie ma gotowych zadań, wykonuje zadanie bezczynności.
+.LP
+Pętlę przerywa metoda
+.CW stop() .
+Uwaga: wywołanie
+.CW stop()
+w trakcie inicjalizacji jest ignorowane, ponieważ flaga pracy jest ustawiana
+dopiero po inicjalizacji.
+.subchapter "Zadania nadzorcze"
+.PP
+Zadania
+.CW setWatchdogTask()
+i
+.CW setIdleTask()
+nie trafiają na listę zadań. Planista uruchamia je poza kolejnością priorytetów,
+dlatego nie mają konfigurowalnego priorytetu.

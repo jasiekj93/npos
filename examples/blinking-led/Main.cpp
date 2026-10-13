@@ -11,19 +11,20 @@
 
 int main(int argc, char* argv[])
 {
-	npos::emulator::Led led0;
 	npos::emulator::SystemTick systemTick;
-	npos::dev::hal::Led* leds[] = { &led0 };
+	npos::os::Storage<> storage;
+	npos::emulator::Led led0(true);
+	etl::vector<npos::dev::hal::Led*, 1> leds { &led0 };
+	npos::os::LedBank banks[] = { { leds, "leds" } };
 
 	npos::os::UserApi api;
 	UserApplication userApp(api, "leds");
 	npos::ipc::Service* services[] = { &userApp };
 
-	npos::os::System::Hal hal;
-	hal.leds = leds;
-	hal.systemTick = &systemTick;
+	npos::os::Hal hal(systemTick);
+	hal.leds = banks;
 
-	npos::os::System system(hal, services, api);
+	npos::os::System system(hal, storage.memory(), services, api);
 	system.start();
 
 	return 0;

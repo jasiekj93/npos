@@ -91,3 +91,4 @@ namespace npos::dev::service
         etl::string_view name;
         bool isInitalized = false;
     };
+}

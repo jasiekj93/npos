@@ -94,6 +94,8 @@ namespace npos::nps
         }
 
         inline void setSuccesor(SchedulerSuccessor& ss) { succesor = &ss; }
+        inline void setIdleTask(Task& task) { idleTask = &task; }
+        inline void setWatchdogTask(Task& task) { watchdogTask = &task; }
         inline void stop() { runningFlag = false; }
         inline bool full() const { return taskList.full(); }
         inline bool isRunning() const { return runningFlag; }

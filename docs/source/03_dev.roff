@@ -1,0 +1,64 @@
+.chapter "Urządzenia"
+.PP
+Biblioteka
+.B npos-dev
+udostępnia urządzenia sprzętowe jako serwisy. Każde urządzenie ma interfejs
+warstwy sprzętowej (HAL) w
+.CW hal/ ,
+wiadomości w
+.CW msg/ ,
+serwis w
+.CW service/
+oraz, dla zasobów systemowych, zadania w
+.CW task/ .
+.subchapter "Otwieranie urządzeń"
+.PP
+Urządzenie jest identyfikowane nazwą. Klient wysyła rozgłoszeniowe
+.CW dev::msg::Open
+(funkcja
+.CW dev::api::open() ).
+Odpowiada serwis o pasującej nazwie, przekazując w
+.CW getOpened()
+swój Oid. Dalsze żądania są kierowane już bezpośrednio do tego Oid, dzięki czemu nie
+obciążają magistrali rozgłoszeniami. Serwis o innej nazwie milczy.
+.subchapter "Serwisy"
+.TS
+center box;
+lb lb lb
+l l l.
+Serwis	HAL	Wiadomość
+LedHandler	hal::Led	msg::Led
+RtcClock	hal::Rtc	msg::Clock
+BackupStore	hal::BackupRegisters	msg::BackupRegisters
+UartPolling	hal::UartPolling	msg::Transciever
+UartInterrupt	hal::UartInterrupt	msg::Transciever
+HashProcessor	hal::Hash	msg::Hash
+.TE
+.PP
+Serwisy oparte na przerwaniach dziedziczą po
+.CW dev::InterruptService .
+Przerwanie trafia do kolejki przerwań podanej przez użytkownika, a zadanie
+.CW dev::InterruptServiceTask
+obsługuje je przed zwykłymi wiadomościami. Żądanie, które trwa dłużej niż jedno wywołanie,
+jest przechowywane przez serwis ze zwiększonym licznikiem odwołań i oddawane po przerwaniu.
+.PP
+Transciever (
+.CW dev::msg::Transciever )
+służy do odczytu i zapisu w urządzeniach szeregowych. Odczyt prosi o
+.I do
+N bajtów. Urządzenie może zwrócić mniej i wtedy podaje faktyczną liczbę przez
+.CW setOutputLength() .
+.subchapter "Zadania systemowe"
+.IP_bold Timer
+przyjmuje
+.CW dev::msg::Timer
+(jednorazowy lub powtarzalny) i odpowiada po upływie interwału, korzystając z
+.CW hal::SystemTick .
+.IP_bold Idle
+usypia procesor przez
+.CW hal::Power
+gdy nie ma pracy.
+.IP_bold Watchdog
+odświeża układ nadzorujący w każdym obiegu planisty.
+.LP
+Idle i Watchdog mają stały priorytet 0 i są uruchamiane przez planistę poza listą zadań.

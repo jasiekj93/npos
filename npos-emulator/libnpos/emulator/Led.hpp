@@ -15,6 +15,8 @@ namespace npos::emulator
     class Led : public npos::dev::hal::Led
     {
     public:
+        explicit Led(bool verbose = false) : verbose(verbose) {}
+
         void toggle() override
         {
             state = not state;
@@ -35,9 +37,11 @@ namespace npos::emulator
 
         void printState()
         {
-            std::cout << "Emulator: LED state: " << (state ? "ON" : "OFF") << std::endl;
+            if(verbose)
+                std::cout << "Emulator: LED state: " << (state ? "ON" : "OFF") << std::endl;
         }
 
         bool state = false;
+        bool verbose;
     };
 }

@@ -15,6 +15,8 @@ namespace npos::emulator
     class UartInterrupt : public npos::dev::hal::UartInterrupt
     {
     public:
+        explicit UartInterrupt(bool verbose = false) : verbose(verbose) {}
+
         bool init() override
         {
             initialized = true;
@@ -30,7 +32,9 @@ namespace npos::emulator
             if(not initialized)
                 return false;
 
-            std::cout << "Emulator: UartInterrupt transmitIt, size: " << size << std::endl;
+            if(verbose)
+
+                std::cout << "Emulator: UartInterrupt transmitIt, size: " << size << std::endl;
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::UART, Event::TRANSMIT_COMPLETE});
@@ -42,7 +46,9 @@ namespace npos::emulator
             if(not initialized)
                 return false;
 
-            std::cout << "Emulator: UartInterrupt receiveIt, size: " << size << std::endl;
+            if(verbose)
+
+                std::cout << "Emulator: UartInterrupt receiveIt, size: " << size << std::endl;
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::UART, Event::RECEIVE_COMPLETE});
@@ -66,5 +72,6 @@ namespace npos::emulator
 
         bool initialized = false;
         npos::dev::hal::InterruptHandler* interruptHandler = nullptr;
+        bool verbose;
     };
 }

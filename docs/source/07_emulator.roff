@@ -1,0 +1,15 @@
+.chapter "Emulator"
+.PP
+Biblioteka
+.B npos-emulator
+zawiera implementacje HAL do uruchamiania systemu na komputerze:
+Flash, ICache, Led, Rtc, SystemTick, Hash, UartInterrupt, UartPolling,
+BackupRegisters, Power, Watchdog oraz ConsoleUart (stdin i stdout).
+.PP
+Mocki, które coś wypisują, mają argument konstruktora
+.CW verbose
+(domyślnie wyłączony). Wydruki są włączane tylko w programach przykładowych, a testy
+jednostkowe są ciche.
+.PP
+ConsoleUart zwraca dane tak szybko, jak są dostępne, a resztę bufora wypełnia zerami,
+co terminal ignoruje.

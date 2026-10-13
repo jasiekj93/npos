@@ -1,0 +1,89 @@
+.chapter "Terminal"
+.PP
+Biblioteka
+.B npos-cli
+zawiera terminal tekstowy oraz programy uruchamiane z jego linii poleceń.
+.subchapter "Terminal"
+.PP
+Serwis
+.CW cli::service::Terminal
+otwiera urządzenie wskazane nazwą i wysyła do niego
+.CW Transciever
+w trybie odczytu na do 64 bajtów. Każdy odebrany bajt jest naciśnięciem klawisza.
+Wyjście jest kolejkowane i wysyłane porcjami, a gdy poprzedni zapis jeszcze trwa,
+dane czekają w buforze.
+.IP_dot
+Edycja linii: backspace, Delete, Home, End, strzałki lewo i prawo, Ctrl-A, Ctrl-E,
+Ctrl-U (kasuje linię), Ctrl-C (porzuca linię). Rozpoznawane są sekwencje escape
+CSI i SS3.
+.IP_dot
+Terminal prowadzi bufor linii i położenie kursora oraz robi lokalne echo.
+.IP_dot
+Historia pamięta pięć ostatnich poleceń, a strzałki w górę i w dół ją przełączają,
+przywracając linię rozpoczętą przed wejściem w historię.
+.IP_dot
+Log systemowy odebrany jako
+.CW OS_SYSLOG_MESSAGE_TYPE
+jest wypisywany nad edytowaną linią: terminal kasuje linię, wypisuje log i rysuje linię ponownie
+wraz z kursorem.
+.IP_dot
+Terminal śledzi bieżący katalog (najwyżej 64 znaki) i pokazuje go w znaku zachęty.
+.LP
+Ponieważ odpowiedzi trafiają do serwisu po identyfikatorze zapisanym w Oid urządzenia lub pliku,
+terminal jest subskrybowany jako pierwszy serwis zadania użytkownika, a odpowiedzi na cudze
+żądania są pomijane po porcie nadawcy.
+.subchapter "Programy"
+.PP
+Program (
+.CW cli::Program )
+jest serwisem. Terminal nie subskrybuje go do zadania, tylko przekazuje mu odpowiedzi
+działającego programu. Program implementuje
+.CW start(host, args) ,
+odpowiedzi w
+.CW handle()
+i opcjonalnie
+.CW resume() ,
+wywoływane gdy wyjście terminala zostało opróżnione. Terminal udostępnia programom interfejs
+.CW Program::Host :
+.CW print() ,
+.CW exit()
+oraz odczyt i zmianę katalogu bieżącego. Wydruk zwraca liczbę przyjętych znaków,
+a program kontynuuje po
+.CW resume() ,
+dzięki czemu wypisanie dużego pliku nie wymaga dużego bufora.
+.PP
+Ścieżki względne są rozwiązywane względem katalogu bieżącego terminala funkcją
+.CW text::resolve() ,
+która obsługuje
+.CW .
+i
+.CW .. .
+.TS
+center box;
+lb lb
+lw(5.5c) lw(8c).
+Program	T{
+Działanie
+T}
+cat <plik>	T{
+wypisuje plik
+T}
+echo <tekst> [> | >> <plik>]	T{
+wypisuje tekst albo zapisuje go do pliku
+T}
+touch <plik>	T{
+tworzy pusty plik
+T}
+ls [katalog]	T{
+wypisuje wpisy katalogu
+T}
+cd [katalog]	T{
+zmienia katalog, bez argumentu przechodzi do /
+T}
+pwd	T{
+wypisuje katalog bieżący
+T}
+mkdir <katalog>	T{
+tworzy katalog
+T}
+.TE

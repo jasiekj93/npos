@@ -1,0 +1,84 @@
+.chapter "System"
+.PP
+Biblioteka
+.B npos-os
+składa cały system z interfejsów HAL według schematu z przykładów.
+.subchapter "Pamięć"
+.PP
+System nie przydziela własnych kontenerów. Użytkownik podaje strukturę
+.CW os::Memory
+ze referencjami do interfejsów: lista zadań, lista portów, pula wiadomości,
+pula serwisów urządzeń, listy serwisów i kolejki wiadomości zadań oraz kolejka timera
+i kolejka systemu plików. Gotowy zestaw o ustalonych rozmiarach daje szablon
+.CW "os::Storage<Zadania, Serwisy, Kolejka, Wiadomości, SerwisyUrządzeń, Programy>" ,
+którego metoda
+.CW memory()
+zwraca
+.CW Memory .
+Pamięć musi przeżyć system.
+.PP
+Serwisy urządzeń są tworzone w puli o slotach wielkości największego z nich
+.CW "( os::ServiceSlot::SIZE )" .
+Serwisy, które nie zmieszczą się w puli, są pomijane.
+.subchapter "Sprzęt"
+.PP
+Struktura
+.CW os::Hal
+jest tworzona z obowiązkowym
+.CW SystemTick&
+i opisuje pozostałe urządzenia:
+.IP_bold flash,icache
+dodają zadanie systemu plików,
+.IP_bold power
+dodaje zadanie idle,
+.IP_bold watchdog
+dodaje zadanie watchdog,
+.IP_bold leds
+(
+.CW LedBank ),
+.IP_bold rtcs,backups,pollingUarts
+(
+.CW Device<T>
+z nazwą),
+.IP_bold uarts,hashes
+(
+.CW InterruptDevice<T>
+z nazwą i kolejką przerwań).
+.LP
+Urządzeń każdego rodzaju może być wiele, każde pod własną nazwą.
+.subchapter "Konfiguracja i uruchomienie"
+.PP
+Struktura
+.CW os::Config
+zawiera flagę
+.CW cli ,
+nazwę urządzenia terminala oraz priorytety zadań:
+użytkownik 1, system plików 4, urządzenia 5, urządzenia z przerwaniami 6, timer 9.
+Wszystkie mają wartości domyślne.
+.PP
+Serwisy użytkownika powstają przed systemem, więc potrzebują obiektu
+.CW Api
+już w konstruktorze. Rozwiązuje to
+.CW os::UserApi ,
+który system wiąże z zadaniem użytkownika. Tworzenie systemu wygląda tak:
+.DS L
+.CW "os::Storage<> storage;"
+.CW "os::UserApi api;"
+.CW "MyService service(api);"
+.CW "ipc::Service* services[] = { &service };"
+.sp 0.5
+.CW "os::Hal hal(tick);"
+.CW "hal.rtcs = rtcs;"
+.sp 0.5
+.CW "os::System system(hal, storage.memory(), services, api);"
+.CW "system.start();"
+.DE
+.PP
+System tworzy zadania: użytkownika, urządzeń bez przerwań, urządzeń z przerwaniami,
+systemu plików (gdy podano pamięć flash), timera oraz idle i watchdog (gdy podano
+odpowiednie HAL). Zadania bez serwisów nie są dodawane do magistrali.
+Klasa
+.CW os::System
+to alias
+.CW os::BasicSystem<8> ;
+parametr szablonu to liczba otwartych plików.

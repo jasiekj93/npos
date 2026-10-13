@@ -114,6 +114,7 @@ TEST(Littlefs, AcceptsFileAndDirectoryMessagesOnly)
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_OPEN));
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_CLOSE));
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_READ));
+    CHECK_TRUE(filesystem.accepts(msg::Type::DIR_MAKE));
     CHECK_FALSE(filesystem.accepts(npos::ipc::DEVICE_MESSAGE_TYPE));
 }
 
@@ -505,4 +506,55 @@ TEST(Littlefs, DataSurvivesRemount)
     remounted.process();
 
     CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+}
+
+TEST(Littlefs, MakeDirectoryCreatesIt)
+{
+    msg::dir::Make request("docs");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    auto dir = openDir("docs");
+    msg::dir::Entry entry;
+    msg::dir::Read read(openDir("/"), entry);
+    run(read);
+    CHECK_EQUAL(msg::Status::SUCCESS, read.getStatus());
+    CHECK_EQUAL(msg::dir::Entry::DIRECTORY, entry.type);
+    CHECK_TRUE(entry.getName() == "docs");
+    CHECK_EQUAL(2, dir.portId);
+}
+
+TEST(Littlefs, MakeExistingDirectoryFails)
+{
+    msg::dir::Make first("docs"), second("docs");
+
+    run(first);
+    run(second);
+
+    CHECK_EQUAL(msg::Status::ENTRY_EXISTS, second.getStatus());
+}
+
+TEST(Littlefs, MakeDirectoryWithoutParentFails)
+{
+    msg::dir::Make request("missing/child");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, request.getStatus());
+}
+
+TEST(Littlefs, FilesCanBeCreatedInMadeDirectory)
+{
+    msg::dir::Make make("docs");
+    run(make);
+
+    write("docs/a.txt", "x");
+    msg::dir::Entry entry;
+    msg::dir::Read read(openDir("docs"), entry);
+    run(read);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, read.getStatus());
+    CHECK_EQUAL(msg::dir::Entry::FILE, entry.type);
+    CHECK_TRUE(entry.getName() == "a.txt");
 }

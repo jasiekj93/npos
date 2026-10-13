@@ -19,12 +19,3 @@ TEST(EmulatorICache, AllOperationsSucceed)
     CHECK_TRUE(icache.enable());
     CHECK_TRUE(icache.disable());
 }
-
-TEST(EmulatorICache, VerboseModeDoesNotChangeBehaviour)
-{
-    npos::emulator::ICache verbose(true);
-
-    CHECK_TRUE(verbose.init());
-    CHECK_TRUE(verbose.enable());
-    CHECK_TRUE(verbose.disable());
-}

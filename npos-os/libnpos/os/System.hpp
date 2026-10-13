@@ -6,8 +6,12 @@
  * @date 13-10-2026
  */
 
+#include <algorithm>
+#include <utility>
+
 #include <etl/optional.h>
 #include <etl/pool.h>
+#include <etl/queue.h>
 #include <etl/span.h>
 #include <etl/string_view.h>
 #include <etl/vector.h>
@@ -16,11 +20,15 @@
 #include <libnpos/ipc/ServiceTask.hpp>
 #include <libnpos/ipc/SystemBus.hpp>
 #include <libnpos/dev/InterruptServiceTask.hpp>
+#include <libnpos/dev/service/BackupStore.hpp>
+#include <libnpos/dev/service/HashProcessor.hpp>
 #include <libnpos/dev/service/LedHandler.hpp>
 #include <libnpos/dev/service/RtcClock.hpp>
 #include <libnpos/dev/service/UartInterrupt.hpp>
-#include <libnpos/dev/service/HashProcessor.hpp>
+#include <libnpos/dev/service/UartPolling.hpp>
+#include <libnpos/dev/task/Idle.hpp>
 #include <libnpos/dev/task/Timer.hpp>
+#include <libnpos/dev/task/Watchdog.hpp>
 #include <libnpos/fs/task/Littlefs.hpp>
 #include <libnpos/cli/service/Terminal.hpp>
 #include <libnpos/cli/program/Cat.hpp>
@@ -29,82 +37,162 @@
 #include <libnpos/cli/program/Ls.hpp>
 #include <libnpos/cli/program/Cd.hpp>
 #include <libnpos/cli/program/Pwd.hpp>
+#include <libnpos/cli/program/Mkdir.hpp>
 
 #include <libnpos/os/UserApi.hpp>
 
 namespace npos::os
 {
-    // Builds the whole system from hal interfaces: user, devices, interrupt devices, filesystem and timer tasks.
-    // Hal pointers left null mean the device (or the whole task) is not present.
-    class System
+    template<typename T>
+    struct Device
+    {
+        T& hal;
+        etl::string_view name;
+    };
+
+    template<typename T>
+    struct InterruptDevice
+    {
+        T& hal;
+        etl::string_view name;
+        dev::InterruptService::InterruptQueueInt& queue;
+    };
+
+    struct LedBank
+    {
+        dev::service::LedHandler::Leds& leds;
+        etl::string_view name;
+    };
+
+    // Hardware given to the system. Null pointers and empty spans mean the device is not present.
+    struct Hal
+    {
+        explicit Hal(dev::hal::SystemTick& systemTick) : systemTick(systemTick) {}
+
+        dev::hal::SystemTick& systemTick;
+
+        fs::hal::Flash* flash = nullptr;
+        fs::hal::ICache* icache = nullptr;
+
+        // Without power there is no idle task, without watchdog there is no watchdog task.
+        dev::hal::Power* power = nullptr;
+        dev::hal::Watchdog* watchdog = nullptr;
+
+        etl::span<const LedBank> leds;
+        etl::span<const Device<dev::hal::Rtc>> rtcs;
+        etl::span<const Device<dev::hal::BackupRegisters>> backups;
+        etl::span<const Device<dev::hal::UartPolling>> pollingUarts;
+        etl::span<const InterruptDevice<dev::hal::UartInterrupt>> uarts;
+        etl::span<const InterruptDevice<dev::hal::Hash>> hashes;
+    };
+
+    struct Priorities
+    {
+        nps::Task::Priority user = 1;
+        nps::Task::Priority filesystem = 4;
+        nps::Task::Priority devices = 5;
+        nps::Task::Priority interruptDevices = 6;
+        nps::Task::Priority timer = 9;
+    };
+
+    struct Config
+    {
+        bool cli = false;
+        // Name of the transciever device (e.g. uart) the terminal runs on.
+        etl::string_view terminalDevice = "uart0";
+        Priorities priorities;
+    };
+
+    // Size of one slot in the pool of device services.
+    struct ServiceSlot
+    {
+        static constexpr size_t SIZE = std::max({ sizeof(dev::service::BackupStore), sizeof(dev::service::HashProcessor),
+            sizeof(dev::service::LedHandler), sizeof(dev::service::RtcClock), sizeof(dev::service::UartInterrupt),
+            sizeof(dev::service::UartPolling) });
+
+        static constexpr size_t ALIGNMENT = std::max({ alignof(dev::service::BackupStore), alignof(dev::service::HashProcessor),
+            alignof(dev::service::LedHandler), alignof(dev::service::RtcClock), alignof(dev::service::UartInterrupt),
+            alignof(dev::service::UartPolling) });
+    };
+
+    // Memory the system works in; it must outlive the system. See Storage for a ready made set.
+    struct Memory
+    {
+        nps::Scheduler::TaskListInt& tasks;
+        ipc::SystemBus::PortListInt& ports;
+        ipc::SystemBus::PoolInt& messages;
+        // Slots of ServiceSlot::SIZE bytes, one per device service.
+        etl::ipool& deviceServicePool;
+
+        ipc::ServiceTask::ServiceListInt& deviceServices;
+        ipc::ServiceTask::MessageQueueInt& deviceQueue;
+        dev::InterruptServiceTask::InterruptServiceListInt& interruptServices;
+        ipc::ServiceTask::MessageQueueInt& interruptQueue;
+        ipc::ServiceTask::ServiceListInt& userServices;
+        ipc::ServiceTask::MessageQueueInt& userQueue;
+        dev::task::Timer::MessageQueueInt& timerQueue;
+        ipc::ServiceTask::MessageQueueInt& filesystemQueue;
+        cli::service::Terminal::ProgramListInt& programs;
+    };
+
+    template<size_t Tasks = 8, size_t Services = 32, size_t Queue = 32, size_t Messages = 64, size_t DeviceServices = 16, size_t Programs = 16>
+    class Storage
     {
     public:
-        static constexpr size_t MAX_TASKS = 8;
-        static constexpr size_t MAX_SERVICES = 32;
-        static constexpr size_t QUEUE_SIZE = 32;
-        static constexpr size_t POOL_SIZE = 64;
-        static constexpr size_t MAX_OPEN = 8;
-        static constexpr size_t MAX_LEDS = 8;
+        Memory memory()
+        {
+            return Memory{ taskList, portList, messagePool, deviceServicePool, deviceServiceList, deviceQueue,
+                interruptServiceList, interruptQueue, userServiceList, userQueue, timerQueue, filesystemQueue, programList };
+        }
 
+    private:
+        nps::Scheduler::TaskList<Tasks> taskList;
+        ipc::SystemBus::PortList<Tasks> portList;
+        etl::pool<ipc::Message, Messages> messagePool;
+        etl::generic_pool<ServiceSlot::SIZE, ServiceSlot::ALIGNMENT, DeviceServices> deviceServicePool;
+        ipc::ServiceTask::ServiceList<Services> deviceServiceList;
+        ipc::ServiceTask::MessageQueue<Queue> deviceQueue;
+        dev::InterruptServiceTask::InterruptServiceList<Services> interruptServiceList;
+        ipc::ServiceTask::MessageQueue<Queue> interruptQueue;
+        ipc::ServiceTask::ServiceList<Services> userServiceList;
+        ipc::ServiceTask::MessageQueue<Queue> userQueue;
+        dev::task::Timer::MessageQueue<Queue> timerQueue;
+        ipc::ServiceTask::MessageQueue<Queue> filesystemQueue;
+        cli::service::Terminal::ProgramList<Programs> programList;
+    };
+
+    // Builds the whole system from hal interfaces: user, devices, interrupt devices, filesystem, timer, idle and watchdog tasks.
+    template<size_t MaxOpen = 8>
+    class BasicSystem
+    {
+    public:
         static constexpr ipc::PortId INITIAL_PORT = 0;
-
-        static constexpr nps::Task::Priority USER_PRIORITY = 1;
-        static constexpr nps::Task::Priority FILESYSTEM_PRIORITY = 4;
-        static constexpr nps::Task::Priority DEVICES_PRIORITY = 5;
-        static constexpr nps::Task::Priority INTERRUPT_DEVICES_PRIORITY = 6;
-        static constexpr nps::Task::Priority TIMER_PRIORITY = 9;
-
-        template<typename T>
-        struct Device
-        {
-            T* hal = nullptr;
-            etl::string_view name;
-        };
-
-        struct Hal
-        {
-            fs::hal::Flash* flash = nullptr;
-            fs::hal::ICache* icache = nullptr;
-
-            dev::hal::SystemTick* systemTick = nullptr;
-            etl::span<dev::hal::Led* const> leds;
-            etl::string_view ledsName = "leds";
-
-            Device<dev::hal::Rtc> rtc = { nullptr, "clock" };
-            Device<dev::hal::UartInterrupt> uart = { nullptr, "uart0" };
-            Device<dev::hal::Hash> hash = { nullptr, "hash" };
-        };
-
-        struct Config
-        {
-            bool cli = false;
-            // Name of the transciever device (e.g. uart) the terminal runs on.
-            etl::string_view terminalDevice = "uart0";
-        };
 
         using ServiceList = etl::span<ipc::Service* const>;
 
-        System(const Hal& hal, ServiceList userServices, UserApi& userApi)
-            : System(hal, userServices, userApi, Config())
+        BasicSystem(const Hal& hal, Memory memory, ServiceList userServices, UserApi& userApi)
+            : BasicSystem(hal, memory, userServices, userApi, Config())
         {
         }
 
-        System(const Hal& hal, ServiceList userServices, UserApi& userApi, const Config& config)
-            : scheduler(taskList)
-            , bus(portList, messagePool, INITIAL_PORT)
-            , devTask(DEVICES_PRIORITY, devServiceList, devMessageQueue, bus)
-            , interruptTask(INTERRUPT_DEVICES_PRIORITY, interruptServiceList, interruptMessageQueue, bus)
-            , userTask(USER_PRIORITY, userServiceList, userMessageQueue, bus)
+        BasicSystem(const Hal& hal, Memory memory, ServiceList userServices, UserApi& userApi, const Config& config)
+            : memory(memory)
+            , scheduler(memory.tasks)
+            , bus(memory.ports, memory.messages, INITIAL_PORT)
+            , devTask(config.priorities.devices, memory.deviceServices, memory.deviceQueue, bus)
+            , interruptTask(config.priorities.interruptDevices, memory.interruptServices, memory.interruptQueue, bus)
+            , userTask(config.priorities.user, memory.userServices, memory.userQueue, bus)
         {
             buildDevices(hal);
             buildInterruptDevices(hal);
-            buildTimer(hal);
-            buildFilesystem(hal);
+            buildTimer(hal, config);
+            buildFilesystem(hal, config);
+            buildSupervision(hal);
             buildUser(config, userServices, userApi);
         }
 
-        System(const System&) = delete;
-        System& operator=(const System&) = delete;
+        BasicSystem(const BasicSystem&) = delete;
+        BasicSystem& operator=(const BasicSystem&) = delete;
 
         void start() { scheduler.start(); }
 
@@ -112,93 +200,124 @@ namespace npos::os
         inline ipc::SystemBus& getBus() { return bus; }
         inline ipc::ServiceTask& getUserTask() { return userTask; }
         inline bool hasFilesystem() const { return filesystemTask.has_value(); }
-        inline bool hasCli() const { return terminal.has_value(); }
+        inline bool hasCli() const { return cli.has_value(); }
+        inline bool hasIdleTask() const { return idleTask.has_value(); }
+        inline bool hasWatchdogTask() const { return watchdogTask.has_value(); }
 
     private:
+        struct Cli
+        {
+            Cli(ipc::Service::Api& api, cli::service::Terminal::ProgramListInt& programs, etl::string_view device)
+                : terminal(api, programs, device)
+                , cat(api), echo(api), touch(api), ls(api), cd(api), pwd(api), mkdir(api)
+            {
+            }
+
+            cli::service::Terminal terminal;
+            cli::program::Cat cat;
+            cli::program::Echo echo;
+            cli::program::Touch touch;
+            cli::program::Ls ls;
+            cli::program::Cd cd;
+            cli::program::Pwd pwd;
+            cli::program::Mkdir mkdir;
+        };
+
         void addTask(nps::Task& task, ipc::Port& port)
         {
             bus.addPort(port);
             scheduler.addTask(task);
         }
 
+        // Services that do not fit in the pool are skipped.
+        template<typename T, typename... Args>
+        T* make(Args&&... args)
+        {
+            return memory.deviceServicePool.template create<T>(std::forward<Args>(args)...);
+        }
+
         void buildDevices(const Hal& hal)
         {
-            for(auto led : hal.leds)
-                leds.push_back(led);
+            for(auto& bank : hal.leds)
+                if(auto service = make<dev::service::LedHandler>(devTask, bank.leds, bank.name))
+                    devTask.subscribe(*service);
 
-            if(not leds.empty())
-            {
-                ledHandler.emplace(devTask, leds, hal.ledsName);
-                devTask.subscribe(*ledHandler);
-            }
+            for(auto& rtc : hal.rtcs)
+                if(auto service = make<dev::service::RtcClock>(devTask, rtc.hal, rtc.name))
+                    devTask.subscribe(*service);
 
-            if(hal.rtc.hal)
-            {
-                rtcClock.emplace(devTask, *hal.rtc.hal, hal.rtc.name);
-                devTask.subscribe(*rtcClock);
-            }
+            for(auto& backup : hal.backups)
+                if(auto service = make<dev::service::BackupStore>(devTask, backup.hal, backup.name))
+                    devTask.subscribe(*service);
 
-            if(not devServiceList.empty())
+            for(auto& uart : hal.pollingUarts)
+                if(auto service = make<dev::service::UartPolling>(devTask, uart.hal, uart.name))
+                    devTask.subscribe(*service);
+
+            if(not memory.deviceServices.empty())
                 addTask(devTask, devTask);
         }
 
         void buildInterruptDevices(const Hal& hal)
         {
-            if(hal.uart.hal)
-            {
-                uartInterrupt.emplace(interruptTask, uartInterruptQueue, *hal.uart.hal, hal.uart.name);
-                interruptTask.subscribe(*uartInterrupt);
-            }
+            for(auto& uart : hal.uarts)
+                if(auto service = make<dev::service::UartInterrupt>(interruptTask, uart.queue, uart.hal, uart.name))
+                    interruptTask.subscribe(*service);
 
-            if(hal.hash.hal)
-            {
-                hashProcessor.emplace(interruptTask, hashInterruptQueue, *hal.hash.hal, hal.hash.name);
-                interruptTask.subscribe(*hashProcessor);
-            }
+            for(auto& hash : hal.hashes)
+                if(auto service = make<dev::service::HashProcessor>(interruptTask, hash.queue, hash.hal, hash.name))
+                    interruptTask.subscribe(*service);
 
-            if(not interruptServiceList.empty())
+            if(not memory.interruptServices.empty())
                 addTask(interruptTask, interruptTask);
         }
 
-        void buildTimer(const Hal& hal)
+        void buildTimer(const Hal& hal, const Config& config)
         {
-            if(not hal.systemTick)
-                return;
-
-            timerTask.emplace(TIMER_PRIORITY, timerMessageQueue, bus, *hal.systemTick);
+            timerTask.emplace(config.priorities.timer, memory.timerQueue, bus, hal.systemTick);
             addTask(*timerTask, *timerTask);
         }
 
-        void buildFilesystem(const Hal& hal)
+        void buildFilesystem(const Hal& hal, const Config& config)
         {
             if(not hal.flash)
                 return;
 
-            filesystemTask.emplace(FILESYSTEM_PRIORITY, filesystemMessageQueue, bus, *hal.flash, hal.icache);
+            filesystemTask.emplace(config.priorities.filesystem, memory.filesystemQueue, bus, *hal.flash, hal.icache);
             addTask(*filesystemTask, *filesystemTask);
+        }
+
+        // Idle and watchdog tasks have a fixed priority and are run by the scheduler outside of its task list.
+        void buildSupervision(const Hal& hal)
+        {
+            if(hal.power)
+            {
+                idleTask.emplace(*hal.power);
+                scheduler.setIdleTask(*idleTask);
+            }
+
+            if(hal.watchdog)
+            {
+                watchdogTask.emplace(*hal.watchdog);
+                scheduler.setWatchdogTask(*watchdogTask);
+            }
         }
 
         void buildUser(const Config& config, ServiceList userServices, UserApi& userApi)
         {
-            // The terminal must be the first service, ipc routes responses by service id.
+            // The terminal is subscribed first: ipc routes responses by recipient service id.
             if(config.cli)
             {
-                terminal.emplace(userTask, programList, config.terminalDevice);
-                userTask.subscribe(*terminal);
+                cli.emplace(userTask, memory.programs, config.terminalDevice);
+                userTask.subscribe(cli->terminal);
 
-                cat.emplace(userTask);
-                echo.emplace(userTask);
-                touch.emplace(userTask);
-                ls.emplace(userTask);
-                cd.emplace(userTask);
-                pwd.emplace(userTask);
-
-                terminal->addProgram(*cat);
-                terminal->addProgram(*echo);
-                terminal->addProgram(*touch);
-                terminal->addProgram(*ls);
-                terminal->addProgram(*cd);
-                terminal->addProgram(*pwd);
+                cli->terminal.addProgram(cli->cat);
+                cli->terminal.addProgram(cli->echo);
+                cli->terminal.addProgram(cli->touch);
+                cli->terminal.addProgram(cli->ls);
+                cli->terminal.addProgram(cli->cd);
+                cli->terminal.addProgram(cli->pwd);
+                cli->terminal.addProgram(cli->mkdir);
             }
 
             for(auto service : userServices)
@@ -208,49 +327,20 @@ namespace npos::os
             addTask(userTask, userTask);
         }
 
-        nps::Scheduler::TaskList<MAX_TASKS> taskList;
+        Memory memory;
         nps::Scheduler scheduler;
-
-        ipc::SystemBus::PortList<MAX_TASKS> portList;
-        etl::pool<ipc::Message, POOL_SIZE> messagePool;
         ipc::SystemBus bus;
 
-        // Devices without interrupts
-        ipc::ServiceTask::ServiceList<MAX_SERVICES> devServiceList;
-        ipc::ServiceTask::MessageQueue<QUEUE_SIZE> devMessageQueue;
         ipc::ServiceTask devTask;
-        etl::vector<dev::hal::Led*, MAX_LEDS> leds;
-        etl::optional<dev::service::LedHandler> ledHandler;
-        etl::optional<dev::service::RtcClock> rtcClock;
-
-        // Devices with interrupts
-        dev::InterruptServiceTask::InterruptServiceList<MAX_SERVICES> interruptServiceList;
-        dev::InterruptServiceTask::MessageQueue<QUEUE_SIZE> interruptMessageQueue;
         dev::InterruptServiceTask interruptTask;
-        dev::InterruptService::InterruptQueue<QUEUE_SIZE> uartInterruptQueue;
-        dev::InterruptService::InterruptQueue<QUEUE_SIZE> hashInterruptQueue;
-        etl::optional<dev::service::UartInterrupt> uartInterrupt;
-        etl::optional<dev::service::HashProcessor> hashProcessor;
-
-        // Timer
-        dev::task::Timer::MessageQueue<QUEUE_SIZE> timerMessageQueue;
-        etl::optional<dev::task::Timer> timerTask;
-
-        // Filesystem
-        fs::task::Littlefs<MAX_OPEN>::MessageQueue<QUEUE_SIZE> filesystemMessageQueue;
-        etl::optional<fs::task::Littlefs<MAX_OPEN>> filesystemTask;
-
-        // User space
-        ipc::ServiceTask::ServiceList<MAX_SERVICES> userServiceList;
-        ipc::ServiceTask::MessageQueue<QUEUE_SIZE> userMessageQueue;
         ipc::ServiceTask userTask;
-        cli::service::Terminal::ProgramList<8> programList;
-        etl::optional<cli::service::Terminal> terminal;
-        etl::optional<cli::program::Cat> cat;
-        etl::optional<cli::program::Echo> echo;
-        etl::optional<cli::program::Touch> touch;
-        etl::optional<cli::program::Ls> ls;
-        etl::optional<cli::program::Cd> cd;
-        etl::optional<cli::program::Pwd> pwd;
+
+        etl::optional<dev::task::Timer> timerTask;
+        etl::optional<fs::task::Littlefs<MaxOpen>> filesystemTask;
+        etl::optional<dev::task::Idle> idleTask;
+        etl::optional<dev::task::Watchdog> watchdogTask;
+        etl::optional<Cli> cli;
     };
+
+    using System = BasicSystem<>;
 }

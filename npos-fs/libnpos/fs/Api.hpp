@@ -14,6 +14,7 @@
 #include <libnpos/fs/msg/dir/Open.hpp>
 #include <libnpos/fs/msg/dir/Close.hpp>
 #include <libnpos/fs/msg/dir/Read.hpp>
+#include <libnpos/fs/msg/dir/Make.hpp>
 
 namespace npos::fs::api
 {
@@ -61,6 +62,12 @@ namespace npos::fs::api
         inline void read(ipc::Service& sender, ipc::Oid dir, npos::fs::msg::dir::Entry& entry)
         {
             npos::fs::msg::dir::Read request(dir, entry);
+            sender.getApi().send(request);
+        }
+
+        inline void make(ipc::Service& sender, etl::string_view path)
+        {
+            npos::fs::msg::dir::Make request(path);
             sender.getApi().send(request);
         }
     }

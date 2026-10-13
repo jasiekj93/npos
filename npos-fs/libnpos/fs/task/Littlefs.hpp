@@ -69,6 +69,7 @@ namespace npos::fs::task
             case msg::Type::DIR_OPEN:
             case msg::Type::DIR_CLOSE:
             case msg::Type::DIR_READ:
+            case msg::Type::DIR_MAKE:
                 return true;
             default:
                 return false;
@@ -248,6 +249,8 @@ namespace npos::fs::task
                 return dirClose(static_cast<msg::dir::Close&>(message));
             case msg::Type::DIR_READ:
                 return dirRead(static_cast<msg::dir::Read&>(message));
+            case msg::Type::DIR_MAKE:
+                return dirMake(static_cast<msg::dir::Make&>(message));
             default:
                 return;
             }
@@ -294,6 +297,11 @@ namespace npos::fs::task
             }
 
             bus.respond(request.setStatus(msg::Status::NO_MEMORY));
+        }
+
+        void dirMake(msg::dir::Make& request)
+        {
+            bus.respond(request.setStatus(fromLfsStatus(lfs_mkdir(&filesystem, request.getPath().data()))));
         }
 
         void dirClose(msg::dir::Close& request)

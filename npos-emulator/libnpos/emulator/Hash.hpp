@@ -15,6 +15,8 @@ namespace npos::emulator
     class Hash : public npos::dev::hal::Hash
     {
     public:
+        explicit Hash(bool verbose = false) : verbose(verbose) {}
+
         bool init() override
         {
             initialized = true;
@@ -30,7 +32,9 @@ namespace npos::emulator
             if(not initialized)
                 return false;
 
-            std::cout << "Emulator: Hash accumulateIt, size: " << input.size() << std::endl;
+            if(verbose)
+
+                std::cout << "Emulator: Hash accumulateIt, size: " << input.size() << std::endl;
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::HASH, Event::INPUT_COMPLETE});
@@ -45,7 +49,9 @@ namespace npos::emulator
             if(output.size() < DIGEST_SIZE)
                 return false;
 
-            std::cout << "Emulator: Hash accumulateEndIt, input size: " << input.size() << ", output size: " << output.size() << std::endl;
+            if(verbose)
+
+                std::cout << "Emulator: Hash accumulateEndIt, input size: " << input.size() << ", output size: " << output.size() << std::endl;
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::HASH, Event::DIGEST_COMPLETE});
@@ -69,5 +75,6 @@ namespace npos::emulator
 
         bool initialized = false;
         npos::dev::hal::InterruptHandler* interruptHandler = nullptr;
+        bool verbose;
     };
 }

@@ -652,6 +652,7 @@ TEST(Terminal, AcceptsLogsAndResponsesOnly)
     CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_OPEN));
     CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_CLOSE));
     CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_READ));
+    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_MAKE));
     CHECK_FALSE(terminal.accepts(npos::dev::msg::Type::LED));
 }
 

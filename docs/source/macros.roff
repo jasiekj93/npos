@@ -1,0 +1,44 @@
+.\" Definicje makr
+.\" Zakończenie rysunku
+.de KE_pic
+.  ce 1
+Rysunek \\n[H1].\\$1
+.  sp 1
+.  KE
+..
+.\" Punktacja kropką
+.de IP_dot
+.  IP \(bu 2
+..
+.\" Punktacja z pogrubieniem podmiotu
+.de IP_bold
+.  IP "\fB\\$1\fP"
+..
+.\" Punktacja z interliną podmiotu
+.de IP_italic
+.  IP "\fI\\$1\fP"
+..
+.\"Rozdział z wpisem do spisu treści
+.de chapter
+.  NH 1 
+\\$1
+.  XS
+\\n[H1]. \\$1
+.  XE
+..
+.\"Podrozdział z wpisem do spisu treści
+.de subchapter
+.  NH 2 
+\\$1
+.  XS
+   \\n[H1].\\n[H2]. \\$1
+.  XE
+..
+.\"Podpodrozdział z wpisem do spisu treści
+.de subsubchapter
+.  NH 3 
+\\$1
+.  XS
+      \\n[H1].\\n[H2].\\n[H3]. \\$1
+.  XE
+..
