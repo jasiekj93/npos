@@ -30,7 +30,6 @@ namespace npos::cli::service
         static constexpr size_t CHUNK_SIZE = 64;
         static constexpr size_t MAX_READ_ERRORS = 3;
         static constexpr size_t HISTORY_SIZE = 5;
-        static constexpr etl::string_view PROMPT = "npos> ";
 
         using ProgramListInt = etl::ivector<Program*>;
 
@@ -87,6 +86,9 @@ namespace npos::cli::service
             case fs::msg::Type::FILE_CLOSE:
             case fs::msg::Type::FILE_READ:
             case fs::msg::Type::FILE_WRITE:
+            case fs::msg::Type::DIR_OPEN:
+            case fs::msg::Type::DIR_CLOSE:
+            case fs::msg::Type::DIR_READ:
                 return true;
             default:
                 return false;
@@ -124,6 +126,20 @@ namespace npos::cli::service
 
             running = nullptr;
             prompt();
+        }
+
+        etl::string_view getWorkingDirectory() const override
+        {
+            return etl::string_view(cwd.c_str(), cwd.size());
+        }
+
+        bool setWorkingDirectory(etl::string_view path) override
+        {
+            if(path.empty() or path.front() != '/' or path.size() > text::MAX_PATH)
+                return false;
+
+            cwd.assign(path.data(), path.size());
+            return true;
         }
 
     private:
@@ -352,7 +368,7 @@ namespace npos::cli::service
         void redraw()
         {
             print("\r");
-            print(PROMPT);
+            printPrompt();
             print(etl::string_view(line.c_str(), line.size()));
             print("\x1b[K");
 
@@ -464,7 +480,14 @@ namespace npos::cli::service
             line.clear();
             cursor = 0;
             promptShown = true;
-            print(PROMPT);
+            printPrompt();
+        }
+
+        void printPrompt()
+        {
+            print("npos:");
+            print(etl::string_view(cwd.c_str(), cwd.size()));
+            print("> ");
         }
 
         void startRead()
@@ -493,6 +516,7 @@ namespace npos::cli::service
         size_t readErrors = 0;
         Program* running = nullptr;
 
+        etl::string<text::MAX_PATH> cwd = "/";
         etl::string<LINE_SIZE> line;
         size_t cursor = 0;
         bool promptShown = false;

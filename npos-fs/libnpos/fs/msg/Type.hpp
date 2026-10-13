@@ -16,5 +16,8 @@ namespace npos::fs::msg
         FILE_CLOSE,
         FILE_READ,
         FILE_WRITE,
+        DIR_OPEN,
+        DIR_CLOSE,
+        DIR_READ,
     };
 }

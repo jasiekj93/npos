@@ -37,7 +37,7 @@ examples/get-time \
 examples/compute-hash \
 examples/uart-read-write \
 examples/filesystem \
-# examples/cli \
+examples/cli \
 
 # Project libraries
 library_names = \
@@ -46,10 +46,8 @@ npos-ipc \
 npos-dev \
 npos-fs \
 npos-cli \
-# npos-nps \
-npos-ipc \
+npos-emulator \
 npos-os \
-npos-fs \
 
 # optimalization flags
 # export debug_optimalization := 

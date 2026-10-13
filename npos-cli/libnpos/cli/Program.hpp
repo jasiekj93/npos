@@ -26,6 +26,10 @@ namespace npos::cli
             // Returns the number of characters accepted; the rest must be sent again after resume().
             virtual size_t print(etl::string_view text) = 0;
             virtual void exit(Program& program, int code) = 0;
+
+            virtual etl::string_view getWorkingDirectory() const = 0;
+            // Path must be absolute and normalized, see text::resolve().
+            virtual bool setWorkingDirectory(etl::string_view path) = 0;
         };
 
         Program(Api& api, etl::string_view name, etl::string_view description)

@@ -43,6 +43,7 @@ required_libraries = \
 npos-nps \
 npos-ipc \
 npos-dev \
+npos-emulator \
 
 # external libraries
 #	e.g. if include flag is '-I$(external_dir)/libFoo'

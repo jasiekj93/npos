@@ -43,18 +43,25 @@ required_libraries = \
 npos-nps \
 npos-ipc \
 npos-dev \
+npos-fs \
+npos-cli \
+npos-os \
+npos-emulator \
 
 # external libraries
 #	e.g. if include flag is '-I$(external_dir)/libFoo'
 #	write 'libFoo'
 external_library_include_path = \
 etl/include \
+littlefs/littlefs \
 
 external_library_flags = \
+-llittlefs \
 
 #	e.g. if link flag is '-L$(external_dir)/libFoo/lib'
 #	write 'libFoo/lib'
 external_library_paths = \
+littlefs/lib/Pc32/debug \
 
 # Linker script
 ldscript = 

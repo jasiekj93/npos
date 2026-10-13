@@ -9,7 +9,7 @@
 #include <libnpos/dev/service/RtcClock.hpp>
 #include <libnpos/nps/Scheduler.hpp>
 
-#include "mock/Rtc.hpp"
+#include <libnpos/emulator/Rtc.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
@@ -38,7 +38,7 @@ int main(int argc, char* argv[])
 	primarySystemBus.addPort(devTask);
 	primaryScheduler.addTask(devTask);
 
-	mock::Rtc rtc;
+	npos::emulator::Rtc rtc;
 	npos::dev::service::RtcClock rtcClock(devTask, rtc, "clock");
 	devTask.subscribe(rtcClock);
 

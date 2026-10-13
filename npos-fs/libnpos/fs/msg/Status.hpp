@@ -28,5 +28,6 @@ namespace npos::fs::msg
         NO_ATTRIBUTE,
         NAME_TOO_LONG,
         UNKNOWN_ERROR,
+        END_OF_DIRECTORY,
     };
 }

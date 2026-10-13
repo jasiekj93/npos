@@ -14,10 +14,12 @@ external_dir := $(project_dir)/external
 # Sources 
 cxx_sources :=  \
 $(wildcard *.cpp) \
+$(wildcard */*.cpp) \
 
 # Includes
 cxx_includes := \
 -I. \
+-I$(project_dir)/npos-nps \
 
 # Defines
 cxx_defs := \

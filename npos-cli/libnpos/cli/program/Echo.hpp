@@ -44,15 +44,20 @@ namespace npos::cli::program
             target.remove_prefix(append ? 2 : 1);
             auto name = text::token(target);
 
-            if(name.empty() or body.size() + 1 > data.capacity() or name.size() > path.capacity())
+            if(name.empty() or body.size() + 1 > data.capacity())
             {
                 host->print("usage: echo <text> [> | >> <file>]\r\n");
                 return host->exit(*this, 1);
             }
 
+            if(not text::resolve(host->getWorkingDirectory(), name, path))
+            {
+                host->print("echo: path too long\r\n");
+                return host->exit(*this, 1);
+            }
+
             data.assign(body.data(), body.size());
             data.push_back('\n');
-            path.assign(name.data(), name.size());
             state = State::OPENING;
 
             fs::api::file::open(*this, etl::string_view(path.c_str(), path.size()),
@@ -127,7 +132,7 @@ namespace npos::cli::program
 
         Host* host = nullptr;
         State state = State::IDLE;
-        etl::string<64> path;
+        etl::string<text::MAX_PATH> path;
         etl::string<96> data;
         ipc::Oid file = ipc::NULL_OID;
         int exitCode = 0;

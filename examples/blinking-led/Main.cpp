@@ -1,60 +1,30 @@
 /**
  * @file Main.cpp
  * @author Adrian Szczepanski
- * @date 2026-09-15
+ * @date 2026-10-13
  */
 
-#include <libnpos/ipc/ServiceTask.hpp>
-#include <libnpos/ipc/SystemBus.hpp>
-#include <libnpos/dev/service/LedHandler.hpp>
-#include <libnpos/dev/task/Timer.hpp>
-#include <libnpos/nps/Scheduler.hpp>
-
-#include "mock/Led.hpp"
-#include "mock/SystemTick.hpp"
+#include <libnpos/os/System.hpp>
+#include <libnpos/emulator/Led.hpp>
+#include <libnpos/emulator/SystemTick.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
 {
-	//scheduler
-	npos::nps::Scheduler::TaskList<32> taskList;
-	npos::nps::Scheduler scheduler(taskList);
+	npos::emulator::Led led0;
+	npos::emulator::SystemTick systemTick;
+	npos::dev::hal::Led* leds[] = { &led0 };
 
-	//system bus
-	npos::ipc::SystemBus::PortList<32> portList;
-	etl::pool<npos::ipc::Message, 64> messagePool;
-	npos::ipc::SystemBus systemBus(portList, messagePool, 0);
+	npos::os::UserApi api;
+	UserApplication userApp(api, "leds");
+	npos::ipc::Service* services[] = { &userApp };
 
-	//devices
-	npos::ipc::ServiceTask::ServiceList<32> devServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> devMessageQueue;
-	npos::ipc::ServiceTask devTask(5, devServiceList, devMessageQueue, systemBus);
-	systemBus.addPort(devTask);
-	scheduler.addTask(devTask);
+	npos::os::System::Hal hal;
+	hal.leds = leds;
+	hal.systemTick = &systemTick;
 
-	mock::Led led0;
-	etl::vector<npos::dev::hal::Led*, 32> leds { &led0 }; 
-	npos::dev::service::LedHandler ledHandler(devTask, leds, "leds");
-	devTask.subscribe(ledHandler);
-
-	//timer
-	mock::SystemTick systemTick;
-	npos::dev::task::Timer::MessageQueue<32> timerMessageQueue;
-	npos::dev::task::Timer timerTask(9, timerMessageQueue, systemBus, systemTick);
-	systemBus.addPort(timerTask);
-	scheduler.addTask(timerTask);
-
-	//userspace
-	npos::ipc::ServiceTask::ServiceList<32> userServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> userMessageQueue;
-	npos::ipc::ServiceTask userTask(1, userServiceList, userMessageQueue, systemBus);
-	systemBus.addPort(userTask);
-	scheduler.addTask(userTask);
-
-	UserApplication userApp(userTask, "leds");
-	userTask.subscribe(userApp);
-
-	scheduler.start();
+	npos::os::System system(hal, services, api);
+	system.start();
 
 	return 0;
 }

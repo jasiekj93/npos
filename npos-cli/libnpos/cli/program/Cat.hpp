@@ -35,7 +35,12 @@ namespace npos::cli::program
                 return host->exit(*this, 1);
             }
 
-            path.assign(name.data(), name.size() < path.capacity() ? name.size() : path.capacity());
+            if(not text::resolve(host->getWorkingDirectory(), name, path))
+            {
+                host->print("cat: path too long\r\n");
+                return host->exit(*this, 1);
+            }
+
             exitCode = 0;
             offset = length = 0;
             waiting = false;
@@ -149,7 +154,7 @@ namespace npos::cli::program
 
         Host* host = nullptr;
         State state = State::IDLE;
-        etl::string<64> path;
+        etl::string<text::MAX_PATH> path;
         ipc::Oid file = ipc::NULL_OID;
         uint8_t buffer[64];
         size_t offset = 0;

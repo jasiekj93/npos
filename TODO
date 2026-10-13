@@ -22,3 +22,6 @@ jeżeli komunikacja odbywa się w ramach tego samego taska
 to wykonaj się bez kolejkowania.
 
 ale to już w ramach Serwis taska taka logika.
+
+
+W ipc dodałem klasę FsmService. Przeanalizuj dotychczasowe serwisy z bibliotek fs, dev, cli. Zdecyduj, które lepiej zachowywałyby się jako FSM i zmień ich dziedziczenie na ipc::FsmService, dodając odpowiednie stany. Dodaj testy jednostkowe dla ipc::FsmService, zmień testy w zmienionych serwisach, uwzględniając zmiany. Popraw UartPolling.hpp i przerób BackupStore.hpp, pozostałe ograniczenia pozostają. Dopisz testy, których wcześniej nie byłeś w stanie zrobić. Dopisz jedną literkę, jeżeli nazwy plików testowych się dublują. Zliwkiduj ograniczenie, jakoby terminal miał być pierwszym serwisem. Nie rozumiem skąd to ograniczenie i moim zdaniem jest ono niepotrzebne. Serwisy komunikują się ze sobą na podstawie Oid i tak skraca się drogę message, żeby było jak najmniej wiadomości typu broadcast. Terminal nie czyta 64 bajtów tylko DO 64 bajtów, żeby nie robić overhead na SystemBus. W prawdziwej implementacji jeżeli uart przeczyta mniej w wyznaczonym czasie to zwróci faktyczną liczbę w setOutputLength. Jeżeli zrozumiałeś to inaczej 

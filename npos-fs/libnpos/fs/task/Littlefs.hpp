@@ -10,6 +10,8 @@
 #include <etl/array.h>
 #include <etl/string.h>
 
+#include <cstring>
+
 #include <liblittlefs/lfs.h>
 
 #include <libnpos/nps/Task.hpp>
@@ -31,6 +33,12 @@ namespace npos::fs::task
         struct File
         {
             lfs_file_t handle;
+            bool free;
+        };
+
+        struct Dir
+        {
+            lfs_dir_t handle;
             bool free;
         };
 
@@ -58,6 +66,9 @@ namespace npos::fs::task
             case msg::Type::FILE_CLOSE:
             case msg::Type::FILE_READ:
             case msg::Type::FILE_WRITE:
+            case msg::Type::DIR_OPEN:
+            case msg::Type::DIR_CLOSE:
+            case msg::Type::DIR_READ:
                 return true;
             default:
                 return false;
@@ -77,6 +88,9 @@ namespace npos::fs::task
         {
             for (auto& file : files)
                 file.free = true;
+
+            for (auto& dir : dirs)
+                dir.free = true;
 
             config.read = [](const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) -> int
             {
@@ -228,6 +242,12 @@ namespace npos::fs::task
                 return fileRead(static_cast<msg::file::Read&>(message));
             case msg::Type::FILE_WRITE:
                 return fileWrite(static_cast<msg::file::Write&>(message));
+            case msg::Type::DIR_OPEN:
+                return dirOpen(static_cast<msg::dir::Open&>(message));
+            case msg::Type::DIR_CLOSE:
+                return dirClose(static_cast<msg::dir::Close&>(message));
+            case msg::Type::DIR_READ:
+                return dirRead(static_cast<msg::dir::Read&>(message));
             default:
                 return;
             }
@@ -251,6 +271,76 @@ namespace npos::fs::task
                     return bus.respond(request.setStatus(fromLfsStatus(result)));
                 }
             }
+
+            bus.respond(request.setStatus(msg::Status::NO_MEMORY));
+        }
+
+        void dirOpen(msg::dir::Open& request)
+        {
+            for(size_t i = 0; i < dirs.size(); i++)
+            {
+                if(dirs[i].free)
+                {
+                    auto result = lfs_dir_open(&filesystem, &dirs[i].handle, request.getPath().data());
+
+                    if(result == LFS_ERR_OK)
+                    {
+                        dirs[i].free = false;
+                        request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
+                    }
+
+                    return bus.respond(request.setStatus(fromLfsStatus(result)));
+                }
+            }
+
+            bus.respond(request.setStatus(msg::Status::NO_MEMORY));
+        }
+
+        void dirClose(msg::dir::Close& request)
+        {
+            if(request.getDir().serviceId >= dirs.size() or
+                dirs[request.getDir().serviceId].free)
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+
+            auto& dir = dirs[request.getDir().serviceId];
+            auto result = lfs_dir_close(&filesystem, &dir.handle);
+
+            if(result == LFS_ERR_OK)
+                dir.free = true;
+
+            bus.respond(request.setStatus(fromLfsStatus(result)));
+        }
+
+        void dirRead(msg::dir::Read& request)
+        {
+            if(request.getDir().serviceId >= dirs.size() or
+                dirs[request.getDir().serviceId].free)
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+
+            auto& dir = dirs[request.getDir().serviceId];
+            auto& entry = request.getEntry();
+            lfs_info info;
+            int result;
+
+            // "." and ".." are not reported.
+            do
+            {
+                result = lfs_dir_read(&filesystem, &dir.handle, &info);
+            }
+            while(result > 0 and (strcmp(info.name, ".") == 0 or strcmp(info.name, "..") == 0));
+
+            if(result < 0)
+                return bus.respond(request.setStatus(fromLfsStatus(result)));
+
+            if(result == 0)
+                return bus.respond(request.setStatus(msg::Status::END_OF_DIRECTORY));
+
+            entry.type = (info.type == LFS_TYPE_DIR) ? msg::dir::Entry::DIRECTORY : msg::dir::Entry::FILE;
+            entry.size = info.size;
+            strncpy(entry.name, info.name, sizeof(entry.name) - 1);
+            entry.name[sizeof(entry.name) - 1] = '\0';
+
+            bus.respond(request.setStatus(msg::Status::SUCCESS));
         }
 
         void fileClose(msg::file::Close& request)
@@ -328,6 +418,7 @@ namespace npos::fs::task
         hal::Flash& flash;
         hal::ICache* icache;
         etl::array<File, N> files;
+        etl::array<Dir, N> dirs;
         lfs_t filesystem{};
         lfs_config config{};
     };

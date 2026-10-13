@@ -1,52 +1,26 @@
 /**
  * @file Main.cpp
  * @author Adrian Szczepanski
- * @date 2026-09-15
+ * @date 2026-10-13
  */
 
-#include <libnpos/ipc/ServiceTask.hpp>
-#include <libnpos/ipc/SystemBus.hpp>
-#include <libnpos/dev/service/RtcClock.hpp>
-#include <libnpos/nps/Scheduler.hpp>
-
-#include "mock/Rtc.hpp"
+#include <libnpos/os/System.hpp>
+#include <libnpos/emulator/Rtc.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
 {
-	//scheduler
-	npos::nps::Scheduler::TaskList<32> taskList;
-	npos::nps::Scheduler scheduler(taskList);
+	npos::emulator::Rtc rtc;
 
-	//system bus
-	npos::ipc::SystemBus::PortList<32> portList;
-	etl::pool<npos::ipc::Message, 64> messagePool;
-	npos::ipc::SystemBus systemBus(portList, messagePool, 0);
+	npos::os::UserApi api;
+	UserApplication userApp(api, "clock");
+	npos::ipc::Service* services[] = { &userApp };
 
-	//devices
-	npos::ipc::ServiceTask::ServiceList<32> devServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> devMessageQueue;
-	npos::ipc::ServiceTask devTask(5, devServiceList, devMessageQueue, systemBus);
-	systemBus.addPort(devTask);
-	scheduler.addTask(devTask);
+	npos::os::System::Hal hal;
+	hal.rtc.hal = &rtc;
 
-	mock::Rtc rtc;
-	npos::dev::service::RtcClock rtcClock(devTask, rtc, "clock");
-	devTask.subscribe(rtcClock);
-
-
-
-	//userspace
-	npos::ipc::ServiceTask::ServiceList<32> userServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> userMessageQueue;
-	npos::ipc::ServiceTask userTask(1, userServiceList, userMessageQueue, systemBus);
-	systemBus.addPort(userTask);
-	scheduler.addTask(userTask);
-
-	UserApplication userApp(userTask, "clock");
-	userTask.subscribe(userApp);
-
-	scheduler.start();
+	npos::os::System system(hal, services, api);
+	system.start();
 
 	return 0;
 }
