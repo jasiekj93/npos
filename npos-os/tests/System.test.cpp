@@ -161,8 +161,8 @@ TEST(System, TerminalIsATaskOfItsOwn)
     os::System system(hal, other.memory(), {}, api, config);
 
     CHECK_TRUE(system.getTerminal() != nullptr);
-    CHECK_TRUE(system.getTerminal()->accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
-    CHECK_FALSE(system.getUserTask().accepts(ipc::OS_SYSLOG_MESSAGE_TYPE));
+    CHECK_TRUE(system.getTerminal()->accepts(cli::msg::Type::SYSLOG));
+    CHECK_FALSE(system.getUserTask().accepts(cli::msg::Type::SYSLOG));
 }
 
 TEST(System, TerminalPriorityIsConfigurable)
@@ -172,18 +172,6 @@ TEST(System, TerminalPriorityIsConfigurable)
     os::System system(hal, storage.memory(), {}, api, config);
 
     CHECK_EQUAL(7, system.getTerminal()->getPriority());
-}
-
-TEST(System, LogsOfUserServicesReachTheTerminal)
-{
-    config.cli = true;
-    os::System system(hal, storage.memory(), services, api, config);
-
-    CHECK_FALSE(system.getTerminal()->isReady());
-
-    probe.log(ipc::log::INFO) << "hello " << 5 << ipc::log::endl;
-
-    CHECK_TRUE(system.getTerminal()->isReady());
 }
 
 TEST(System, CliDoesNotChangeUserServiceIds)

@@ -116,7 +116,6 @@ namespace npos::ipc
     };
 
     static constexpr Message::Type OS_ERROR_MESSAGE_TYPE = 0x0000;
-    static constexpr Message::Type OS_SYSLOG_MESSAGE_TYPE = 0x0001;
     static constexpr Message::Type DEVICE_MESSAGE_TYPE = 0x0100;
     static constexpr Message::Type DRIVER_MESSAGE_TYPE = 0x0200;
     static constexpr Message::Type FILESYSTEM_MESSAGE_TYPE = 0x0300;

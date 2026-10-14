@@ -31,6 +31,7 @@
 #include <libnpos/dev/task/Watchdog.hpp>
 #include <libnpos/fs/task/Littlefs.hpp>
 #include <libnpos/cli/task/Terminal.hpp>
+#include <libnpos/cli/utils/LogStream.hpp>
 #include <libnpos/cli/program/Cat.hpp>
 #include <libnpos/cli/program/Echo.hpp>
 #include <libnpos/cli/program/Touch.hpp>
@@ -163,7 +164,7 @@ namespace npos::os
         dev::task::Timer::MessageQueue<Queue> timerQueue;
         ipc::ServiceTask::MessageQueue<Queue> filesystemQueue;
         cli::task::Terminal::MessageQueue<Queue> terminalQueue;
-        etl::generic_pool<ipc::log::Stream::MAX_MESSAGE_LENGTH, 1, Logs> logPayloadPool;
+        etl::generic_pool<cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, Logs> logPayloadPool;
         cli::task::Terminal::ProgramList<Programs> programList;
     };
 

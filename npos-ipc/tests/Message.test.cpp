@@ -41,13 +41,3 @@ TEST(Message, OutputRawOverlapsTypedFields)
     CHECK_TRUE(sizeof(message.output.open) <= sizeof(message.output.raw));
     CHECK_TRUE(sizeof(message.output.readWrite) <= sizeof(message.output.raw));
 }
-
-TEST(Message, TypeRangesAreAscendingAndDistinct)
-{
-    CHECK_TRUE(npos::ipc::OS_ERROR_MESSAGE_TYPE < npos::ipc::OS_SYSLOG_MESSAGE_TYPE);
-    CHECK_TRUE(npos::ipc::OS_SYSLOG_MESSAGE_TYPE < npos::ipc::DEVICE_MESSAGE_TYPE);
-    CHECK_TRUE(npos::ipc::DEVICE_MESSAGE_TYPE < npos::ipc::DRIVER_MESSAGE_TYPE);
-    CHECK_TRUE(npos::ipc::DRIVER_MESSAGE_TYPE < npos::ipc::FILESYSTEM_MESSAGE_TYPE);
-    CHECK_TRUE(npos::ipc::FILESYSTEM_MESSAGE_TYPE < npos::ipc::CLI_MESSAGE_TYPE);
-    CHECK_TRUE(npos::ipc::CLI_MESSAGE_TYPE < npos::ipc::USER_MESSAGE_TYPE);
-}

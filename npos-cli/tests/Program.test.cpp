@@ -9,6 +9,7 @@
 #include "mock/RecordingApi.hpp"
 
 #include <libnpos/fs/msg/Type.hpp>
+#include <libnpos/cli/msg/Type.hpp>
 
 #include <CppUTest/TestHarness.h>
 
@@ -40,7 +41,7 @@ TEST(Program, ExposesNameAndDescription)
 TEST(Program, ConsumesOnlyResponsesSoAcceptsNothing)
 {
     CHECK_FALSE(program.accepts(npos::fs::msg::Type::FILE_OPEN));
-    CHECK_FALSE(program.accepts(npos::ipc::OS_SYSLOG_MESSAGE_TYPE));
+    CHECK_FALSE(program.accepts(npos::cli::msg::Type::SYSLOG));
 }
 
 TEST(Program, ResumeDoesNothingByDefault)

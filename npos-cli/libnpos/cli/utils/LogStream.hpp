@@ -1,84 +1,31 @@
 #pragma once
 
 /**
- * @file Log.hpp
+ * @file LogStream.hpp
  * @author Adrian Szczepanski
- * @date 12-10-2026
+ * @date 14-10-2026
  */
 
-#include <etl/string.h>
-#include <etl/string_stream.h>
-#include <etl/vector.h>
-#include <etl/span.h>
+#include <libnpos/ipc/Service.hpp>
+#include <libnpos/cli/msg/Syslog.hpp>
 
-#include <libnpos/ipc/Message.hpp>
-
-namespace npos::ipc::log
+namespace npos::cli::utils
 {
-    enum Level : Message::Input::Attributes::Value
-    {
-        DEBUG,
-        INFO,
-        WARNING,
-        ERROR,
-    };  
-
-    struct Endl {};
-    static Endl endl;
-
-    struct Syslog : public ipc::Message
-    {
-        Syslog(Oid sender, Level level, etl::string_view message, bool overflow)
-        {
-            this->type = OS_SYSLOG_MESSAGE_TYPE;
-            this->input.link.target = sender;
-            this->input.link.attributes.value = level;
-            this->input.link.attributes.mode = overflow;
-            this->input.data = reinterpret_cast<const uint8_t*>(message.data());
-            this->input.size = message.size();
-        }
-
-        inline Level getLevel() const
-        {
-            return static_cast<Level>(this->input.link.attributes.value);
-        }
-
-        inline bool getOverflow() const
-        {
-            return this->input.link.attributes.mode;
-        }
-
-        inline etl::string_view getMessage() const
-        {
-            return etl::string_view(reinterpret_cast<const char*>(this->input.data), this->input.size);
-        }
-
-        inline Oid getSender() const
-        {
-            return this->input.link.target;
-        }
-    };
-
-    class Stream
+    class LogStream
     {
     public:
         static constexpr size_t MAX_NUMBER_LENGTH = 20; 
         static constexpr size_t MAX_MESSAGE_LENGTH = 128; 
 
-        class Transmitter
-        {
-        public:
-            virtual ~Transmitter() = default;
-
-            virtual void sendSyslog(Syslog& message) = 0;
-        };
-
-        Stream(Level level, Oid sender, Transmitter& transmitter)
-            : level(level), sender(sender), transmitter(transmitter), stream(buffer), overflowFlag(false)
+        LogStream(ipc::Service& sender, log::Level level)
+            : level(level)
+            , sender(sender)
+            , stream(buffer)
+            , overflowFlag(false)
         {
         }
 
-        Stream& operator<<(etl::string_view str) 
+        LogStream& operator<<(etl::string_view str) 
         { 
             if(overflowFlag)
                 return *this;
@@ -91,17 +38,17 @@ namespace npos::ipc::log
             return *this; 
         }
 
-        inline Stream& operator<<(const char* str) 
+        inline LogStream& operator<<(const char* str) 
         { 
             return operator<<(etl::string_view(str));
         }
 
-        inline Stream& operator<<(const etl::ivector<uint8_t>& vector) 
+        inline LogStream& operator<<(const etl::ivector<uint8_t>& vector) 
         { 
             return operator<<(etl::span<const uint8_t>(vector.data(), vector.size()));
         }
 
-        inline Stream& operator<<(const etl::span<const uint8_t>& span) 
+        inline LogStream& operator<<(const etl::span<const uint8_t>& span) 
         { 
             if(overflowFlag)
                 return *this; 
@@ -125,7 +72,7 @@ namespace npos::ipc::log
             return *this; 
         }
 
-        inline Stream& operator<<(bool value) 
+        inline LogStream& operator<<(bool value) 
         { 
             if(overflowFlag)
                 return *this;
@@ -142,13 +89,13 @@ namespace npos::ipc::log
             return *this; 
         }
 
-        inline Stream& operator<<(int value) 
+        inline LogStream& operator<<(int value) 
         { 
             etl::to_string(value, numberBuffer);
             return operator<<(numberBuffer);
         }
 
-        inline Stream& operator<<(uint8_t value) 
+        inline LogStream& operator<<(uint8_t value) 
         { 
             if(overflowFlag)
                 return *this; 
@@ -169,19 +116,19 @@ namespace npos::ipc::log
             return *this; 
         }
 
-        inline Stream& operator<<(unsigned int value) 
+        inline LogStream& operator<<(unsigned int value) 
         { 
             etl::to_string(value, numberBuffer);
             return operator<<(numberBuffer);
         }
 
-        inline Stream& operator<<(unsigned long value) 
+        inline LogStream& operator<<(unsigned long value) 
         { 
             etl::to_string(value, numberBuffer);
             return operator<<(numberBuffer);
         }
 
-        inline Stream& operator<<(const etl::format_spec& format) 
+        inline LogStream& operator<<(const etl::format_spec& format) 
         { 
             if(overflowFlag)
                 return *this;
@@ -190,10 +137,10 @@ namespace npos::ipc::log
             return *this; 
         }
 
-        inline Stream& operator<<(const Endl&) 
+        inline LogStream& operator<<(const log::Endl&) 
         { 
-            Syslog request(sender, level, buffer, overflowFlag);
-            transmitter.sendSyslog(request);
+            msg::Syslog request(sender.getOid(), level, buffer, overflowFlag);
+            sender.getApi().send(request);
 
             buffer.clear();
             overflowFlag = false;
@@ -202,9 +149,8 @@ namespace npos::ipc::log
 
     
     private:
-        Level level;
-        Oid sender;
-        Transmitter& transmitter;
+        log::Level level;
+        ipc::Service& sender;
         etl::string<MAX_MESSAGE_LENGTH> buffer;
         etl::string<MAX_NUMBER_LENGTH> numberBuffer;
         etl::string_stream stream;

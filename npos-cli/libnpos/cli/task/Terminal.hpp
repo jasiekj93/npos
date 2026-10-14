@@ -23,6 +23,7 @@
 #include <libnpos/cli/Text.hpp>
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
+#include <libnpos/cli/msg/Syslog.hpp>
 #include <libnpos/fs/msg/Type.hpp>
 
 namespace npos::cli::task
@@ -75,7 +76,7 @@ namespace npos::cli::task
         {
             switch(type)
             {
-            case ipc::OS_SYSLOG_MESSAGE_TYPE:
+            case cli::msg::SYSLOG:
             case dev::msg::Type::OPEN:
             case dev::msg::Type::TRANSCIEVER:
             case fs::msg::Type::FILE_OPEN:
@@ -97,7 +98,7 @@ namespace npos::cli::task
         {
             auto& request = const_cast<ipc::Message&>(message);
 
-            if(request.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+            if(request.type == cli::msg::SYSLOG)
             {
                 if(not storeLog(request))
                     return bus.release(&request);
@@ -108,7 +109,7 @@ namespace npos::cli::task
 
             if(messageQueue.full())
             {
-                if(request.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+                if(request.type == cli::msg::SYSLOG)
                     payloads.release(request.input.data);
 
                 return bus.release(&request);
@@ -137,7 +138,7 @@ namespace npos::cli::task
             auto message = messageQueue.front();
             handle(*message);
 
-            if(message->type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+            if(message->type == cli::msg::SYSLOG)
                 payloads.release(message->input.data);
 
             messageQueue.pop();
@@ -224,7 +225,7 @@ namespace npos::cli::task
 
         void handle(ipc::Message& message)
         {
-            if(message.type == ipc::OS_SYSLOG_MESSAGE_TYPE)
+            if(message.type == cli::msg::Type::SYSLOG)
                 onLog(message);
             else if(message.type == dev::msg::Type::OPEN)
                 onOpen(static_cast<dev::msg::Open&>(message));
@@ -276,7 +277,7 @@ namespace npos::cli::task
         // Prints the log above the edited line, then restores the line.
         void onLog(ipc::Message& message)
         {
-            auto& request = static_cast<ipc::log::Syslog&>(message);
+            auto& request = static_cast<cli::msg::Syslog&>(message);
 
             if(not message.input.data)
                 return;

@@ -9,6 +9,7 @@
 #include "mock/RecordingApi.hpp"
 
 #include <libnpos/cli/task/Terminal.hpp>
+#include <libnpos/cli/utils/LogStream.hpp>
 
 #include <CppUTest/TestHarness.h>
 
@@ -24,7 +25,7 @@ TEST_GROUP(Terminal)
     mock::RecordingApi api;
     mock::RecordingBus bus;
     Terminal::MessageQueue<8> queue;
-    etl::generic_pool<npos::ipc::log::Stream::MAX_MESSAGE_LENGTH, 1, 4> payloads;
+    etl::generic_pool<npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, 4> payloads;
     Terminal::ProgramList<2> programList;
     Terminal terminal{2, queue, payloads, programList, bus, "uart0"};
     mock::Console console{terminal, bus};
@@ -68,7 +69,7 @@ TEST_GROUP(Terminal)
     void log(const char* text)
     {
         npos::ipc::Oid sender{10, 0};
-        npos::ipc::log::Syslog message(sender, npos::ipc::log::Level::INFO, text, false);
+        npos::cli::msg::Syslog message(sender, npos::cli::log::Level::INFO, text, false);
         message.sender = 10;
         terminal.receive(message);
         terminal.process();
@@ -647,7 +648,7 @@ TEST(Terminal, MessagesFromOtherPortsAreIgnored)
 
 TEST(Terminal, AcceptsLogsAndResponsesOnly)
 {
-    CHECK_TRUE(terminal.accepts(npos::ipc::OS_SYSLOG_MESSAGE_TYPE));
+    CHECK_TRUE(terminal.accepts(npos::cli::msg::Type::SYSLOG));
     CHECK_TRUE(terminal.accepts(npos::dev::msg::Type::OPEN));
     CHECK_TRUE(terminal.accepts(npos::dev::msg::Type::TRANSCIEVER));
     CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::FILE_OPEN));
@@ -707,7 +708,7 @@ TEST(Terminal, LogWithoutTextIsIgnored)
 {
     start();
     npos::ipc::Message message;
-    message.type = npos::ipc::OS_SYSLOG_MESSAGE_TYPE;
+    message.type = npos::cli::msg::Type::SYSLOG;
     message.sender = 9;
     message.input.data = nullptr;
 
@@ -933,7 +934,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
 {
     start();
     char text[] = "original";
-    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, text, false);
+    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, text, false);
     message.sender = 10;
 
     terminal.receive(message);
@@ -946,7 +947,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
 
 TEST(Terminal, QueuedLogPointsAtAPayloadSlot)
 {
-    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, "abc", false);
+    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, "abc", false);
 
     terminal.receive(message);
 
@@ -966,10 +967,10 @@ TEST(Terminal, PayloadSlotIsFreedAfterTheLogIsHandled)
 
 TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
 {
-    npos::ipc::log::Syslog logs[5] = {
-        { { 10, 0 }, npos::ipc::log::Level::INFO, "a", false }, { { 10, 0 }, npos::ipc::log::Level::INFO, "b", false },
-        { { 10, 0 }, npos::ipc::log::Level::INFO, "c", false }, { { 10, 0 }, npos::ipc::log::Level::INFO, "d", false },
-        { { 10, 0 }, npos::ipc::log::Level::INFO, "e", false } };
+    npos::cli::msg::Syslog logs[5] = {
+        { { 10, 0 }, npos::cli::log::Level::INFO, "a", false }, { { 10, 0 }, npos::cli::log::Level::INFO, "b", false },
+        { { 10, 0 }, npos::cli::log::Level::INFO, "c", false }, { { 10, 0 }, npos::cli::log::Level::INFO, "d", false },
+        { { 10, 0 }, npos::cli::log::Level::INFO, "e", false } };
 
     for(auto& message : logs)
         terminal.receive(message);
@@ -981,8 +982,8 @@ TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
 
 TEST(Terminal, TooLongLogIsDropped)
 {
-    etl::string<200> text(npos::ipc::log::Stream::MAX_MESSAGE_LENGTH + 1, 'x');
-    npos::ipc::log::Syslog message({ 10, 0 }, npos::ipc::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
+    etl::string<200> text(npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH + 1, 'x');
+    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
 
     terminal.receive(message);
 
@@ -995,8 +996,8 @@ TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
 {
     Terminal::MessageQueue<1> smallQueue;
     Terminal small{2, smallQueue, payloads, programList, bus, "uart0"};
-    npos::ipc::log::Syslog first({ 10, 0 }, npos::ipc::log::Level::INFO, "a", false);
-    npos::ipc::log::Syslog second({ 10, 0 }, npos::ipc::log::Level::INFO, "b", false);
+    npos::cli::msg::Syslog first({ 10, 0 }, npos::cli::log::Level::INFO, "a", false);
+    npos::cli::msg::Syslog second({ 10, 0 }, npos::cli::log::Level::INFO, "b", false);
 
     small.receive(first);
     small.receive(second);

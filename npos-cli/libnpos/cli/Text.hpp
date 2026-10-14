@@ -12,7 +12,7 @@
 #include <etl/string_stream.h>
 
 #include <libnpos/fs/msg/Status.hpp>
-#include <libnpos/ipc/Log.hpp>
+#include <libnpos/cli/Log.hpp>
 
 namespace npos::cli::text
 {
@@ -132,14 +132,14 @@ namespace npos::cli::text
         }
     }
 
-    inline etl::string_view syslogLevel(ipc::log::Level level)
+    inline etl::string_view syslogLevel(log::Level level)
     {
         switch(level)
         {
-        case ipc::log::Level::DEBUG: return "debug";
-        case ipc::log::Level::INFO: return "info";
-        case ipc::log::Level::WARNING: return "warning";
-        case ipc::log::Level::ERROR: return "error";
+        case log::Level::DEBUG: return "debug";
+        case log::Level::INFO: return "info";
+        case log::Level::WARNING: return "warning";
+        case log::Level::ERROR: return "error";
         default: return "unknown";
         }
     }
