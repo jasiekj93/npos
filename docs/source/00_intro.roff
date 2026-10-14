@@ -1,13 +1,18 @@
 .RP no
 .TL
-Tytuł
+NPOS
 .br
+Non Preemptive Operating System
 Architektura oprogramowania
 .AU
 Adrian SZCZEPAŃSKI
 
 .AB
-Tu bedzie abstrakt
+NPOS jest systemem czasu rzeczywistego bez wywłaszczeń. 
+Powstał na potrzeby urządzeń wbudowanych typu 'safety-critical', gdzie
+zastosowanie systemu RTOS z wywłaszczeniami jest niemożliwe. 
+System ma zaimplementowany mechanizm komunikacji międzyprocesowej (IPC),
+który jest podstawą wymiany danych w systemie. Na jego podstawie zdefiniowany
+został interfejs do korzystania z urządzeń (devices) oraz plików (filesystem).
 .AE
-.so blankPage.roff
 
