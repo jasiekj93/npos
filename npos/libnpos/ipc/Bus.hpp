@@ -16,7 +16,6 @@ namespace npos::ipc
         virtual ~Bus() = default;
 
         virtual void send(Message&) = 0;
-        virtual void respond(Message&) = 0;
         virtual void release(Message*) = 0;
     };
 }

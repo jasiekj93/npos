@@ -54,7 +54,7 @@ namespace npos::ipc
         {
             for (auto& service : services)
             {
-                if (service->accepts(type))
+                if (service->acceptsRequest(type))
                     return true;
             }
 
@@ -87,28 +87,35 @@ namespace npos::ipc
                 return; 
 
             auto message = messageQueue.front();
-            dispatch(*message);
+
+            (message->isResponse ? 
+                dispatchResponse(*message) : 
+                dispatchRequest(*message));
+
             messageQueue.pop();
             bus.release(message);
         }
 
         //Service::Api
-        void send(Message& message) override
+        void send(Service& sender, Message& message) override
         {
-            message.sender = getId();
+            message.sender = sender.getOid();
+            message.isResponse = false;
 
             if(message.recipient.portId == getId())
-                dispatch(message);
+                dispatchRequest(message);
             else
                 bus.send(message);
         }
 
         void respond(Message& message) override
         {
-            if(message.sender == getId())
-                dispatch(message);
+            message.isResponse = true;
+
+            if(message.sender.portId == getId())
+                dispatchResponse(message);
             else
-                bus.respond(message);
+                bus.send(message);
         }
 
         PortId getPortId() const override
@@ -117,21 +124,27 @@ namespace npos::ipc
         }
 
     protected:
-        void dispatch(Message& message)
+        void dispatchRequest(Message& message)
         {
             if(message.recipient.serviceId != NULL_SERVICE)
             {
                 if(message.recipient.serviceId < services.size())
-                    services[message.recipient.serviceId]->handle(message);
+                    services[message.recipient.serviceId]->handleRequest(message);
             }
             else
             {
                 for (auto& service : services)
                 {
-                    if (service->accepts(message.type))
-                        service->handle(message);
+                    if (service->acceptsRequest(message.type))
+                        service->handleRequest(message);
                 }
             }
+        }
+
+        void dispatchResponse(Message& message)
+        {
+            if(message.sender.serviceId < services.size())
+                services[message.sender.serviceId]->handleResponse(message);
         }
 
         inline auto& getServices() { return services; }

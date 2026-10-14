@@ -23,7 +23,7 @@ namespace npos::dev::service
         {
         }
 
-        void handle(ipc::Message& message) override
+        void handleRequest(ipc::Message& message) override
         {
             if(message.type == msg::Type::BACKUP_REGISTERS)
             {
@@ -47,8 +47,9 @@ namespace npos::dev::service
                 open(message);
         }
 
+        void handleResponse(ipc::Message& message) override {}
         
-        bool accepts(ipc::Message::Type type) const override
+        bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::BACKUP_REGISTERS or 
                     type == msg::Type::OPEN);

@@ -25,7 +25,9 @@ public:
         std::cout << "UserApplication initialized." << std::endl;
     }
 
-    void handle(npos::ipc::Message& message) override
+    void handleRequest(npos::ipc::Message& message) override {}
+
+    void handleResponse(npos::ipc::Message& message) override
     {
         if (message.type == npos::dev::msg::Type::OPEN) 
         {
@@ -75,12 +77,7 @@ public:
         }
     }
 
-    bool accepts(npos::ipc::Message::Type type) const override
-    {
-        return type == npos::dev::msg::Type::OPEN or
-            type == npos::dev::msg::Type::LED or
-            type == npos::dev::msg::Type::TIMER;
-    }
+    bool acceptsRequest(npos::ipc::Message::Type type) const override { return false; }
 
 private:
     etl::string_view devName;

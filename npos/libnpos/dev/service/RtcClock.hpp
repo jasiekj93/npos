@@ -132,7 +132,7 @@ namespace npos::dev::service
         {
         }
 
-        void handle(ipc::Message& message) override
+        void handleRequest(ipc::Message& message) override
         {
             if(message.type == msg::Type::CLOCK)
             {
@@ -147,7 +147,9 @@ namespace npos::dev::service
                 return open(message);
         }
 
-        bool accepts(ipc::Message::Type type) const override
+        void handleResponse(ipc::Message& message) override {}
+
+        bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::CLOCK or 
                     type == msg::Type::OPEN);

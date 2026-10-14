@@ -52,18 +52,13 @@ namespace npos::ipc
 
         void send(Message& message) override
         {
+            if(message.isResponse)
+                return respond(message);
+
             if(message.recipient.portId != NULL_PORT)
                 sendTo(message.recipient.portId, message);
             else
                 broadcast(message);
-        }
-
-        void respond(Message& message) override
-        {
-            if(respondToPort(message))
-                return;
-            else if(succesor)
-                succesor->respondToPort(message, true);
         }
 
         void release(Message* messagePtr) override
@@ -80,6 +75,14 @@ namespace npos::ipc
         }
 
     protected:
+        void respond(Message& message) 
+        {
+            if(respondToPort(message))
+                return;
+            else if(succesor)
+                succesor->respondToPort(message, true);
+        }
+
         void broadcast(Message& message)
         {
             broadcastToPorts(message);
@@ -97,7 +100,7 @@ namespace npos::ipc
 
             for(auto& port : ports)
             {
-                if(port->getId() != message.sender and
+                if(port->getId() != message.sender.portId and
                     port->accepts(message.type))
                 {
                     messagePtr->referenceCount++;
@@ -112,7 +115,7 @@ namespace npos::ipc
 
         bool respondToPort(Message& message, bool fromSuccesor = false)
         {
-            auto index = getIndex(message.sender);
+            auto index = getIndex(message.sender.portId);
 
             if(index < ports.size())
             {

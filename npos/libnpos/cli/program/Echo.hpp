@@ -64,7 +64,7 @@ namespace npos::cli::program
                 fs::Flags::WRITE_ONLY | fs::Flags::CREATE | (append ? fs::Flags::APPEND : fs::Flags::TRUNCATE));
         }
 
-        void handle(ipc::Message& message) override
+        void handleResponse(ipc::Message& message) override
         {
             switch(message.type)
             {

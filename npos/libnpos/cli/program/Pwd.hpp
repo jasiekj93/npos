@@ -25,6 +25,6 @@ namespace npos::cli::program
             host.exit(*this, 0);
         }
 
-        void handle(ipc::Message&) override {}
+        void handleResponse(ipc::Message&) override {}
     };
 }

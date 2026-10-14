@@ -46,7 +46,8 @@ namespace npos::cli
         virtual void resume() {}
 
         // Programs only consume responses.
-        bool accepts(ipc::Message::Type) const override { return false; }
+        bool acceptsRequest(ipc::Message::Type) const override { return false; }
+        void handleRequest(ipc::Message& message) override {}
 
         inline etl::string_view getName() const { return name; }
         inline etl::string_view getDescription() const { return description; }

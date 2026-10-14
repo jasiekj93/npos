@@ -47,7 +47,7 @@ namespace npos::cli::program
                 print();
         }
 
-        void handle(ipc::Message& message) override
+        void handleResponse(ipc::Message& message) override
         {
             switch(message.type)
             {

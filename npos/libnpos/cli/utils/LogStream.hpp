@@ -140,7 +140,7 @@ namespace npos::cli::utils
         inline LogStream& operator<<(const log::Endl&) 
         { 
             msg::Syslog request(sender.getOid(), level, buffer, overflowFlag);
-            sender.getApi().send(request);
+            sender.getApi().send(sender, request);
 
             buffer.clear();
             overflowFlag = false;

@@ -45,7 +45,7 @@ namespace npos::cli::program
             fs::api::file::open(*this, etl::string_view(path.c_str(), path.size()), fs::Flags::WRITE_ONLY | fs::Flags::CREATE);
         }
 
-        void handle(ipc::Message& message) override
+        void handleResponse(ipc::Message& message) override
         {
             if(message.type == fs::msg::Type::FILE_OPEN and state == State::OPENING)
             {

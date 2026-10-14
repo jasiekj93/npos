@@ -53,7 +53,8 @@ namespace npos::dev::task
             auto& timerMessage = const_cast<msg::Timer&>(static_cast<const msg::Timer&>(message));
             if(messageQueue.full())
             {
-                bus.respond(timerMessage.setStatus(msg::Timer::Status::NO_MEMORY));
+                timerMessage.isResponse = true;
+                bus.send(timerMessage.setStatus(msg::Timer::Status::NO_MEMORY));
                 bus.release(&timerMessage);
             }
             else
@@ -83,7 +84,8 @@ namespace npos::dev::task
             if(timerMessage->getEventTick() > systemTick.getTick())
                 return;
                 
-            bus.respond(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
+            timerMessage->isResponse = true;
+            bus.send(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
             messageQueue.pop();
 
             if(timerMessage->getMode() == msg::Timer::Mode::REPEATING)

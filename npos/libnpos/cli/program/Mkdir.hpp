@@ -44,7 +44,7 @@ namespace npos::cli::program
             fs::api::dir::make(*this, etl::string_view(path.c_str(), path.size()));
         }
 
-        void handle(ipc::Message& message) override
+        void handleResponse(ipc::Message& message) override
         {
             if(message.type != fs::msg::Type::DIR_MAKE or not waiting)
                 return;

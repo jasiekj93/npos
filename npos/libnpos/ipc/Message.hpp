@@ -106,10 +106,11 @@ namespace npos::ipc
             size_t size;
         };
 
-        PortId sender = NULL_PORT;
+        Oid sender = NULL_OID;
         Oid recipient = NULL_OID;
-        Type type;
+        bool isResponse = false;
         ReferenceCount referenceCount = 0;
+        Type type;
 
         Input input;
         Output output;

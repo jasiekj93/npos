@@ -19,10 +19,10 @@ namespace npos::ipc
             virtual void onEnter() {}
             virtual void onExit() {}
 
-            virtual bool accepts(Message::Type) const { return false; }
+            virtual bool acceptsRequest(Message::Type) const { return false; }
 
-            virtual ID handle(Message&) { return id; }
-            virtual ID handleUnknown(Message&) { return id; }
+            virtual ID handleRequest(Message&) { return id; }
+            virtual ID handleResponse(Message&) { return id; }
             inline auto getId() const { return id; }
 
         protected:
@@ -39,7 +39,7 @@ namespace npos::ipc
         {
         }
 
-        bool accepts(Message::Type type) const override
+        bool acceptsRequest(Message::Type type) const override
         {
             if(not isRunning)
                 return false;
@@ -47,18 +47,25 @@ namespace npos::ipc
             if(currentState == nullptr)
                 return false;
 
-            return currentState->accepts(type);
+            return currentState->acceptsRequest(type);
         }
 
-        void handle(Message& message) override
+        void handleRequest(Message& message) override
         {
             if(not isRunning)
                 return;
 
-            if(not accepts(message.type))
-                return setState(currentState->handleUnknown(message));
+            if(acceptsRequest(message.type))
+                return setState(currentState->handleRequest(message));
+        }
 
-            setState(currentState->handle(message));  
+        void handleResponse(Message& message) override
+        {
+            if(not isRunning)
+                return;
+
+            if(currentState != nullptr)
+                setState(currentState->handleResponse(message));
         }
 
         void start()

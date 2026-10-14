@@ -23,7 +23,7 @@ namespace npos::dev::service
         {
         }
 
-        void handle(ipc::Message& message) override
+        void handleRequest(ipc::Message& message) override
         {
             if(message.type == msg::Type::TRANSCIEVER)
             {
@@ -40,8 +40,10 @@ namespace npos::dev::service
             else if(message.type == msg::Type::OPEN)
                 open(message);
         }
+        
+        void handleResponse(ipc::Message& message) override {}
 
-        bool accepts(ipc::Message::Type type) const override
+        bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::TRANSCIEVER or 
                     type == msg::Type::OPEN);

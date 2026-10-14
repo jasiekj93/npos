@@ -110,7 +110,7 @@ namespace npos::cli::task
                     return bus.release(&request);
             }
             // Others are broadcast to every accepting port, only answers to our own requests matter.
-            else if(request.sender != getId())
+            else if(request.sender.portId != getId())
                 return bus.release(&request);
 
             if(messageQueue.full())
@@ -128,7 +128,8 @@ namespace npos::cli::task
         void initialize() override
         {
             dev::msg::Open request(deviceName);
-            send(request);
+            request.sender.portId = getId();
+            bus.send(request);
         }
 
         bool isReady() const override
@@ -152,15 +153,16 @@ namespace npos::cli::task
         }
 
         //Service::Api
-        void send(ipc::Message& message) override
+        void send(ipc::Service& sender, ipc::Message& message) override
         {
-            message.sender = getId();
+            message.sender = sender.getOid();
             bus.send(message);
         }
 
         void respond(ipc::Message& message) override
         {
-            bus.respond(message);
+            message.isResponse = true;
+            bus.send(message);
         }
 
         ipc::PortId getPortId() const override
@@ -237,8 +239,8 @@ namespace npos::cli::task
                 onOpen(static_cast<dev::msg::Open&>(message));
             else if(message.type == dev::msg::Type::TRANSCIEVER)
                 onTransciever(static_cast<dev::msg::Transciever&>(message));
-            else if(running)
-                running->handle(message);
+            else if(running and message.isResponse)
+                running->handleResponse(message);
         }
 
         void onOpen(dev::msg::Open& response)
