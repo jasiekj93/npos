@@ -12,7 +12,7 @@ namespace npos::cli::log
 {
     enum Level : ipc::Message::Input::Attributes::Value
     {
-        DEBUG,
+        DEBUG = 0,
         INFO,
         WARNING,
         ERROR,

@@ -59,6 +59,7 @@ namespace npos::cli::task
             , programs(programs)
             , bus(bus)
             , deviceName(deviceName)
+            , logLevel(log::Level::INFO)
         {
         }
 
@@ -69,6 +70,11 @@ namespace npos::cli::task
 
             programs.push_back(&program);
             return true;
+        }
+
+        void setLogLevel(log::Level level)
+        {
+            logLevel = level;
         }
 
         //Port
@@ -280,6 +286,9 @@ namespace npos::cli::task
             auto& request = static_cast<cli::msg::Syslog&>(message);
 
             if(not message.input.data)
+                return;
+
+            if(request.getLevel() < logLevel)
                 return;
 
             if(promptShown)
@@ -615,6 +624,8 @@ namespace npos::cli::task
         ipc::Bus& bus;
         etl::string_view deviceName;
         ipc::Oid device = ipc::NULL_OID;
+        log::Level logLevel;
+
         bool opened = false;
         bool writing = false;
         size_t readErrors = 0;
