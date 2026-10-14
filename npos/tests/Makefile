@@ -26,6 +26,7 @@ $(wildcard fs/msg/file/*.cpp) \
 $(wildcard fs/task/*.cpp) \
 $(wildcard cli/*.cpp) \
 $(wildcard cli/program/*.cpp) \
+$(wildcard cli/utils/*.cpp) \
 $(wildcard cli/task/*.cpp) \
 
 # Includes

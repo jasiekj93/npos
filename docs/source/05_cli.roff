@@ -1,7 +1,11 @@
 .chapter "Terminal"
 .PP
-Biblioteka
-.B npos-cli
+Moduł
+.B cli
+biblioteki
+.B npos
+(katalog
+.CW npos/libnpos/cli )
 zawiera terminal tekstowy oraz programy uruchamiane z jego linii poleceń.
 .subchapter "Terminal"
 .PP
@@ -22,10 +26,15 @@ Terminal prowadzi bufor linii i położenie kursora oraz robi lokalne echo.
 Historia pamięta pięć ostatnich poleceń, a strzałki w górę i w dół ją przełączają,
 przywracając linię rozpoczętą przed wejściem w historię.
 .IP_dot
-Log systemowy odebrany jako
-.CW OS_SYSLOG_MESSAGE_TYPE
-jest wypisywany nad edytowaną linią: terminal kasuje linię, wypisuje log i rysuje linię ponownie
-wraz z kursorem.
+Log odebrany jako
+.CW cli::msg::SYSLOG
+jest wypisywany nad edytowaną linią: terminal kasuje linię, wypisuje log w postaci
+.CW "[{port:serwis} poziom] tekst"
+i rysuje linię ponownie wraz z kursorem. Wykrzykniki
+.CW !!!
+oznaczają, że tekst został obcięty. Logi poniżej poziomu ustawionego przez
+.CW setLogLevel()
+(domyślnie INFO) są pomijane.
 .IP_dot
 Terminal śledzi bieżący katalog (najwyżej 64 znaki) i pokazuje go w znaku zachęty.
 .LP
@@ -41,6 +50,29 @@ podmienia
 .CW input.data
 i dopiero wtedy kolejkuje wiadomość. Slot jest zwalniany po obsłużeniu logu. Gdy brakuje slotu,
 tekst jest za długi albo kolejka jest pełna, log jest odrzucany.
+.subchapter "Logi"
+.PP
+Logowanie należy do modułu cli i nie wymaga zmian w ipc. Serwis loguje przez
+.CW cli::api::syslog()
+i strumień
+.CW cli::utils::LogStream :
+.DS L
+.CW "cli::api::syslog(*this, cli::log::WARNING) << \"napięcie \" << 12 << cli::log::endl;"
+.DE
+.PP
+Strumień składa tekst w buforze o stałym rozmiarze
+.CW ( MAX_MESSAGE_LENGTH
+= 128 znaków) i obsługuje napisy, liczby, wartości logiczne oraz bajty zapisywane szesnastkowo.
+Zbyt długi tekst ustawia flagę przepełnienia i dalsze dopiski są ignorowane. Dopiero
+.CW cli::log::endl
+wysyła wiadomość
+.CW cli::msg::Syslog
+(poziom, Oid nadawcy, flaga przepełnienia i tekst) przez
+.CW Api
+serwisu. Wiadomość jest rozgłoszeniem, więc trafia do portów, które akceptują jej typ,
+z pominięciem portu nadawcy. Zapomniane
+.CW endl
+oznacza, że wpis nie zostanie wysłany.
 .subchapter "Programy"
 .PP
 Program (

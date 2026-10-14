@@ -1,26 +1,91 @@
-.chapter "Testy i przykłady"
+.chapter "Organizacja projektu, testy i przykłady"
+.subchapter "Biblioteki"
+.PP
+Projekt składa się z trzech bibliotek budowanych z głównego
+.CW Makefile :
+.IP_bold npos
+rdzeń systemu w katalogu
+.CW npos/libnpos ,
+podzielony na moduły
+.CW nps ,
+.CW ipc ,
+.CW dev ,
+.CW fs
+i
+.CW cli ;
+dołącza się je jako
+.CW <libnpos/moduł/Plik.hpp> ,
+.IP_bold npos-emulator
+atrapy HAL do uruchamiania na komputerze,
+.IP_bold npos-os
+klasa
+.CW os::System
+składająca system.
+.LP
+Biblioteki są nagłówkowe, a zależności zewnętrzne to ETL (nagłówki) i littlefs. Moduły
+nie przydzielają pamięci. Kontenery, kolejki i pule podaje użytkownik.
 .subchapter "Testy jednostkowe"
 .PP
-Każda biblioteka ma katalog
-.CW tests
-z testami w CppUTest. Testy są uruchamiane przez Makefile z głównego katalogu przy budowaniu
-biblioteki, a niepowodzenie testu przerywa budowanie.
+Testy są napisane w CppUTest. Testy rdzenia są w
+.CW npos/tests ,
+w podkatalogach odpowiadających modułom (
+.CW nps ,
+.CW ipc ,
+.CW dev ,
+.CW fs ,
+.CW cli ),
+i tworzą jeden program testowy
+.CW testnpos .
+Biblioteki
+.CW npos-emulator
+i
+.CW npos-os
+mają własne katalogi
+.CW tests .
+Testy uruchamia Makefile z głównego katalogu przy budowaniu biblioteki, a niepowodzenie testu przerywa budowanie.
 .IP_dot
 Plik testowy modułu ma nazwę
-.CW Moduł.test.cpp ,
-a pliki są pogrupowane w katalogach jak w bibliotece.
+.CW Moduł.test.cpp
+i leży w katalogu odpowiadającym modułowi.
 .IP_dot
-Pliki obiektowe są nazywane bez katalogu, więc gdy dwa moduły mają tę samą nazwę,
-do nazwy testu dodaje się przedrostek (na przykład
-.CW DirOpen.test.cpp ).
+Pliki obiektowe są nazywane bez katalogu, a w rdzeniu jest teraz jeden program testowy, więc nazwa testu musi być
+unikalna w całej bibliotece. Gdy dwa moduły mają tę samą nazwę, do nazwy testu dodaje się przyrostek
+(na przykład
+.CW ApiDev.test.cpp ,
+.CW ApiFs.test.cpp ,
+.CW OpenDev.test.cpp ,
+.CW DirOpen.test.cpp ,
+.CW TimerTask.test.cpp ).
 .IP_dot
-Atrapy znajdują się w
-.CW tests/mock .
+Katalogi z testami są wymienione w
+.CW npos/tests/Makefile
+jako kolejne wzorce
+.CW wildcard .
+Nowy podkatalog z testami trzeba tam dopisać, w przeciwnym razie jego testy nie zostaną skompilowane.
+.IP_dot
+Wspólne atrapy (
+.CW RecordingApi ,
+.CW RecordingBus ,
+.CW FakeBus ,
+.CW RamFlash ,
+.CW Console
+i inne) są w
+.CW npos/tests/mock .
 .IP_dot
 Nagłówki projektu należy dołączać przed
 .CW CppUTest/TestHarness.h ,
 ponieważ ten nagłówek podmienia operator
 .CW new .
+.subchapter "Dokumentacja"
+.PP
+Dokumentację buduje się poleceniem
+.CW "make -C docs" .
+Źródłami są pliki rozdziałów
+.CW docs/source/NN_nazwa.roff
+łączone w
+.CW main.roff ,
+a wynikiem jest
+.CW docs/manual.pdf .
 .subchapter "Przykłady"
 .PP
 Katalog
@@ -32,5 +97,3 @@ oraz cli (terminal na stdin i stdout, na przykład
 .CW "printf 'ls\\\\n' | ./bin/Pc32/debug/cli.elf" ).
 Wskazówka: polecenia podawane przez potok należy rozdzielać pauzami, ponieważ terminal
 ignoruje bajty wpisane w trakcie działania programu.
-
-.so blankPage.roff

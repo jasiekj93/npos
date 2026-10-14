@@ -1,7 +1,11 @@
 .chapter "Komunikacja międzyprocesowa"
 .PP
-Biblioteka
-.B npos-ipc
+Moduł
+.B ipc
+biblioteki
+.B npos
+(katalog
+.CW npos/libnpos/ipc )
 definiuje wiadomości, adresowanie oraz magistralę łączącą zadania.
 .subchapter "Adresowanie"
 .PP
@@ -37,8 +41,13 @@ oraz wskaźnik i rozmiar bufora,
 .IP_bold output
 analogiczna część wyjściowa ze statusem odpowiedzi.
 .LP
-Typy wiadomości są podzielone na zakresy: błędy i logi systemowe, urządzenia,
-sterowniki, system plików, cli oraz użytkownika. Konkretne wiadomości dziedziczą po
+Typy wiadomości są podzielone na zakresy: błędy systemowe, urządzenia,
+sterowniki, system plików, cli oraz użytkownika. Każdy moduł definiuje własne typy od początku swojego zakresu
+(na przykład
+.CW cli::msg::Type::SYSLOG
+od
+.CW CLI_MESSAGE_TYPE ")."
+Konkretne wiadomości dziedziczą po
 .CW ipc::Message
 i dodają wyłącznie akcesory, bez nowych pól. Bufory nie są kopiowane, więc muszą
 istnieć do czasu obsłużenia odpowiedzi.
@@ -130,8 +139,7 @@ Odpowiedź wraca do portu zapisanego w polu
 .IP_dot
 Nieznany port jest przekazywany następcy, o ile istnieje.
 .LP
-Usługa
-.CW OS_SYSLOG_MESSAGE_TYPE
-służy do przesyłania logów, które wyświetla terminal.
-
-.so blankPage.roff
+Moduł ipc nie zawiera logowania. Logi są zwykłą wiadomością rozgłoszeniową modułu cli,
+wysyłaną przez
+.CW Service::Api::send()
+(patrz rozdział o terminalu).

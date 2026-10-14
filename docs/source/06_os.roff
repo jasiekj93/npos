@@ -10,11 +10,15 @@ System nie przydziela własnych kontenerów. Użytkownik podaje strukturę
 ze referencjami do interfejsów: lista zadań, lista portów, pula wiadomości,
 pula serwisów urządzeń, listy serwisów i kolejki wiadomości zadań oraz kolejka timera
 kolejka systemu plików, kolejka terminala oraz pula slotów na teksty logów terminala. Gotowy zestaw o ustalonych rozmiarach daje szablon
-.CW "os::Storage<Zadania, Serwisy, Kolejka, Wiadomości, SerwisyUrządzeń, Programy>" ,
+.CW "os::Storage<Zadania, Serwisy, Kolejka, Wiadomości, SerwisyUrządzeń, Programy, Logi>" ,
 którego metoda
 .CW memory()
 zwraca
 .CW Memory .
+Sloty puli logów mają rozmiar
+.CW cli::utils::LogStream::MAX_MESSAGE_LENGTH ,
+a terminal (jeżeli włączono cli) udostępnia metoda
+.CW getTerminal() .
 Pamięć musi przeżyć system.
 .PP
 Serwisy urządzeń są tworzone w puli o slotach wielkości największego z nich
@@ -83,4 +87,4 @@ to alias
 .CW os::BasicSystem<8> ;
 parametr szablonu to liczba otwartych plików.
 
-.so blankPage.roff
+.bp
