@@ -19,7 +19,6 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos/emulator/*.cpp) \
 
 # c_sources := \
 
@@ -28,6 +27,7 @@ $(wildcard libnpos/emulator/*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
+-I$(project_dir)/npos \
 
 # Defines
 cxx_defs := \

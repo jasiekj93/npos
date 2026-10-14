@@ -19,11 +19,7 @@ $(wildcard */*.cpp) \
 # Includes
 cxx_includes := \
 -I. \
--I$(project_dir)/npos-nps \
--I$(project_dir)/npos-ipc \
--I$(project_dir)/npos-dev \
--I$(project_dir)/npos-fs \
--I$(project_dir)/npos-cli \
+-I$(project_dir)/npos \
 -I$(project_dir)/npos-emulator \
 
 # Defines

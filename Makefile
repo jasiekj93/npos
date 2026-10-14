@@ -41,11 +41,7 @@ examples/cli \
 
 # Project libraries
 library_names = \
-npos-nps \
-npos-ipc \
-npos-dev \
-npos-fs \
-npos-cli \
+npos \
 npos-emulator \
 npos-os \
 

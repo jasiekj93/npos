@@ -4,7 +4,7 @@
 # ------------------------------------------------
 
 # Target
-tested_library_name := npos-dev
+tested_library_name := npos
 
 # Directories
 project_dir ?= ../..
@@ -14,13 +14,23 @@ external_dir := $(project_dir)/external
 # Sources 
 cxx_sources :=  \
 $(wildcard *.cpp) \
-$(wildcard */*.cpp) \
+$(wildcard nps/*.cpp) \
+$(wildcard ipc/*.cpp) \
+$(wildcard dev/*.cpp) \
+$(wildcard dev/msg/*.cpp) \
+$(wildcard dev/service/*.cpp) \
+$(wildcard dev/task/*.cpp) \
+$(wildcard fs/*.cpp) \
+$(wildcard fs/msg/dir/*.cpp) \
+$(wildcard fs/msg/file/*.cpp) \
+$(wildcard fs/task/*.cpp) \
+$(wildcard cli/*.cpp) \
+$(wildcard cli/program/*.cpp) \
+$(wildcard cli/task/*.cpp) \
 
 # Includes
 cxx_includes := \
 -I. \
--I$(project_dir)/npos-nps \
--I$(project_dir)/npos-ipc \
 
 # Defines
 cxx_defs := \

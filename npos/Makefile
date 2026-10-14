@@ -10,7 +10,7 @@
 # supported_platforms := Pc32 Pc64 ArmA7-Linux ArmA9-Linux Rpi64
 
 # Target
-library_name := npos-cli
+library_name := npos
 
 # Directories
 project_dir ?= ..
@@ -19,7 +19,6 @@ external_dir := $(project_dir)/external
 
 # Sources 
 cxx_sources :=  \
-$(wildcard libnpos/cli/*.cpp) \
 
 # c_sources := \
 
@@ -40,14 +39,17 @@ cxx_defs := \
 #	write 'libFoo'
 export external_library_include_path = \
 etl/include \
+littlefs/littlefs \
 
 # 	for testing purpose - use only PC 32-bit version
 export external_library_flags = \
+-llittlefs \
 
 # 	for testing purposes - use only PC 32-bit version
 #	e.g. if link flag is '-L$(external_dir)/libFoo/lib'
 #	write 'libFoo/lib'
 export external_library_paths = \
+littlefs/lib/Pc32/debug \
 
 # Install configuration
 installed_include_files = \

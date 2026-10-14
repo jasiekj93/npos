@@ -40,9 +40,7 @@ required_internal_libraries = \
 
 # libraries
 required_libraries = \
-npos-nps \
-npos-ipc \
-npos-dev \
+npos \
 npos-emulator \
 
 # external libraries
