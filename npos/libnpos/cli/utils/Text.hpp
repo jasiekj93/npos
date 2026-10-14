@@ -14,7 +14,7 @@
 #include <libnpos/fs/msg/Status.hpp>
 #include <libnpos/cli/Log.hpp>
 
-namespace npos::cli::text
+namespace npos::cli::utils::text
 {
     static constexpr size_t MAX_PATH = 64;
 

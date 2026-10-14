@@ -9,7 +9,7 @@
 #include <etl/string.h>
 
 #include <libnpos/cli/Program.hpp>
-#include <libnpos/cli/Text.hpp>
+#include <libnpos/cli/utils/Text.hpp>
 #include <libnpos/fs/Api.hpp>
 
 namespace npos::cli::program
@@ -27,12 +27,12 @@ namespace npos::cli::program
         {
             host = &terminal;
             auto rest = args;
-            auto name = text::token(rest);
+            auto name = utils::text::token(rest);
 
             if(name.empty())
                 name = "/";
 
-            if(not text::resolve(host->getWorkingDirectory(), name, path))
+            if(not utils::text::resolve(host->getWorkingDirectory(), name, path))
             {
                 host->print("cd: path too long\r\n");
                 return host->exit(*this, 1);
@@ -55,7 +55,7 @@ namespace npos::cli::program
                     host->print("cd: ");
                     host->print(etl::string_view(path.c_str(), path.size()));
                     host->print(": ");
-                    host->print(text::describe(response.getStatus()));
+                    host->print(utils::text::describe(response.getStatus()));
                     host->print("\r\n");
                     state = State::IDLE;
                     return host->exit(*this, exitCode);
@@ -77,7 +77,7 @@ namespace npos::cli::program
 
         Host* host = nullptr;
         State state = State::IDLE;
-        etl::string<text::MAX_PATH> path;
+        etl::string<utils::text::MAX_PATH> path;
         int exitCode = 0;
     };
 }

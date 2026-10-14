@@ -28,7 +28,7 @@ namespace npos::cli
             virtual void exit(Program& program, int code) = 0;
 
             virtual etl::string_view getWorkingDirectory() const = 0;
-            // Path must be absolute and normalized, see text::resolve().
+            // Path must be absolute and normalized, see utils::text::resolve().
             virtual bool setWorkingDirectory(etl::string_view path) = 0;
         };
 

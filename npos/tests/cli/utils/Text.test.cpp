@@ -4,11 +4,11 @@
  * @date 13-10-2026
  */
 
-#include <libnpos/cli/Text.hpp>
+#include <libnpos/cli/utils/Text.hpp>
 
 #include <CppUTest/TestHarness.h>
 
-using namespace npos::cli;
+using namespace npos::cli::utils;
 
 TEST_GROUP(Text)
 {

@@ -10,7 +10,7 @@
 #include <etl/string.h>
 
 #include <libnpos/cli/Program.hpp>
-#include <libnpos/cli/Text.hpp>
+#include <libnpos/cli/utils/Text.hpp>
 #include <libnpos/fs/Api.hpp>
 
 namespace npos::cli::program
@@ -33,16 +33,16 @@ namespace npos::cli::program
 
             if(redirect == etl::string_view::npos)
             {
-                host->print(text::trim(args));
+                host->print(utils::text::trim(args));
                 host->print("\r\n");
                 return host->exit(*this, 0);
             }
 
-            auto body = text::trim(args.substr(0, redirect));
+            auto body = utils::text::trim(args.substr(0, redirect));
             auto target = args.substr(redirect);
             bool append = target.size() > 1 and target[1] == '>';
             target.remove_prefix(append ? 2 : 1);
-            auto name = text::token(target);
+            auto name = utils::text::token(target);
 
             if(name.empty() or body.size() + 1 > data.capacity())
             {
@@ -50,7 +50,7 @@ namespace npos::cli::program
                 return host->exit(*this, 1);
             }
 
-            if(not text::resolve(host->getWorkingDirectory(), name, path))
+            if(not utils::text::resolve(host->getWorkingDirectory(), name, path))
             {
                 host->print("echo: path too long\r\n");
                 return host->exit(*this, 1);
@@ -126,13 +126,13 @@ namespace npos::cli::program
             host->print("echo: ");
             host->print(etl::string_view(path.c_str(), path.size()));
             host->print(": ");
-            host->print(text::describe(status));
+            host->print(utils::text::describe(status));
             host->print("\r\n");
         }
 
         Host* host = nullptr;
         State state = State::IDLE;
-        etl::string<text::MAX_PATH> path;
+        etl::string<utils::text::MAX_PATH> path;
         etl::string<96> data;
         ipc::Oid file = ipc::NULL_OID;
         int exitCode = 0;

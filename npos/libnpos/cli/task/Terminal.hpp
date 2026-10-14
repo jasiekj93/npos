@@ -20,7 +20,7 @@
 #include <libnpos/ipc/Bus.hpp>
 #include <libnpos/ipc/Port.hpp>
 #include <libnpos/cli/Program.hpp>
-#include <libnpos/cli/Text.hpp>
+#include <libnpos/cli/utils/Text.hpp>
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
 #include <libnpos/cli/msg/Syslog.hpp>
@@ -202,7 +202,7 @@ namespace npos::cli::task
 
         bool setWorkingDirectory(etl::string_view path) override
         {
-            if(path.empty() or path.front() != '/' or path.size() > text::MAX_PATH)
+            if(path.empty() or path.front() != '/' or path.size() > utils::text::MAX_PATH)
                 return false;
 
             cwd.assign(path.data(), path.size());
@@ -286,9 +286,9 @@ namespace npos::cli::task
                 print("\r\x1b[K");
 
             print("[");
-            print(text::printOid(request.getSender()));
+            print(utils::text::printOid(request.getSender()));
             print(" ");
-            print(text::syslogLevel(request.getLevel()));
+            print(utils::text::syslogLevel(request.getLevel()));
             if(request.getOverflow())
                 print("!!!");
             print("] ");
@@ -533,7 +533,7 @@ namespace npos::cli::task
         void execute()
         {
             auto rest = etl::string_view(line.c_str(), line.size());
-            auto command = text::token(rest);
+            auto command = utils::text::token(rest);
 
             if(command.empty())
                 return prompt();
@@ -620,7 +620,7 @@ namespace npos::cli::task
         size_t readErrors = 0;
         Program* running = nullptr;
 
-        etl::string<text::MAX_PATH> cwd = "/";
+        etl::string<utils::text::MAX_PATH> cwd = "/";
         etl::string<LINE_SIZE> line;
         size_t cursor = 0;
         bool promptShown = false;

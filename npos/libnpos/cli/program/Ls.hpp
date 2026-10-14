@@ -9,7 +9,7 @@
 #include <etl/string.h>
 
 #include <libnpos/cli/Program.hpp>
-#include <libnpos/cli/Text.hpp>
+#include <libnpos/cli/utils/Text.hpp>
 #include <libnpos/fs/Api.hpp>
 
 namespace npos::cli::program
@@ -26,9 +26,9 @@ namespace npos::cli::program
         {
             host = &terminal;
             auto rest = args;
-            auto name = text::token(rest);
+            auto name = utils::text::token(rest);
 
-            if(not text::resolve(host->getWorkingDirectory(), name, path))
+            if(not utils::text::resolve(host->getWorkingDirectory(), name, path))
             {
                 host->print("ls: path too long\r\n");
                 return host->exit(*this, 1);
@@ -103,7 +103,7 @@ namespace npos::cli::program
             if(entry.type == fs::msg::dir::Entry::DIRECTORY)
                 line.append("     <dir> ");
             else
-                { text::appendNumber(line, entry.size, 10); line.push_back(' '); }
+                { utils::text::appendNumber(line, entry.size, 10); line.push_back(' '); }
 
             auto name = entry.getName();
             line.append(name.data(), name.size());
@@ -151,13 +151,13 @@ namespace npos::cli::program
             host->print("ls: ");
             host->print(etl::string_view(path.c_str(), path.size()));
             host->print(": ");
-            host->print(text::describe(status));
+            host->print(utils::text::describe(status));
             host->print("\r\n");
         }
 
         Host* host = nullptr;
         State state = State::IDLE;
-        etl::string<text::MAX_PATH> path;
+        etl::string<utils::text::MAX_PATH> path;
         ipc::Oid dir = ipc::NULL_OID;
         fs::msg::dir::Entry entry;
         etl::string<fs::msg::dir::Entry::NAME_SIZE + 16> line;
