@@ -57,5 +57,16 @@ namespace npos::fs::msg::file
             this->output.status = static_cast<ipc::Message::Status>(status);
             return *this;
         }
+
+        inline size_t getSize() const
+        {
+            return this->output.open.size;
+        }
+
+        inline Open& setSize(size_t size)
+        {
+            this->output.open.size = size;
+            return *this;
+        }
     };
 }

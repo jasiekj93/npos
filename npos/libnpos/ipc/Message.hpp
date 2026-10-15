@@ -87,6 +87,7 @@ namespace npos::ipc
             struct Open
             {
                 Oid opened;
+                size_t size;
             };
 
             struct ReadWrite

@@ -31,7 +31,7 @@ namespace npos::ipc
             inline auto getId() const { return id; }
 
         protected:
-            FsmService& getContext() { return fsm; }
+            inline FsmService& getContext() { return fsm; }
 
         private:
             ID id;

@@ -284,6 +284,8 @@ namespace npos::fs::task
                     {
                         files[i].free = false;
                         request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
+                        auto size = lfs_file_size(&filesystem, &files[i].handle);
+                        request.setSize(size < 0 ? 0 : static_cast<size_t>(size));
                     }
 
                     return bus.respond(request.setStatus(fromLfsStatus(result)));

@@ -6,6 +6,8 @@
  * @date 14-10-2026
  */
 
+#include <etl/string_stream.h>
+
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/cli/msg/Syslog.hpp>
 

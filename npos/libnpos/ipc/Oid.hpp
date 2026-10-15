@@ -23,4 +23,14 @@ namespace npos::ipc
     static constexpr ServiceId NULL_SERVICE = 255;
 
     static constexpr Oid NULL_OID = {NULL_PORT, NULL_SERVICE};
+
+    inline bool operator==(const Oid& lhs, const Oid& rhs)
+    {
+        return lhs.portId == rhs.portId and lhs.serviceId == rhs.serviceId;
+    }
+
+    inline bool operator!=(const Oid& lhs, const Oid& rhs)
+    {
+        return !(lhs == rhs);
+    }
 }

@@ -23,7 +23,7 @@ namespace npos::dev::msg
 
         enum Status : ipc::Message::Status
         {
-            SUCCESS,
+            SUCCESS = 0,
             DEVICE_FAILURE,
             BUSY,
             NOT_INITIALIZED,
