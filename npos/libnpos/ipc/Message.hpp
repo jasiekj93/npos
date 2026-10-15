@@ -21,6 +21,10 @@ namespace npos::ipc
         using Type = uint16_t;
         using ReferenceCount = uint8_t;
 
+        static constexpr Status STATUS_MESSAGE_NOT_SUPPORTED = 0xFF;
+        static constexpr Status STATUS_PORT_NOT_FOUND = 0xFE;
+        static constexpr Status STATUS_SERVICE_NOT_FOUND = 0xFD;
+
         struct Input
         {
             struct Open
@@ -101,14 +105,13 @@ namespace npos::ipc
                 uint8_t raw[RAW_SIZE];
             };
 
-            Status status;
+            Status status = STATUS_MESSAGE_NOT_SUPPORTED;
             uint8_t* data;
             size_t size;
         };
 
         Oid sender = NULL_OID;
         Oid recipient = NULL_OID;
-        bool isResponse = false;
         ReferenceCount referenceCount = 0;
         Type type;
 

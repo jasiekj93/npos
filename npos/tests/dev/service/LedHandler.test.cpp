@@ -68,6 +68,18 @@ TEST(LedHandler, SwitchesLedsOnOffAndToggles)
     CHECK_EQUAL(npos::dev::msg::Led::SUCCESS, statusOfResponse());
 }
 
+TEST(LedHandler, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    npos::dev::msg::Led request({ 3, 1 }, 0, npos::dev::msg::Led::ON);
+    request.input.attributes.mode = 99;
+
+    handler.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+    CHECK_EQUAL(0, led0.onCount + led0.offCount + led0.toggleCount);
+}
+
 TEST(LedHandler, UnknownLedIsReported)
 {
     npos::dev::msg::Led request({ 3, 1 }, 5, npos::dev::msg::Led::ON);

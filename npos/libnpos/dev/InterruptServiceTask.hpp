@@ -19,8 +19,9 @@ namespace npos::dev
         template<size_t N>
         using InterruptServiceList = etl::vector<InterruptService*, N>;
 
-        InterruptServiceTask(Priority priority, InterruptServiceListInt& services, MessageQueueInt& messageQueue, ipc::Bus& bus)
-            : ipc::ServiceTask(priority, reinterpret_cast<ServiceListInt&>(services), messageQueue, bus)
+        InterruptServiceTask(Priority priority, InterruptServiceListInt& services, RequestQueueInt& requestQueue,
+            ResponseQueueInt& responseQueue, ipc::Bus& bus)
+            : ipc::ServiceTask(priority, reinterpret_cast<ServiceListInt&>(services), requestQueue, responseQueue, bus)
         {
         }
 

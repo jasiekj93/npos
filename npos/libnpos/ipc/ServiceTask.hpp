@@ -19,26 +19,34 @@ namespace npos::ipc
     class ServiceTask : public npos::nps::Task, public Port, public Service::Api
     {
     public:
+        static constexpr size_t MAX_SERVICES = NULL_SERVICE;
+
         using ServiceListInt = etl::ivector<Service*>;
-        using MessageQueueInt = etl::iqueue<Message*>;
+        using RequestQueueInt = etl::iqueue<Message*>;
+        using ResponseQueueInt = etl::iqueue<Message*>;
 
         template<size_t N>
-        using MessageQueue = etl::queue<Message*, N>;
+        using RequestQueue = etl::queue<Message*, N>;
+
+        template<size_t N>
+        using ResponseQueue = etl::queue<Message*, N>;
 
         template<size_t N>
         using ServiceList = etl::vector<Service*, N>;
 
-        ServiceTask(Priority priority, ServiceListInt& services, MessageQueueInt& messageQueue, Bus& bus)
+        ServiceTask(Priority priority, ServiceListInt& services, RequestQueueInt& requestQueue,
+            ResponseQueueInt& responseQueue, Bus& bus)
             : nps::Task(priority)
             , services(services)
-            , messageQueue(messageQueue)
+            , requestQueue(requestQueue)
+            , responseQueue(responseQueue)
             , bus(bus)
         {
         }
 
         bool subscribe(Service& service)
         {
-            if(services.full())
+            if(services.full() or services.size() >= MAX_SERVICES)
                 return false;
             else
             {
@@ -61,12 +69,26 @@ namespace npos::ipc
             return false;
         }
 
-        void receive(const Message& message) override
+        void receiveRequest(const Message& message) override
         {
-            if(messageQueue.full())
-                return bus.release(const_cast<Message*>(&message)); 
+            enqueue(requestQueue, message);
+        }
+
+        void receiveResponse(const Message& message) override
+        {
+            enqueue(responseQueue, message);
+        }
+
+        // No service accepts the type, so the addressed one (if any) can only get the unknown request.
+        void handleUnknownRequest(Message& message) override
+        {
+            if(message.recipient.serviceId < services.size())
+                services[message.recipient.serviceId]->handleUnknownRequest(message);
             else
-                messageQueue.push(const_cast<Message*>(&message));
+            {
+                message.output.status = Message::STATUS_SERVICE_NOT_FOUND;
+                bus.respond(message);
+            }
         }
 
         //nps::Task
@@ -78,29 +100,32 @@ namespace npos::ipc
 
         virtual bool isReady() const override
         {
-            return not messageQueue.empty();
+            return not requestQueue.empty() or not responseQueue.empty();
         }
 
+        // Responses go first, they finish operations that already run.
         virtual void process()
         {
-            if(messageQueue.empty())
-                return; 
-
-            auto message = messageQueue.front();
-
-            (message->isResponse ? 
-                dispatchResponse(*message) : 
-                dispatchRequest(*message));
-
-            messageQueue.pop();
-            bus.release(message);
+            if(not responseQueue.empty())
+            {
+                auto message = responseQueue.front();
+                dispatchResponse(*message);
+                responseQueue.pop();
+                bus.release(message);
+            }
+            else if(not requestQueue.empty())
+            {
+                auto message = requestQueue.front();
+                dispatchRequest(*message);
+                requestQueue.pop();
+                bus.release(message);
+            }
         }
 
         //Service::Api
         void send(Service& sender, Message& message) override
         {
             message.sender = sender.getOid();
-            message.isResponse = false;
 
             if(message.recipient.portId == getId())
                 dispatchRequest(message);
@@ -110,12 +135,10 @@ namespace npos::ipc
 
         void respond(Message& message) override
         {
-            message.isResponse = true;
-
             if(message.sender.portId == getId())
                 dispatchResponse(message);
             else
-                bus.send(message);
+                bus.respond(message);
         }
 
         PortId getPortId() const override
@@ -126,19 +149,31 @@ namespace npos::ipc
     protected:
         void dispatchRequest(Message& message)
         {
-            if(message.recipient.serviceId != NULL_SERVICE)
+            auto serviceId = message.recipient.serviceId;
+
+            if(serviceId == NULL_SERVICE)
             {
-                if(message.recipient.serviceId < services.size())
-                    services[message.recipient.serviceId]->handleRequest(message);
-            }
-            else
-            {
+                bool handled = false;
+
                 for (auto& service : services)
                 {
                     if (service->acceptsRequest(message.type))
+                    {
                         service->handleRequest(message);
+                        handled = true;
+                    }
                 }
+
+                // Without a port in the recipient this is a broadcast, nobody has to answer it.
+                if(not handled and message.recipient.portId != NULL_PORT)
+                    rejectRequest(message);
             }
+            else if(serviceId >= services.size())
+                rejectRequest(message);
+            else if(services[serviceId]->acceptsRequest(message.type))
+                services[serviceId]->handleRequest(message);
+            else
+                rejectRequest(message, services[serviceId]);
         }
 
         void dispatchResponse(Message& message)
@@ -147,12 +182,37 @@ namespace npos::ipc
                 services[message.sender.serviceId]->handleResponse(message);
         }
 
+        // The service may change the status in its handler, otherwise the sender gets STATUS_MESSAGE_NOT_SUPPORTED.
+        void rejectRequest(Message& message, Service* service = nullptr)
+        {
+
+            if(service)
+                service->handleUnknownRequest(message);
+            else
+            {
+                message.output.status = Message::STATUS_SERVICE_NOT_FOUND;
+                respond(message);
+            }
+        }
+
         inline auto& getServices() { return services; }
         inline const auto& getServices() const { return services; }
 
     private:
+        // A message that does not fit is given back to the bus, otherwise its pool slot would leak.
+        void enqueue(etl::iqueue<Message*>& queue, const Message& message)
+        {
+            auto& pending = const_cast<Message&>(message);
+
+            if(queue.full())
+                return bus.release(&pending);
+
+            queue.push(&pending);
+        }
+
         ServiceListInt& services;
-        MessageQueueInt& messageQueue;
+        RequestQueueInt& requestQueue;
+        ResponseQueueInt& responseQueue;
         Bus& bus;
     };
 }

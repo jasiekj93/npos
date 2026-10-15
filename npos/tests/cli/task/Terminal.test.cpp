@@ -71,7 +71,7 @@ TEST_GROUP(Terminal)
         npos::ipc::Oid sender{10, 0};
         npos::cli::msg::Syslog message(sender, npos::cli::log::Level::INFO, text, false);
         message.sender.portId = 10;
-        terminal.receive(message);
+        terminal.receiveRequest(message);
         terminal.process();
         console.pump();
     }
@@ -613,7 +613,6 @@ TEST(Terminal, ResponsesAreForwardedToRunningProgram)
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
     response.sender.portId = terminal.getId();
-    response.isResponse = true;
 
     console.feed(response);
 
@@ -627,7 +626,6 @@ TEST(Terminal, ResponsesWithoutRunningProgramAreDropped)
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
     response.sender.portId = terminal.getId();
-    response.isResponse = true;
 
     console.feed(response);
 
@@ -648,20 +646,38 @@ TEST(Terminal, MessagesFromOtherPortsAreIgnored)
     CHECK_FALSE(console.reading);
 }
 
-TEST(Terminal, AcceptsLogsAndResponsesOnly)
+TEST(Terminal, AcceptsOnlyLogs)
 {
     CHECK_TRUE(terminal.accepts(npos::cli::msg::Type::SYSLOG));
-    CHECK_TRUE(terminal.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_TRUE(terminal.accepts(npos::dev::msg::Type::TRANSCIEVER));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::FILE_OPEN));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::FILE_CLOSE));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::FILE_READ));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::FILE_WRITE));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_OPEN));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_CLOSE));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_READ));
-    CHECK_TRUE(terminal.accepts(npos::fs::msg::Type::DIR_MAKE));
+    CHECK_FALSE(terminal.accepts(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(terminal.accepts(npos::dev::msg::Type::TRANSCIEVER));
+    CHECK_FALSE(terminal.accepts(npos::fs::msg::Type::FILE_OPEN));
     CHECK_FALSE(terminal.accepts(npos::dev::msg::Type::LED));
+}
+
+TEST(Terminal, RequestsOtherThanLogsAreReleasedWithoutQueueing)
+{
+    npos::ipc::Message request;
+    request.type = npos::dev::msg::Type::OPEN;
+    request.sender.portId = terminal.getId();
+
+    terminal.receiveRequest(request);
+
+    CHECK_FALSE(terminal.isReady());
+    CHECK_EQUAL(1, bus.released.size());
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, bus.responded[0].output.status);
+}
+
+TEST(Terminal, UnknownRequestHandlerAnswersNotSupported)
+{
+    npos::ipc::Message message;
+    message.output.status = 0;
+
+    terminal.handleUnknownRequest(message);
+
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, bus.responded[0].output.status);
 }
 
 TEST(Terminal, LogReplacesPromptLineAndRestoresIt)
@@ -714,7 +730,7 @@ TEST(Terminal, LogWithoutTextIsIgnored)
     message.sender.portId = 9;
     message.input.data = nullptr;
 
-    console.feed(message);
+    console.feedRequest(message);
 
     CHECK_OUTPUT("");
 }
@@ -890,7 +906,7 @@ TEST(Terminal, IsReadyOnlyWithQueuedMessages)
 
     CHECK_FALSE(terminal.isReady());
 
-    terminal.receive(message);
+    terminal.receiveResponse(message);
 
     CHECK_TRUE(terminal.isReady());
 
@@ -912,7 +928,6 @@ TEST(Terminal, ProcessedMessagesAreReleasedToTheBus)
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
     response.sender.portId = terminal.getId();
-    response.isResponse = true;
     auto before = bus.released.size();
 
     console.feed(response);
@@ -927,7 +942,7 @@ TEST(Terminal, MessagesFromOtherPortsAreReleasedWithoutQueueing)
     foreign.type = npos::dev::msg::Type::OPEN;
     foreign.sender.portId = 9;
 
-    terminal.receive(foreign);
+    terminal.receiveResponse(foreign);
 
     CHECK_FALSE(terminal.isReady());
     CHECK_EQUAL(1, bus.released.size());
@@ -940,7 +955,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
     npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, text, false);
     message.sender.portId = 10;
 
-    terminal.receive(message);
+    terminal.receiveRequest(message);
     text[0] = 'X';
     terminal.process();
     console.pump();
@@ -952,7 +967,7 @@ TEST(Terminal, QueuedLogPointsAtAPayloadSlot)
 {
     npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, "abc", false);
 
-    terminal.receive(message);
+    terminal.receiveRequest(message);
 
     CHECK_TRUE(payloads.is_in_pool(message.input.data));
     CHECK_EQUAL(3, payloads.available());
@@ -976,7 +991,7 @@ TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
         { { 10, 0 }, npos::cli::log::Level::INFO, "e", false } };
 
     for(auto& message : logs)
-        terminal.receive(message);
+        terminal.receiveRequest(message);
 
     CHECK_EQUAL(0, payloads.available());
     CHECK_EQUAL(1, bus.released.size());
@@ -988,7 +1003,7 @@ TEST(Terminal, TooLongLogIsDropped)
     etl::string<200> text(npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH + 1, 'x');
     npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
 
-    terminal.receive(message);
+    terminal.receiveRequest(message);
 
     CHECK_FALSE(terminal.isReady());
     CHECK_EQUAL(4, payloads.available());
@@ -1002,8 +1017,8 @@ TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
     npos::cli::msg::Syslog first({ 10, 0 }, npos::cli::log::Level::INFO, "a", false);
     npos::cli::msg::Syslog second({ 10, 0 }, npos::cli::log::Level::INFO, "b", false);
 
-    small.receive(first);
-    small.receive(second);
+    small.receiveRequest(first);
+    small.receiveRequest(second);
 
     CHECK_EQUAL(3, payloads.available());
     CHECK_EQUAL(1, bus.released.size());
@@ -1015,7 +1030,6 @@ TEST(Terminal, RequestsAreSentFromTheTerminalPort)
     terminal.initialize();
 
     CHECK_EQUAL(3, bus.sent[0].sender.portId);
-    CHECK_FALSE(bus.sent[0].isResponse);
 }
 
 TEST(Terminal, ActsAsApiOfItsPrograms)
@@ -1033,5 +1047,4 @@ TEST(Terminal, ActsAsApiOfItsPrograms)
     CHECK_EQUAL(3, bus.sent[0].sender.portId);
     CHECK_EQUAL(4, bus.sent[0].sender.serviceId);
     CHECK_EQUAL(1, bus.responded.size());
-    CHECK_TRUE(bus.responded[0].isResponse);
 }

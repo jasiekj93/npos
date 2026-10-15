@@ -16,7 +16,9 @@ namespace npos::ipc
         Port() = default;
 
         virtual bool accepts(Message::Type) const = 0;
-        virtual void receive(const Message&) = 0;
+        virtual void receiveRequest(const Message&) = 0;
+        virtual void receiveResponse(const Message&) = 0;
+        virtual void handleUnknownRequest(Message&) = 0;
 
         inline void setId(PortId newId) { id = newId; }
         inline PortId getId() const { return id; }

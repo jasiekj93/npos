@@ -35,8 +35,9 @@ TEST_GROUP(InterruptServiceTask)
     mock::FakeHash device;
     npos::dev::InterruptService::InterruptQueue<4> interruptQueue;
     npos::dev::InterruptServiceTask::InterruptServiceList<2> services;
-    npos::dev::InterruptServiceTask::MessageQueue<4> messages;
-    npos::dev::InterruptServiceTask task{5, services, messages, bus};
+    npos::dev::InterruptServiceTask::RequestQueue<4> requests;
+    npos::dev::InterruptServiceTask::ResponseQueue<4> responses;
+    npos::dev::InterruptServiceTask task{5, services, requests, responses, bus};
     Recorder service{task, interruptQueue, device};
 
     void setup() override
@@ -61,7 +62,7 @@ TEST(InterruptServiceTask, IsReadyWhenServiceHasPendingInterrupt)
 TEST(InterruptServiceTask, IsReadyWhenMessageIsQueued)
 {
     npos::ipc::Message message;
-    task.receive(message);
+    task.receiveRequest(message);
 
     CHECK_TRUE(task.isReady());
 }
@@ -70,7 +71,7 @@ TEST(InterruptServiceTask, ProcessHandlesInterruptBeforeMessages)
 {
     npos::ipc::Message message;
     message.type = 0x1000;
-    task.receive(message);
+    task.receiveRequest(message);
     device.fire(npos::dev::hal::Interrupt::HASH, 0);
 
     task.process();

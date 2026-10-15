@@ -80,48 +80,47 @@ namespace npos::cli::task
         //Port
         bool accepts(ipc::Message::Type type) const override
         {
-            switch(type)
-            {
-            case cli::msg::SYSLOG:
-            case dev::msg::Type::OPEN:
-            case dev::msg::Type::TRANSCIEVER:
-            case fs::msg::Type::FILE_OPEN:
-            case fs::msg::Type::FILE_CLOSE:
-            case fs::msg::Type::FILE_READ:
-            case fs::msg::Type::FILE_WRITE:
-            case fs::msg::Type::DIR_OPEN:
-            case fs::msg::Type::DIR_CLOSE:
-            case fs::msg::Type::DIR_READ:
-            case fs::msg::Type::DIR_MAKE:
-                return true;
-            default:
-                return false;
-            }
+            return type == cli::msg::SYSLOG;
         }
 
         // The log text lives in the sender's buffer, so it is moved to a slot of the payload pool before queueing.
-        void receive(const ipc::Message& message) override
+        void receiveRequest(const ipc::Message& message) override
         {
             auto& request = const_cast<ipc::Message&>(message);
 
-            if(request.type == cli::msg::SYSLOG)
+            if(request.type != cli::msg::SYSLOG)
             {
-                if(not storeLog(request))
-                    return bus.release(&request);
+                handleUnknownRequest(request);
+                return bus.release(&request);
             }
-            // Others are broadcast to every accepting port, only answers to our own requests matter.
-            else if(request.sender.portId != getId())
+
+            if(not storeLog(request))
                 return bus.release(&request);
 
             if(messageQueue.full())
             {
-                if(request.type == cli::msg::SYSLOG)
-                    payloads.release(request.input.data);
-
+                payloads.release(request.input.data);
                 return bus.release(&request);
             }
 
             messageQueue.push(&request);
+        }
+
+        // Only answers to our own requests matter.
+        void receiveResponse(const ipc::Message& message) override
+        {
+            auto& response = const_cast<ipc::Message&>(message);
+
+            if(response.sender.portId != getId() or messageQueue.full())
+                return bus.release(&response);
+
+            messageQueue.push(&response);
+        }
+
+        void handleUnknownRequest(ipc::Message& message) override
+        {
+            message.output.status = ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED;
+            bus.respond(message);
         }
 
         //nps::Task
@@ -161,8 +160,7 @@ namespace npos::cli::task
 
         void respond(ipc::Message& message) override
         {
-            message.isResponse = true;
-            bus.send(message);
+            bus.respond(message);
         }
 
         ipc::PortId getPortId() const override
@@ -231,6 +229,7 @@ namespace npos::cli::task
             return true;
         }
 
+        // SYSLOG is the only request the terminal serves, everything else queued is an answer.
         void handle(ipc::Message& message)
         {
             if(message.type == cli::msg::Type::SYSLOG)
@@ -239,7 +238,7 @@ namespace npos::cli::task
                 onOpen(static_cast<dev::msg::Open&>(message));
             else if(message.type == dev::msg::Type::TRANSCIEVER)
                 onTransciever(static_cast<dev::msg::Transciever&>(message));
-            else if(running and message.isResponse)
+            else if(running)
                 running->handleResponse(message);
         }
 

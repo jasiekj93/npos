@@ -91,6 +91,18 @@ TEST(RtcClock, ConversionsAreInverse)
     }
 }
 
+TEST(RtcClock, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    open();
+    Clock request({ 3, 0 }, Clock::GET_TIME);
+    request.input.attributes.mode = 99;
+
+    clock.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+}
+
 TEST(RtcClock, AcceptsClockAndOpenMessages)
 {
     CHECK_TRUE(clock.acceptsRequest(npos::dev::msg::Type::CLOCK));

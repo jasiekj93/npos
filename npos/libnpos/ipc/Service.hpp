@@ -30,6 +30,12 @@ namespace npos::ipc
         virtual void handleRequest(Message&) = 0;
         virtual void handleResponse(Message&) = 0;
         virtual bool acceptsRequest(Message::Type) const = 0;
+        // Request addressed to this service that it does not accept; the task replies STATUS_MESSAGE_NOT_SUPPORTED afterwards.
+        virtual void handleUnknownRequest(Message& message) 
+        {
+            message.output.status = Message::STATUS_MESSAGE_NOT_SUPPORTED;
+            api.respond(message);
+        }
 
         inline void setId(ServiceId id) { serviceId = id; }
         inline Api& getApi() const { return api; }

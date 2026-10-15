@@ -46,7 +46,13 @@ namespace npos::dev::service
                 {
                     request.referenceCount++;
                     currentRequest = &request;
-                    hash.accumulateIt(request.getInput());
+
+                    if(not hash.accumulateIt(request.getInput()))
+                    {
+                        request.referenceCount--;
+                        currentRequest = nullptr;
+                        return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
+                    }
                 }
                 else if(request.getOperation() == msg::Hash::Operation::ACCUMULATE_END)
                 {
@@ -55,8 +61,16 @@ namespace npos::dev::service
 
                     request.referenceCount++;
                     currentRequest = &request;
-                    hash.accumulateEndIt(request.getInput(), request.getOutput());
+
+                    if(not hash.accumulateEndIt(request.getInput(), request.getOutput()))
+                    {
+                        request.referenceCount--;
+                        currentRequest = nullptr;
+                        return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
+                    }
                 }
+                else
+                    return handleUnknownRequest(message);
             }
             else if (message.type == msg::Type::OPEN)
                 open(message);

@@ -35,15 +35,21 @@ namespace mock
             auto& response = reinterpret_cast<npos::dev::msg::Open&>(message);
             response.setStatus(success ? npos::dev::msg::Open::SUCCESS : npos::dev::msg::Open::INIT_FAILURE).setOpened({ 5, 0 });
             message.sender.portId = terminal.getId();
-            message.isResponse = true;
             feed(message);
             pump();
         }
 
-        // Delivers a message the way the bus does.
+        // Delivers a response the way the bus does.
         void feed(npos::ipc::Message& message)
         {
-            terminal.receive(message);
+            terminal.receiveResponse(message);
+            terminal.process();
+        }
+
+        // Delivers a request the way the bus does.
+        void feedRequest(npos::ipc::Message& message)
+        {
+            terminal.receiveRequest(message);
             terminal.process();
         }
 
@@ -64,7 +70,6 @@ namespace mock
 
                 auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(message);
                 message.sender.portId = terminal.getId();
-                message.isResponse = true;
 
                 if(request.getOperation() == npos::dev::msg::Transciever::WRITE)
                 {

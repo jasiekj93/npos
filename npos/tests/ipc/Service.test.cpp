@@ -75,5 +75,16 @@ TEST(Service, ApiSendStampsSenderOidOfService)
 
     CHECK_EQUAL(3, api.sent[0].sender.portId);
     CHECK_EQUAL(5, api.sent[0].sender.serviceId);
-    CHECK_FALSE(api.sent[0].isResponse);
+}
+
+TEST(Service, UnknownRequestIsAnsweredWithNotSupportedByDefault)
+{
+    npos::ipc::Message message;
+    message.output.status = 0;
+
+    service.handleUnknownRequest(message);
+
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, api.responded[0].output.status);
 }

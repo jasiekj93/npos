@@ -42,6 +42,52 @@ TEST_GROUP(HashProcessor)
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
+TEST(HashProcessor, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    open();
+    auto request = accumulate();
+    request.input.readWrite.mode = 99;
+
+    processor.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+}
+
+TEST(HashProcessor, AccumulateThatCannotStartIsAnsweredAndDoesNotBlockTheDevice)
+{
+    open();
+    hash.failAccumulate = true;
+    auto failed = accumulate();
+
+    processor.handleRequest(failed);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(Hash::DEVICE_FAILURE, statusOfResponse());
+    CHECK_EQUAL(0, failed.referenceCount);
+
+    api.responded.clear();
+    hash.failAccumulate = false;
+    auto next = accumulate();
+    processor.handleRequest(next);
+
+    CHECK_EQUAL(0, api.responded.size());
+    CHECK_EQUAL(1, next.referenceCount);
+}
+
+TEST(HashProcessor, AccumulateEndThatCannotStartIsAnswered)
+{
+    open();
+    hash.failAccumulate = true;
+    Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
+
+    processor.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(Hash::DEVICE_FAILURE, statusOfResponse());
+    CHECK_EQUAL(0, request.referenceCount);
+}
+
 TEST(HashProcessor, AcceptsHashAndOpenMessages)
 {
     CHECK_TRUE(processor.acceptsRequest(npos::dev::msg::Type::HASH));

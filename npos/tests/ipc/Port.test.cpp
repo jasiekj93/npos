@@ -28,14 +28,29 @@ TEST(Port, KeepsAssignedId)
 TEST(Port, ReceivesAndAcceptsThroughInterface)
 {
     npos::ipc::Port& base = port;
-    npos::ipc::Message message;
-    message.type = 0x1000;
+    npos::ipc::Message request;
+    npos::ipc::Message response;
+    request.type = 0x1000;
 
     CHECK_TRUE(base.accepts(0x1000));
     CHECK_FALSE(base.accepts(0x2000));
 
-    base.receive(message);
+    base.receiveRequest(request);
+    base.receiveResponse(response);
 
     CHECK_EQUAL(1, port.received.size());
-    POINTERS_EQUAL(&message, port.received[0]);
+    POINTERS_EQUAL(&request, port.received[0]);
+    CHECK_EQUAL(1, port.receivedResponses.size());
+    POINTERS_EQUAL(&response, port.receivedResponses[0]);
+}
+
+TEST(Port, UnknownRequestIsPassedThroughInterface)
+{
+    npos::ipc::Port& base = port;
+    npos::ipc::Message message;
+
+    base.handleUnknownRequest(message);
+
+    CHECK_EQUAL(1, port.unknown.size());
+    POINTERS_EQUAL(&message, port.unknown[0]);
 }

@@ -24,11 +24,17 @@ namespace mock
         void initialize() override { initialized++; }
         void handleRequest(npos::ipc::Message& message) override { handled.push_back(&message); }
         void handleResponse(npos::ipc::Message& message) override { handledResponses.push_back(&message); }
+        void handleUnknownRequest(npos::ipc::Message& message) override
+        {
+            handledUnknown.push_back(&message);
+            npos::ipc::Service::handleUnknownRequest(message);
+        }
         bool acceptsRequest(npos::ipc::Message::Type type) const override { return type == acceptedType; }
 
         npos::ipc::Message::Type acceptedType;
         int initialized = 0;
         etl::vector<npos::ipc::Message*, 16> handled;
         etl::vector<npos::ipc::Message*, 16> handledResponses;
+        etl::vector<npos::ipc::Message*, 16> handledUnknown;
     };
 }

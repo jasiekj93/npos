@@ -17,6 +17,8 @@ namespace npos::ipc
     class SystemBus : public Bus
     {
     public:
+        static constexpr size_t MAX_PORTS = NULL_PORT;
+
         using PortListInt = etl::ivector<Port*>;
         using PoolInt = etl::ipool;
         
@@ -36,7 +38,7 @@ namespace npos::ipc
 
         bool addPort(Port& port)
         {
-            if(ports.full())
+            if(ports.full() or ports.size() >= MAX_PORTS)
                 return false;
 
             auto portId = ports.size() + initialPort;
@@ -52,13 +54,20 @@ namespace npos::ipc
 
         void send(Message& message) override
         {
-            if(message.isResponse)
-                return respond(message);
-
             if(message.recipient.portId != NULL_PORT)
                 sendTo(message.recipient.portId, message);
             else
                 broadcast(message);
+        }
+
+        void respond(Message& message) override
+        {
+            if(respondToPort(message))
+                return;
+
+            // One hop only, successors point at each other.
+            if(succesor)
+                succesor->respondToPort(message);
         }
 
         void release(Message* messagePtr) override
@@ -75,12 +84,18 @@ namespace npos::ipc
         }
 
     protected:
-        void respond(Message& message) 
+        // Messages already in the pool are used as they are; others are copied once. Null when the pool is exhausted.
+        Message* allocate(const Message& message)
         {
-            if(respondToPort(message))
-                return;
-            else if(succesor)
-                succesor->respondToPort(message, true);
+            if(pool.is_in_pool(&message))
+                return const_cast<Message*>(&message);
+
+            if(pool.full())
+                return nullptr;
+
+            auto copy = new (pool.allocate<Message>()) Message(message);
+            copy->referenceCount = 0;
+            return copy;
         }
 
         void broadcast(Message& message)
@@ -93,10 +108,13 @@ namespace npos::ipc
 
         void broadcastToPorts(Message& message)
         {
-            auto messagePtr = &message;
+            auto messagePtr = allocate(message);
 
-            if(not pool.is_in_pool(&message))
-                messagePtr = new (pool.allocate<Message>()) Message(message);
+            if(not messagePtr)
+                return;
+
+            // The bus keeps its own reference, a port may release the message from within receiveRequest.
+            messagePtr->referenceCount++;
 
             for(auto& port : ports)
             {
@@ -104,50 +122,75 @@ namespace npos::ipc
                     port->accepts(message.type))
                 {
                     messagePtr->referenceCount++;
-                    port->receive(*messagePtr);
+                    port->receiveRequest(*messagePtr);
                 }
             }
 
-            if(messagePtr->referenceCount == 0)
-                if(pool.is_in_pool(messagePtr))
-                    pool.release(messagePtr);
+            release(messagePtr);
         }
 
-        bool respondToPort(Message& message, bool fromSuccesor = false)
+        bool respondToPort(Message& message)
         {
             auto index = getIndex(message.sender.portId);
 
-            if(index < ports.size())
+            if(index >= ports.size())
+                return false;
+
+            if(auto messagePtr = allocate(message))
             {
-                auto messagePtr = &message;
-
-                if(not pool.is_in_pool(&message))
-                    messagePtr = new (pool.allocate<Message>()) Message(message);
-
-                if(not fromSuccesor)
-                    messagePtr->referenceCount++;
-                ports[index]->receive(*messagePtr);
-                return true;
+                messagePtr->referenceCount++;
+                ports[index]->receiveResponse(*messagePtr);
             }
-            return false;
+
+            return true;
         }
 
         void sendTo(PortId portId, Message& message)
         {
+            if(sendToPort(portId, message))
+                return;
+
+            // One hop only, successors point at each other.
+            if(succesor and succesor->sendToPort(portId, message))
+                return;
+            else
+                reject(message);
+        }
+
+        bool sendToPort(PortId portId, Message& message)
+        {
             auto index = getIndex(portId);
 
-            if(index < ports.size())
+            if(index >= ports.size())
+                return false;
+
+            auto& port = *ports[index];
+
+            if(not port.accepts(message.type))
             {
-                auto messagePtr = &message;
-                if(not pool.is_in_pool(&message))
-                    messagePtr = new (pool.allocate<Message>()) Message(message);
-                
-                messagePtr->referenceCount++;
-                ports[index]->receive(*messagePtr);
+                reject(message, &port);
+                return true;
             }
 
-            else if(succesor)
-                succesor->send(message);
+            if(auto messagePtr = allocate(message))
+            {
+                messagePtr->referenceCount++;
+                port.receiveRequest(*messagePtr);
+            }
+
+            return true;
+        }
+
+        // The port is null when there is no port with the requested id.
+        void reject(Message& message, Port* port = nullptr)
+        {
+            if(port)
+                port->handleUnknownRequest(message);
+            else
+            {
+                message.output.status = Message::STATUS_PORT_NOT_FOUND;
+                respond(message);
+            }
         }
 
         size_t getIndex(PortId id) const

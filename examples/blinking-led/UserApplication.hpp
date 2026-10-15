@@ -39,7 +39,7 @@ public:
                 devOid = response.getOpened();
 
                 std::cout << "Setting timer periodic for 1s" << std::endl;
-                npos::dev::api::timerRegister(*this, npos::dev::msg::Timer::Mode::SINGLE_SHOT, 1000);
+                npos::dev::api::timerRegister(*this, npos::dev::msg::Timer::Mode::REPEATING, 1000);
 
             }
         }

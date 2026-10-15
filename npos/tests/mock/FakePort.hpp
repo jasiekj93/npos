@@ -21,9 +21,13 @@ namespace mock
         }
 
         bool accepts(npos::ipc::Message::Type type) const override { return type == acceptedType; }
-        void receive(const npos::ipc::Message& message) override { received.push_back(&message); }
+        void receiveRequest(const npos::ipc::Message& message) override { received.push_back(&message); }
+        void receiveResponse(const npos::ipc::Message& message) override { receivedResponses.push_back(&message); }
+        void handleUnknownRequest(npos::ipc::Message& message) override { unknown.push_back(&message); }
 
         npos::ipc::Message::Type acceptedType;
         etl::vector<const npos::ipc::Message*, 16> received;
+        etl::vector<const npos::ipc::Message*, 16> receivedResponses;
+        etl::vector<const npos::ipc::Message*, 16> unknown;
     };
 }

@@ -40,8 +40,10 @@ namespace npos::dev::service
 
                 if(request.getOperation() == msg::BackupRegisters::Operation::READ)
                     backupRead(request);
-                else
+                else if(request.getOperation() == msg::BackupRegisters::Operation::WRITE)
                     backupWrite(request);
+                else
+                    handleUnknownRequest(message);
             }
             else if (message.type == msg::Type::OPEN)
                 open(message);

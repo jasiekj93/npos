@@ -33,7 +33,7 @@ TEST_GROUP(Littlefs)
 
     void run(npos::ipc::Message& message)
     {
-        filesystem.receive(message);
+        filesystem.receiveRequest(message);
         filesystem.process();
     }
 
@@ -124,7 +124,7 @@ TEST(Littlefs, IsReadyOnlyWithQueuedMessages)
 
     CHECK_FALSE(filesystem.isReady());
 
-    filesystem.receive(request);
+    filesystem.receiveRequest(request);
 
     CHECK_TRUE(filesystem.isReady());
 
@@ -133,7 +133,7 @@ TEST(Littlefs, IsReadyOnlyWithQueuedMessages)
     CHECK_FALSE(filesystem.isReady());
 }
 
-TEST(Littlefs, ReceiveDropsMessagesWhenQueueIsFull)
+TEST(Littlefs, ReceiveReleasesMessagesWhenQueueIsFull)
 {
     mock::RamFlash smallFlash;
     task::Littlefs<SLOTS>::MessageQueue<1> smallQueue;
@@ -141,11 +141,25 @@ TEST(Littlefs, ReceiveDropsMessagesWhenQueueIsFull)
     small.initialize();
     msg::file::Open a("a", Flags::READ_ONLY), b("b", Flags::READ_ONLY);
 
-    small.receive(a);
-    small.receive(b);
+    small.receiveRequest(a);
+    small.receiveRequest(b);
+
+    CHECK_EQUAL(1, bus.released.size());
+    POINTERS_EQUAL(&b, bus.released[0]);
+
     small.process();
 
     CHECK_FALSE(small.isReady());
+}
+
+TEST(Littlefs, ReceivedResponsesAreReleased)
+{
+    npos::ipc::Message message;
+
+    filesystem.receiveResponse(message);
+
+    CHECK_FALSE(filesystem.isReady());
+    CHECK_EQUAL(1, bus.released.size());
 }
 
 TEST(Littlefs, ProcessWithoutMessagesDoesNothing)
@@ -164,14 +178,44 @@ TEST(Littlefs, ProcessReleasesTheMessage)
     CHECK_EQUAL(1, bus.released.size());
 }
 
-TEST(Littlefs, IgnoresUnknownMessageTypes)
+TEST(Littlefs, AnswersUnknownMessageTypesWithNotSupported)
 {
     npos::ipc::Message message;
     message.type = npos::ipc::DEVICE_MESSAGE_TYPE;
+    message.output.status = 0;
 
     run(message);
 
-    CHECK_EQUAL(0, bus.responded.size());
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
+}
+
+TEST(Littlefs, UnknownRequestHandlerAnswersNotSupported)
+{
+    npos::ipc::Message message;
+    message.output.status = 0;
+
+    filesystem.handleUnknownRequest(message);
+
+    CHECK_EQUAL(1, bus.responded.size());
+    POINTERS_EQUAL(&message, bus.responded[0]);
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
+}
+
+TEST(Littlefs, RequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
+{
+    mock::RamFlash brokenFlash;
+    brokenFlash.failUnlock = true;
+    task::Littlefs<SLOTS>::MessageQueue<2> otherQueue;
+    task::Littlefs<SLOTS> other(3, otherQueue, bus, brokenFlash, nullptr);
+    other.initialize();
+    msg::file::Open request("a", Flags::READ_ONLY);
+
+    other.receiveRequest(request);
+    other.process();
+
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(msg::Status::IO_ERROR, request.getStatus());
 }
 
 TEST(Littlefs, OpeningMissingFileFails)
@@ -502,7 +546,7 @@ TEST(Littlefs, DataSurvivesRemount)
     remounted.setId(2);
     remounted.initialize();
     msg::file::Open request("keep.txt", Flags::READ_ONLY);
-    remounted.receive(request);
+    remounted.receiveRequest(request);
     remounted.process();
 
     CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());

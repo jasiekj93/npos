@@ -76,12 +76,24 @@ namespace npos::fs::task
             }
         }
 
-        void receive(const ipc::Message& message) override
+        void receiveRequest(const ipc::Message& message) override
         {
             if(messageQueue.full())
-                return; //TODO handle
-            else
-                messageQueue.push(const_cast<ipc::Message*>(&message));
+                return bus.release(const_cast<ipc::Message*>(&message));
+
+            messageQueue.push(const_cast<ipc::Message*>(&message));
+        }
+
+        // The filesystem sends no requests, so there is nothing to answer.
+        void receiveResponse(const ipc::Message& message) override
+        {
+            bus.release(const_cast<ipc::Message*>(&message));
+        }
+
+        void handleUnknownRequest(ipc::Message& message) override
+        {
+            message.output.status = ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED;
+            bus.respond(message);
         }
 
         //nps::Task
@@ -129,13 +141,10 @@ namespace npos::fs::task
             if(icache != nullptr)
                 icache->init();
 
-            if(lfs_mount(&filesystem, &config) < 0)
-            {
-                if(lfs_format(&filesystem, &config) < 0)
-                    return;
-                else
-                    lfs_mount(&filesystem, &config);
-            }
+            mounted = lfs_mount(&filesystem, &config) >= 0;
+
+            if(not mounted and lfs_format(&filesystem, &config) >= 0)
+                mounted = lfs_mount(&filesystem, &config) >= 0;
         }
         
 
@@ -233,6 +242,12 @@ namespace npos::fs::task
     protected:
         void handle(ipc::Message& message)
         {
+            if(not mounted and accepts(message.type))
+            {
+                message.output.status = static_cast<ipc::Message::Status>(msg::Status::IO_ERROR);
+                return bus.respond(message);
+            }
+
             switch(message.type)
             {
             case msg::Type::FILE_OPEN:
@@ -252,7 +267,7 @@ namespace npos::fs::task
             case msg::Type::DIR_MAKE:
                 return dirMake(static_cast<msg::dir::Make&>(message));
             default:
-                return;
+                return handleUnknownRequest(message);
             }
         }
 
@@ -271,13 +286,11 @@ namespace npos::fs::task
                         request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
                     }
 
-                    request.isResponse = true;
-                    return bus.send(request.setStatus(fromLfsStatus(result)));
+                    return bus.respond(request.setStatus(fromLfsStatus(result)));
                 }
             }
 
-            request.isResponse = true;
-            bus.send(request.setStatus(msg::Status::NO_MEMORY));
+            bus.respond(request.setStatus(msg::Status::NO_MEMORY));
         }
 
         void dirOpen(msg::dir::Open& request)
@@ -294,19 +307,16 @@ namespace npos::fs::task
                         request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
                     }
 
-                    request.isResponse = true;
-                    return bus.send(request.setStatus(fromLfsStatus(result)));
+                    return bus.respond(request.setStatus(fromLfsStatus(result)));
                 }
             }
 
-            request.isResponse = true;
-            bus.send(request.setStatus(msg::Status::NO_MEMORY));
+            bus.respond(request.setStatus(msg::Status::NO_MEMORY));
         }
 
         void dirMake(msg::dir::Make& request)
         {
-            request.isResponse = true;
-            bus.send(request.setStatus(fromLfsStatus(lfs_mkdir(&filesystem, request.getPath().data()))));
+            bus.respond(request.setStatus(fromLfsStatus(lfs_mkdir(&filesystem, request.getPath().data()))));
         }
 
         void dirClose(msg::dir::Close& request)
@@ -314,8 +324,7 @@ namespace npos::fs::task
             if(request.getDir().serviceId >= dirs.size() or
                 dirs[request.getDir().serviceId].free)
             {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& dir = dirs[request.getDir().serviceId];
@@ -324,8 +333,7 @@ namespace npos::fs::task
             if(result == LFS_ERR_OK)
                 dir.free = true;
 
-            request.isResponse = true;
-            bus.send(request.setStatus(fromLfsStatus(result)));
+            bus.respond(request.setStatus(fromLfsStatus(result)));
         }
 
         void dirRead(msg::dir::Read& request)
@@ -333,8 +341,7 @@ namespace npos::fs::task
             if(request.getDir().serviceId >= dirs.size() or
                 dirs[request.getDir().serviceId].free)
             {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& dir = dirs[request.getDir().serviceId];
@@ -350,24 +357,17 @@ namespace npos::fs::task
             while(result > 0 and (strcmp(info.name, ".") == 0 or strcmp(info.name, "..") == 0));
 
             if(result < 0)
-            {
-                request.isResponse = true;
-                return bus.send(request.setStatus(fromLfsStatus(result)));
-            }
+                return bus.respond(request.setStatus(fromLfsStatus(result)));
 
             if(result == 0)
-            {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::END_OF_DIRECTORY));
-            }
+                return bus.respond(request.setStatus(msg::Status::END_OF_DIRECTORY));
 
             entry.type = (info.type == LFS_TYPE_DIR) ? msg::dir::Entry::DIRECTORY : msg::dir::Entry::FILE;
             entry.size = info.size;
             strncpy(entry.name, info.name, sizeof(entry.name) - 1);
             entry.name[sizeof(entry.name) - 1] = '\0';
 
-            request.isResponse = true;
-            bus.send(request.setStatus(msg::Status::SUCCESS));
+            bus.respond(request.setStatus(msg::Status::SUCCESS));
         }
 
         void fileClose(msg::file::Close& request)
@@ -375,8 +375,7 @@ namespace npos::fs::task
             if(request.getFile().serviceId >= files.size() or
                 files[request.getFile().serviceId].free)
             {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
@@ -385,8 +384,7 @@ namespace npos::fs::task
             if(result == LFS_ERR_OK)
                 file.free = true;
 
-            request.isResponse = true;
-            bus.send(request.setStatus(fromLfsStatus(result)));
+            bus.respond(request.setStatus(fromLfsStatus(result)));
         }
 
         void fileRead(msg::file::Read& request)
@@ -394,18 +392,16 @@ namespace npos::fs::task
             if(request.getFile().serviceId >= files.size() or
                 files[request.getFile().serviceId].free)
             {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
             auto result = lfs_file_read(&filesystem, &file.handle, request.getBuffer().data(), request.getBuffer().size());
 
-            request.isResponse = true;
             if(result >= 0)
-                bus.send(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
+                bus.respond(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
             else
-                bus.send(request.setStatus(fromLfsStatus(result)));
+                bus.respond(request.setStatus(fromLfsStatus(result)));
 
         }
 
@@ -414,18 +410,16 @@ namespace npos::fs::task
             if(request.getFile().serviceId >= files.size() or
                 files[request.getFile().serviceId].free)
             {
-                request.isResponse = true;
-                return bus.send(request.setStatus(msg::Status::BAD_FILE_NUMBER));
+                return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
             auto result = lfs_file_write(&filesystem, &file.handle, request.getBuffer().data(), request.getBuffer().size());
 
-            request.isResponse = true;
             if(result >= 0)
-                bus.send(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
+                bus.respond(request.setOutputLength(static_cast<ipc::Message::Input::ReadWrite::Length>(result)).setStatus(msg::Status::SUCCESS));
             else
-                bus.send(request.setStatus(fromLfsStatus(result)));
+                bus.respond(request.setStatus(fromLfsStatus(result)));
         }
 
         msg::Status fromLfsStatus(int status)
@@ -460,5 +454,6 @@ namespace npos::fs::task
         etl::array<Dir, N> dirs;
         lfs_t filesystem{};
         lfs_config config{};
+        bool mounted = false;
     };
 }

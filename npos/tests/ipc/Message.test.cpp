@@ -18,10 +18,16 @@ TEST(Message, DefaultsToNullSenderRecipientRequestAndNoReferences)
 
     CHECK_EQUAL(npos::ipc::NULL_PORT, message.sender.portId);
     CHECK_EQUAL(npos::ipc::NULL_SERVICE, message.sender.serviceId);
-    CHECK_FALSE(message.isResponse);
     CHECK_EQUAL(npos::ipc::NULL_PORT, message.recipient.portId);
     CHECK_EQUAL(npos::ipc::NULL_SERVICE, message.recipient.serviceId);
     CHECK_EQUAL(0, message.referenceCount);
+}
+
+TEST(Message, OutputStatusDefaultsToNotSupported)
+{
+    npos::ipc::Message message;
+
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
 }
 
 TEST(Message, InputRawOverlapsTypedFields)

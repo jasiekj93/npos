@@ -19,12 +19,10 @@ namespace mock
         void send(npos::ipc::Service& sender, npos::ipc::Message& message) override
         {
             message.sender = sender.getOid();
-            message.isResponse = false;
             sent.push_back(message);
         }
         void respond(npos::ipc::Message& message) override
         {
-            message.isResponse = true;
             responded.push_back(message);
         }
         npos::ipc::PortId getPortId() const override { return portId; }

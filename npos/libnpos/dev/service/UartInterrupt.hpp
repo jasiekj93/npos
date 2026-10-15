@@ -68,6 +68,8 @@ namespace npos::dev::service
                         return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
+                else
+                    return handleUnknownRequest(message);
 
             }
             else if (message.type == msg::Type::OPEN)

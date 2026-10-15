@@ -44,6 +44,19 @@ TEST_GROUP(UartInterrupt)
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
+TEST(UartInterrupt, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    open();
+    auto request = read();
+    request.input.readWrite.mode = 99;
+
+    service.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+    CHECK_EQUAL(0, request.referenceCount);
+}
+
 TEST(UartInterrupt, AcceptsTranscieverAndOpenMessages)
 {
     CHECK_TRUE(service.acceptsRequest(npos::dev::msg::Type::TRANSCIEVER));

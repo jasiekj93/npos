@@ -32,6 +32,18 @@ TEST_GROUP(BackupStore)
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
+TEST(BackupStore, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    open();
+    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 1, &value);
+    request.input.readWrite.mode = 99;
+
+    store.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+}
+
 TEST(BackupStore, AcceptsRegisterAndOpenMessages)
 {
     CHECK_TRUE(store.acceptsRequest(npos::dev::msg::Type::BACKUP_REGISTERS));

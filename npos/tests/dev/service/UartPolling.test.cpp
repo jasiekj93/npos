@@ -35,6 +35,18 @@ TEST_GROUP(UartPolling)
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
+TEST(UartPolling, UnsupportedOperationIsAnsweredWithNotSupported)
+{
+    open();
+    auto request = read();
+    request.input.readWrite.mode = 99;
+
+    service.handleRequest(request);
+
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, statusOfResponse());
+}
+
 TEST(UartPolling, AcceptsTranscieverAndOpenMessages)
 {
     CHECK_TRUE(service.acceptsRequest(npos::dev::msg::Type::TRANSCIEVER));

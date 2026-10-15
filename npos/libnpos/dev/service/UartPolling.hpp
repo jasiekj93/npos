@@ -36,6 +36,8 @@ namespace npos::dev::service
                     return read(request);    
                 else if(request.getOperation() == msg::Transciever::Operation::WRITE)
                     return write(request);
+                else
+                    return handleUnknownRequest(message);
             }
             else if(message.type == msg::Type::OPEN)
                 open(message);

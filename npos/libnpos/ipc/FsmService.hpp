@@ -23,6 +23,11 @@ namespace npos::ipc
 
             virtual ID handleRequest(Message&) { return id; }
             virtual ID handleResponse(Message&) { return id; }
+            virtual ID handleUnknownRequest(Message& message)
+            {
+                fsm.Service::handleUnknownRequest(message);
+                return id;
+            }
             inline auto getId() const { return id; }
 
         protected:
@@ -52,11 +57,10 @@ namespace npos::ipc
 
         void handleRequest(Message& message) override
         {
-            if(not isRunning)
-                return;
-
             if(acceptsRequest(message.type))
-                return setState(currentState->handleRequest(message));
+                setState(currentState->handleRequest(message));
+            else
+                handleUnknownRequest(message);
         }
 
         void handleResponse(Message& message) override
@@ -66,6 +70,14 @@ namespace npos::ipc
 
             if(currentState != nullptr)
                 setState(currentState->handleResponse(message));
+        }
+
+        void handleUnknownRequest(Message& message) override
+        {
+            if(not isRunning or currentState == nullptr)
+                return Service::handleUnknownRequest(message);
+
+            setState(currentState->handleUnknownRequest(message));
         }
 
         void start()

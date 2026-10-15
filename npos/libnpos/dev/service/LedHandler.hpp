@@ -43,8 +43,10 @@ namespace npos::dev::service
                     leds[request.getId()]->on();
                 else if(request.getOperation() == msg::Led::Operation::OFF)
                     leds[request.getId()]->off();
-                else
+                else if(request.getOperation() == msg::Led::Operation::TOGGLE)
                     leds[request.getId()]->toggle();
+                else
+                    return handleUnknownRequest(message);
 
                 return getApi().respond(request.setStatus(msg::Led::Status::SUCCESS));
             }

@@ -33,8 +33,9 @@ int main(int argc, char* argv[])
 
 	//devices
 	npos::ipc::ServiceTask::ServiceList<32> devServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> devMessageQueue;
-	npos::ipc::ServiceTask devTask(5, devServiceList, devMessageQueue, primarySystemBus);
+	npos::ipc::ServiceTask::RequestQueue<32> devRequestQueue;
+	npos::ipc::ServiceTask::ResponseQueue<32> devResponseQueue;
+	npos::ipc::ServiceTask devTask(5, devServiceList, devRequestQueue, devResponseQueue, primarySystemBus);
 	primarySystemBus.addPort(devTask);
 	primaryScheduler.addTask(devTask);
 
@@ -46,8 +47,9 @@ int main(int argc, char* argv[])
 
 	//userspace
 	npos::ipc::ServiceTask::ServiceList<32> userServiceList;
-	npos::ipc::ServiceTask::MessageQueue<32> userMessageQueue;
-	npos::ipc::ServiceTask userTask(1, userServiceList, userMessageQueue, secondarySystemBus);
+	npos::ipc::ServiceTask::RequestQueue<32> userRequestQueue;
+	npos::ipc::ServiceTask::ResponseQueue<32> userResponseQueue;
+	npos::ipc::ServiceTask userTask(1, userServiceList, userRequestQueue, userResponseQueue, secondarySystemBus);
 	secondarySystemBus.addPort(userTask);
 	secondaryScheduler.addTask(userTask);
 

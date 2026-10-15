@@ -17,9 +17,10 @@ namespace npos::dev::task
 {
     struct CompareTimerMessage : public etl::binary_function<msg::Timer*, msg::Timer*, bool>
     {
+        // less
         bool operator()(const msg::Timer* lhs, const msg::Timer* rhs) const
         {
-            return lhs->getInterval() < rhs->getInterval();
+            return lhs->getEventTick() < rhs->getEventTick();
         }
     };
 
@@ -45,16 +46,19 @@ namespace npos::dev::task
             return type == msg::Type::TIMER;
         }
 
-        void receive(const ipc::Message& message) override
+        void receiveRequest(const ipc::Message& message) override
         {
             if(message.type != msg::Type::TIMER)
-                return;
+            {
+                auto& unknown = const_cast<ipc::Message&>(message);
+                handleUnknownRequest(unknown);
+                return bus.release(&unknown);
+            }
 
             auto& timerMessage = const_cast<msg::Timer&>(static_cast<const msg::Timer&>(message));
             if(messageQueue.full())
             {
-                timerMessage.isResponse = true;
-                bus.send(timerMessage.setStatus(msg::Timer::Status::NO_MEMORY));
+                bus.respond(timerMessage.setStatus(msg::Timer::Status::NO_MEMORY));
                 bus.release(&timerMessage);
             }
             else
@@ -65,13 +69,25 @@ namespace npos::dev::task
             }
         }
 
+        // The timer sends no requests, so there is nothing to answer.
+        void receiveResponse(const ipc::Message& message) override
+        {
+            bus.release(const_cast<ipc::Message*>(&message));
+        }
+
+        void handleUnknownRequest(ipc::Message& message) override
+        {
+            message.output.status = ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED;
+            bus.respond(message);
+        }
+
         //nps::Task
         bool isReady() const override
         {
             if(messageQueue.empty())
                 return false;
             else
-                return messageQueue.top()->getInterval() <= systemTick.getTick();
+                return messageQueue.top()->getEventTick() <= systemTick.getTick();
         }
         
         void process() override
@@ -84,8 +100,7 @@ namespace npos::dev::task
             if(timerMessage->getEventTick() > systemTick.getTick())
                 return;
                 
-            timerMessage->isResponse = true;
-            bus.send(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
+            bus.respond(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
             messageQueue.pop();
 
             if(timerMessage->getMode() == msg::Timer::Mode::REPEATING)

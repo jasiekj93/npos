@@ -44,9 +44,34 @@ TEST(TimerTask, ReceiveIgnoresOtherMessageTypes)
     npos::ipc::Message message;
     message.type = npos::dev::msg::Type::LED;
 
-    timer.receive(message);
+    timer.receiveRequest(message);
 
     CHECK_FALSE(timer.isReady());
+    CHECK_EQUAL(1, bus.released.size());
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
+}
+
+TEST(TimerTask, UnknownRequestHandlerAnswersNotSupported)
+{
+    npos::ipc::Message message;
+    message.output.status = 0;
+
+    timer.handleUnknownRequest(message);
+
+    CHECK_EQUAL(1, bus.responded.size());
+    POINTERS_EQUAL(&message, bus.responded[0]);
+    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
+}
+
+TEST(TimerTask, ReceivedResponsesAreReleased)
+{
+    npos::ipc::Message message;
+
+    timer.receiveResponse(message);
+
+    CHECK_FALSE(timer.isReady());
+    CHECK_EQUAL(1, bus.released.size());
 }
 
 TEST(TimerTask, ReceiveSchedulesEventAndAddressesTheTarget)
@@ -54,7 +79,7 @@ TEST(TimerTask, ReceiveSchedulesEventAndAddressesTheTarget)
     tick.tick = 100;
     auto request = single(20);
 
-    timer.receive(request);
+    timer.receiveRequest(request);
 
     CHECK_EQUAL(120, request.getEventTick());
     CHECK_EQUAL(2, request.recipient.portId);
@@ -65,9 +90,9 @@ TEST(TimerTask, ReceiveWhenFullAnswersNoMemoryAndReleases)
 {
     auto first = single(10);
     auto second = single(10);
-    timer.receive(first);
+    timer.receiveRequest(first);
 
-    timer.receive(second);
+    timer.receiveRequest(second);
 
     CHECK_EQUAL(1, bus.responded.size());
     CHECK_EQUAL(Timer::NO_MEMORY, second.getStatus());
@@ -77,7 +102,7 @@ TEST(TimerTask, ReceiveWhenFullAnswersNoMemoryAndReleases)
 TEST(TimerTask, IsReadyOnceTheIntervalElapsed)
 {
     auto request = single(10);
-    timer.receive(request);
+    timer.receiveRequest(request);
 
     CHECK_FALSE(timer.isReady());
 
@@ -89,7 +114,7 @@ TEST(TimerTask, IsReadyOnceTheIntervalElapsed)
 TEST(TimerTask, ProcessBeforeEventDoesNothing)
 {
     auto request = single(10);
-    timer.receive(request);
+    timer.receiveRequest(request);
 
     timer.process();
 
@@ -106,7 +131,7 @@ TEST(TimerTask, ProcessWithoutTimersDoesNothing)
 TEST(TimerTask, SingleShotTimerAnswersOnceAndIsReleased)
 {
     auto request = single(10);
-    timer.receive(request);
+    timer.receiveRequest(request);
     tick.tick = 10;
 
     timer.process();
@@ -120,7 +145,7 @@ TEST(TimerTask, SingleShotTimerAnswersOnceAndIsReleased)
 TEST(TimerTask, RepeatingTimerIsRescheduled)
 {
     Timer request({ 2, 1 }, Timer::REPEATING, 10);
-    timer.receive(request);
+    timer.receiveRequest(request);
     tick.tick = 10;
 
     timer.process();

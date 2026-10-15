@@ -23,7 +23,6 @@ namespace mock
         }
         void respond(npos::ipc::Message& message) override
         {
-            message.isResponse = true;
             responded.push_back(message);
         }
         npos::ipc::PortId getPortId() const override { return portId; }

@@ -28,7 +28,7 @@ Struktura
 .CW ipc::Message
 ma stały rozmiar. Zawiera:
 .IP_bold sender
-port nadawcy,
+adres nadawcy (Oid), do którego wraca odpowiedź,
 .IP_bold recipient
 adres odbiorcy (Oid),
 .IP_bold type
@@ -39,7 +39,16 @@ licznik odwołań, gdy wiadomość jest przechowywana w puli,
 dane wejściowe: unia pól typowanych (otwarcie, atrybuty, odczyt lub zapis, połączenie)
 oraz wskaźnik i rozmiar bufora,
 .IP_bold output
-analogiczna część wyjściowa ze statusem odpowiedzi.
+analogiczna część wyjściowa ze statusem odpowiedzi. Domyślny status to
+.CW STATUS_MESSAGE_NOT_SUPPORTED ,
+więc odbiorca bez obsługi żądania nie musi go zmieniać.
+.LP
+Wiadomość nie ma pola określającego, czy jest żądaniem, czy odpowiedzią. O kierunku
+decyduje to, którą metodą trafia do odbiorcy: żądania przez
+.CW send() ,
+odpowiedzi przez
+.CW respond() .
+Odpowiedź jest tym samym obiektem co żądanie, nie jest kopiowana.
 .LP
 Typy wiadomości są podzielone na zakresy: błędy systemowe, urządzenia,
 sterowniki, system plików, cli oraz użytkownika. Każdy moduł definiuje własne typy od początku swojego zakresu
@@ -56,19 +65,34 @@ istnieć do czasu obsłużenia odpowiedzi.
 Serwis (
 .CW ipc::Service )
 implementuje metody
-.CW handle() ,
-.CW accepts()
+.CW handleRequest() ,
+.CW handleResponse() ,
+.CW acceptsRequest()
 oraz opcjonalnie
-.CW initialize() .
+.CW initialize()
+i
+.CW handleUnknownRequest() .
 Komunikuje się przez interfejs
 .CW Service::Api :
-.CW send() ,
+.CW send(sender, message) ,
 .CW respond()
 i
 .CW getPortId() .
 Obiekt
 .CW Api
-jest podawany w konstruktorze, a implementuje go zadanie serwisów.
+jest podawany w konstruktorze, a implementuje go zadanie serwisów. Odpowiedzi na własne
+żądania serwis dostaje w
+.CW handleResponse() ,
+a cudze żądania w
+.CW handleRequest() .
+.PP
+Żądanie zaadresowane wprost do serwisu, który nie akceptuje jego typu, trafia do
+.CW handleUnknownRequest() .
+Domyślnie ta metoda nic nie robi, a nadawca dostaje odpowiedź ze statusem
+.CW STATUS_MESSAGE_NOT_SUPPORTED .
+Tak samo odpowiadają magistrala i zadanie, gdy adresowany port lub serwis nie istnieje albo nie akceptuje typu.
+Rozgłoszenie, którego nikt nie akceptuje, nie jest odrzucane. Rozgłoszenie nie powinno być żądaniem z odpowiedzią,
+bo jedna wiadomość służy wtedy wielu odbiorcom.
 .PP
 .CW ipc::FsmService
 to serwis będący automatem skończonym. Stany dziedziczą po
@@ -76,10 +100,11 @@ to serwis będący automatem skończonym. Stany dziedziczą po
 (metody
 .CW onEnter() ,
 .CW onExit() ,
-.CW accepts() ,
-.CW handle()
+.CW acceptsRequest() ,
+.CW handleRequest() ,
+.CW handleResponse()
 i
-.CW handleUnknown() ).
+.CW handleUnknownRequest() ).
 Obsługa zwraca identyfikator następnego stanu albo
 .CW NO_STATE_CHANGE .
 Serwis akceptuje typy wiadomości wyłącznie bieżącego stanu, a po
@@ -91,10 +116,15 @@ Klasa
 .CW ipc::ServiceTask
 jest jednocześnie zadaniem, portem na magistrali i
 .CW Service::Api .
-Listę serwisów i kolejkę wiadomości dostaje od użytkownika jako interfejsy
-.CW ServiceListInt&
+Listę serwisów i dwie kolejki wiadomości dostaje od użytkownika jako interfejsy
+.CW ServiceListInt& ,
+.CW RequestQueueInt&
 i
-.CW MessageQueueInt& .
+.CW ResponseQueueInt& .
+Kolejka odpowiedzi musi pomieścić wszystkie jednocześnie oczekujące odpowiedzi, bo odpowiedź,
+która się nie zmieści, jest zwracana magistrali i nadawca jej nie dostanie. Zadanie obsługuje jedną wiadomość na
+.CW process() ,
+odpowiedzi przed żądaniami.
 .IP_dot
 .CW subscribe()
 nadaje serwisowi identyfikator równy indeksowi w liście,
@@ -109,8 +139,12 @@ wiadomość trafia do wszystkich serwisów, które akceptują jej typ.
 .LP
 Odpowiedzi są adresowane po polu
 .CW sender
-z żądania. Serwis, który tylko czeka na odpowiedzi, powinien rozróżniać własne żądania
-od cudzych po porcie nadawcy.
+z żądania i trafiają do
+.CW handleResponse()
+serwisu nadawcy. Wiadomość, która nie mieści się w kolejce, jest zwracana magistrali
+(
+.CW release() ),
+więc nie blokuje miejsca w puli.
 .subchapter "Magistrala"
 .PP
 Interfejs
@@ -126,18 +160,33 @@ przyjmuje listę portów oraz pulę wiadomości od użytkownika. Numery portów
 są nadawane od wartości początkowej, więc dwie magistrale mogą mieć rozłączne zakresy
 i być połączone jako następcy.
 .IP_dot
-Wiadomość spoza puli jest kopiowana do puli przed doręczeniem.
+Wiadomość spoza puli jest kopiowana do puli przed doręczeniem, ze zerowym licznikiem odwołań.
+Odpowiedź jest tym samym obiektem co żądanie, więc w obrębie jednej magistrali nie jest kopiowana.
 .IP_dot
 Każde doręczenie zwiększa licznik odwołań, a
 .CW release()
-zmniejsza go i zwraca wiadomość do puli, gdy licznik spadnie do zera.
+zmniejsza go i zwraca wiadomość do puli, gdy licznik spadnie do zera. Na czas rozgłaszania
+magistrala trzyma własne odwołanie, żeby port mógł zwolnić wiadomość od razu.
 .IP_dot
 Rozgłaszanie omija port nadawcy i porty, które nie akceptują typu wiadomości.
 .IP_dot
-Odpowiedź wraca do portu zapisanego w polu
-.CW sender .
+Żądanie do konkretnego portu jest doręczane przez
+.CW receiveRequest() ,
+jeśli port akceptuje typ. W przeciwnym razie magistrala woła
+.CW handleUnknownRequest()
+portu i odpowiada nadawcy statusem
+.CW STATUS_MESSAGE_NOT_SUPPORTED .
+Tak samo kończy się adres nieistniejącego portu.
 .IP_dot
-Nieznany port jest przekazywany następcy, o ile istnieje.
+Odpowiedź wraca do portu zapisanego w polu
+.CW sender
+przez
+.CW receiveResponse() .
+.IP_dot
+Nieznany port jest przekazywany następcy, o ile istnieje. Następca jest sprawdzany tylko jeden raz,
+więc magistrale wskazujące na siebie nawzajem nie zapętlają się.
+.IP_dot
+Gdy pula jest wyczerpana, wiadomość jest odrzucana.
 .LP
 Moduł ipc nie zawiera logowania. Logi są zwykłą wiadomością rozgłoszeniową modułu cli,
 wysyłaną przez

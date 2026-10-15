@@ -127,13 +127,16 @@ namespace npos::os
         etl::ipool& deviceServicePool;
 
         ipc::ServiceTask::ServiceListInt& deviceServices;
-        ipc::ServiceTask::MessageQueueInt& deviceQueue;
+        ipc::ServiceTask::RequestQueueInt& deviceRequests;
+        ipc::ServiceTask::ResponseQueueInt& deviceResponses;
         dev::InterruptServiceTask::InterruptServiceListInt& interruptServices;
-        ipc::ServiceTask::MessageQueueInt& interruptQueue;
+        ipc::ServiceTask::RequestQueueInt& interruptRequests;
+        ipc::ServiceTask::ResponseQueueInt& interruptResponses;
         ipc::ServiceTask::ServiceListInt& userServices;
-        ipc::ServiceTask::MessageQueueInt& userQueue;
+        ipc::ServiceTask::RequestQueueInt& userRequests;
+        ipc::ServiceTask::ResponseQueueInt& userResponses;
         dev::task::Timer::MessageQueueInt& timerQueue;
-        ipc::ServiceTask::MessageQueueInt& filesystemQueue;
+        ipc::ServiceTask::RequestQueueInt& filesystemQueue;
         cli::task::Terminal::MessageQueueInt& terminalQueue;
         // Slots of ipc::log::Stream::MAX_MESSAGE_LENGTH bytes, the terminal keeps the text of queued logs in them.
         cli::task::Terminal::PayloadPoolInt& logPayloads;
@@ -146,8 +149,9 @@ namespace npos::os
     public:
         Memory memory()
         {
-            return Memory{ taskList, portList, messagePool, deviceServicePool, deviceServiceList, deviceQueue,
-                interruptServiceList, interruptQueue, userServiceList, userQueue, timerQueue, filesystemQueue, terminalQueue, logPayloadPool, programList };
+            return Memory{ taskList, portList, messagePool, deviceServicePool, deviceServiceList, deviceRequests, deviceResponses,
+                interruptServiceList, interruptRequests, interruptResponses, userServiceList, userRequests, userResponses,
+                timerQueue, filesystemQueue, terminalQueue, logPayloadPool, programList };
         }
 
     private:
@@ -156,13 +160,16 @@ namespace npos::os
         etl::pool<ipc::Message, Messages> messagePool;
         etl::generic_pool<ServiceSlot::SIZE, ServiceSlot::ALIGNMENT, DeviceServices> deviceServicePool;
         ipc::ServiceTask::ServiceList<Services> deviceServiceList;
-        ipc::ServiceTask::MessageQueue<Queue> deviceQueue;
+        ipc::ServiceTask::RequestQueue<Queue> deviceRequests;
+        ipc::ServiceTask::ResponseQueue<Queue> deviceResponses;
         dev::InterruptServiceTask::InterruptServiceList<Services> interruptServiceList;
-        ipc::ServiceTask::MessageQueue<Queue> interruptQueue;
+        ipc::ServiceTask::RequestQueue<Queue> interruptRequests;
+        ipc::ServiceTask::ResponseQueue<Queue> interruptResponses;
         ipc::ServiceTask::ServiceList<Services> userServiceList;
-        ipc::ServiceTask::MessageQueue<Queue> userQueue;
+        ipc::ServiceTask::RequestQueue<Queue> userRequests;
+        ipc::ServiceTask::ResponseQueue<Queue> userResponses;
         dev::task::Timer::MessageQueue<Queue> timerQueue;
-        ipc::ServiceTask::MessageQueue<Queue> filesystemQueue;
+        ipc::ServiceTask::RequestQueue<Queue> filesystemQueue;
         cli::task::Terminal::MessageQueue<Queue> terminalQueue;
         etl::generic_pool<cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, Logs> logPayloadPool;
         cli::task::Terminal::ProgramList<Programs> programList;
@@ -186,9 +193,10 @@ namespace npos::os
             : memory(memory)
             , scheduler(memory.tasks)
             , bus(memory.ports, memory.messages, INITIAL_PORT)
-            , devTask(config.priorities.devices, memory.deviceServices, memory.deviceQueue, bus)
-            , interruptTask(config.priorities.interruptDevices, memory.interruptServices, memory.interruptQueue, bus)
-            , userTask(config.priorities.user, memory.userServices, memory.userQueue, bus)
+            , devTask(config.priorities.devices, memory.deviceServices, memory.deviceRequests, memory.deviceResponses, bus)
+            , interruptTask(config.priorities.interruptDevices, memory.interruptServices, memory.interruptRequests,
+                memory.interruptResponses, bus)
+            , userTask(config.priorities.user, memory.userServices, memory.userRequests, memory.userResponses, bus)
         {
             buildDevices(hal);
             buildInterruptDevices(hal);

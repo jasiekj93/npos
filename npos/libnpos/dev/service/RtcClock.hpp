@@ -140,8 +140,10 @@ namespace npos::dev::service
 
                 if(request.getOperation() == msg::Clock::Operation::GET_TIME)
                     return getTime(request);
-                else
+                else if(request.getOperation() == msg::Clock::Operation::SET_TIME)
                     return setTime(request);
+                else
+                    return handleUnknownRequest(message);
             }
             else if(message.type == msg::Type::OPEN)
                 return open(message);

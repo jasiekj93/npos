@@ -394,6 +394,55 @@ TEST(System, TimerTaskAnswersUserTimers)
     CHECK_TRUE(fired);
 }
 
+TEST(System, RequestToUnknownPortIsAnsweredWithPortNotFound)
+{
+    os::System system(hal, storage.memory(), services, api);
+    ipc::Message::Status status = 0;
+
+    probe.onInitialize = [&](mock::Probe& self)
+    {
+        ipc::Message request;
+        request.type = ipc::USER_MESSAGE_TYPE;
+        request.recipient = { 200, ipc::NULL_SERVICE };
+        self.getApi().send(self, request);
+    };
+    stopOn(system, ipc::USER_MESSAGE_TYPE, [&](ipc::Message& message) { status = message.output.status; });
+
+    system.start();
+
+    CHECK_EQUAL(ipc::Message::STATUS_PORT_NOT_FOUND, status);
+}
+
+TEST(System, RequestTheAddressedPortDoesNotAcceptIsAnsweredWithNotSupported)
+{
+    emulator::Rtc rtc;
+    os::Device<dev::hal::Rtc> rtcs[] = { { rtc, "clock" } };
+    hal.rtcs = rtcs;
+    os::System system(hal, storage.memory(), services, api);
+    ipc::Message::Status status = 0;
+
+    probe.onInitialize = [&](mock::Probe& self) { dev::api::open(self, "clock"); };
+    probe.onResponse = [&](mock::Probe& self, ipc::Message& message)
+    {
+        if(message.type == dev::msg::Type::OPEN)
+        {
+            ipc::Message request;
+            request.type = ipc::USER_MESSAGE_TYPE;
+            request.recipient = static_cast<dev::msg::Open&>(message).getOpened();
+            self.getApi().send(self, request);
+        }
+        else if(message.type == ipc::USER_MESSAGE_TYPE)
+        {
+            status = message.output.status;
+            system.getScheduler().stop();
+        }
+    };
+
+    system.start();
+
+    CHECK_EQUAL(ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, status);
+}
+
 TEST(System, FilesystemSavesFilesWrittenByUserServices)
 {
     enum class State { OPEN_FOR_WRITE, WRITE, CLOSE, OPEN_FOR_READ, READ };
