@@ -20,7 +20,7 @@ namespace
     public:
         explicit Minimal(Api& api) : npos::cli::Program(api, "min", "min - minimal") {}
         void start(Host&, etl::string_view) override { started = true; }
-        void handle(npos::ipc::Message&) override {}
+        void handleResponse(npos::ipc::Message&) override {}
         bool started = false;
     };
 }
@@ -40,8 +40,8 @@ TEST(Program, ExposesNameAndDescription)
 
 TEST(Program, ConsumesOnlyResponsesSoAcceptsNothing)
 {
-    CHECK_FALSE(program.accepts(npos::fs::msg::Type::FILE_OPEN));
-    CHECK_FALSE(program.accepts(npos::cli::msg::Type::SYSLOG));
+    CHECK_FALSE(program.acceptsRequest(npos::fs::msg::Type::FILE_OPEN));
+    CHECK_FALSE(program.acceptsRequest(npos::cli::msg::Type::SYSLOG));
 }
 
 TEST(Program, ResumeDoesNothingByDefault)

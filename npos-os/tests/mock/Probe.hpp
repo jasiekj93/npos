@@ -24,7 +24,7 @@ namespace mock
                 onInitialize(*this);
         }
 
-        void handle(npos::ipc::Message& message) override
+        void handleRequest(npos::ipc::Message& message) override
         {
             messages++;
 
@@ -32,10 +32,20 @@ namespace mock
                 onMessage(*this, message);
         }
 
-        bool accepts(npos::ipc::Message::Type) const override { return true; }
+        void handleResponse(npos::ipc::Message& message) override
+        {
+            responses++;
+
+            if(onResponse)
+                onResponse(*this, message);
+        }
+
+        bool acceptsRequest(npos::ipc::Message::Type) const override { return true; }
 
         std::function<void(Probe&)> onInitialize;
         std::function<void(Probe&, npos::ipc::Message&)> onMessage;
+        std::function<void(Probe&, npos::ipc::Message&)> onResponse;
         int messages = 0;
+        int responses = 0;
     };
 }

@@ -28,7 +28,7 @@ TEST_GROUP(HashProcessor)
     void open()
     {
         npos::dev::msg::Open request("hash");
-        processor.handle(request);
+        processor.handleRequest(request);
         api.responded.clear();
     }
 
@@ -44,17 +44,17 @@ TEST_GROUP(HashProcessor)
 
 TEST(HashProcessor, AcceptsHashAndOpenMessages)
 {
-    CHECK_TRUE(processor.accepts(npos::dev::msg::Type::HASH));
-    CHECK_TRUE(processor.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_FALSE(processor.accepts(npos::dev::msg::Type::LED));
+    CHECK_TRUE(processor.acceptsRequest(npos::dev::msg::Type::HASH));
+    CHECK_TRUE(processor.acceptsRequest(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(processor.acceptsRequest(npos::dev::msg::Type::LED));
 }
 
 TEST(HashProcessor, OpenInitializesHashOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("hash");
 
-    processor.handle(request);
-    processor.handle(request);
+    processor.handleRequest(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(1, hash.initCount);
     CHECK_EQUAL(2, api.responded.size());
@@ -66,7 +66,7 @@ TEST(HashProcessor, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
 
-    processor.handle(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(0, api.responded.size());
 }
@@ -76,7 +76,7 @@ TEST(HashProcessor, OpenReportsInitFailure)
     hash.failInit = true;
     npos::dev::msg::Open request("hash");
 
-    processor.handle(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(npos::dev::msg::Open::INIT_FAILURE, statusOfResponse());
 }
@@ -85,7 +85,7 @@ TEST(HashProcessor, RequestBeforeOpenIsRejected)
 {
     auto request = accumulate();
 
-    processor.handle(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(Hash::NOT_INITIALIZED, statusOfResponse());
 }
@@ -95,7 +95,7 @@ TEST(HashProcessor, AccumulateStartsHardwareAndHoldsRequestUntilInterrupt)
     open();
     auto request = accumulate();
 
-    processor.handle(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(sizeof(input), hash.accumulated);
     CHECK_EQUAL(0, api.responded.size());
@@ -106,7 +106,7 @@ TEST(HashProcessor, InputCompleteAnswersSuccessAndReleasesRequest)
 {
     open();
     auto request = accumulate();
-    processor.handle(request);
+    processor.handleRequest(request);
 
     interrupt(npos::dev::hal::Hash::INPUT_COMPLETE);
 
@@ -120,9 +120,9 @@ TEST(HashProcessor, SecondRequestWhileBusyIsRejected)
     open();
     auto first = accumulate();
     auto second = accumulate();
-    processor.handle(first);
+    processor.handleRequest(first);
 
-    processor.handle(second);
+    processor.handleRequest(second);
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(Hash::BUSY, statusOfResponse());
@@ -133,7 +133,7 @@ TEST(HashProcessor, AccumulateEndWithWrongOutputSizeIsRejected)
     open();
     Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, 4));
 
-    processor.handle(request);
+    processor.handleRequest(request);
 
     CHECK_EQUAL(Hash::INVALID_OUTPUT_SIZE, statusOfResponse());
 }
@@ -143,7 +143,7 @@ TEST(HashProcessor, AccumulateEndFinishesWithDigestInterrupt)
     open();
     Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
 
-    processor.handle(request);
+    processor.handleRequest(request);
     interrupt(npos::dev::hal::Hash::DIGEST_COMPLETE);
 
     CHECK_EQUAL(sizeof(digest), hash.digestSize);
@@ -154,7 +154,7 @@ TEST(HashProcessor, ErrorInterruptReportsDeviceFailure)
 {
     open();
     auto request = accumulate();
-    processor.handle(request);
+    processor.handleRequest(request);
 
     interrupt(npos::dev::hal::Hash::ERROR);
 
@@ -175,7 +175,7 @@ TEST(HashProcessor, InterruptFromOtherPeripheralIsIgnored)
 {
     open();
     auto request = accumulate();
-    processor.handle(request);
+    processor.handleRequest(request);
 
     interrupt(npos::dev::hal::Hash::INPUT_COMPLETE, Interrupt::UART);
 
@@ -186,7 +186,7 @@ TEST(HashProcessor, UnknownEventKeepsRequestPending)
 {
     open();
     auto request = accumulate();
-    processor.handle(request);
+    processor.handleRequest(request);
 
     interrupt(0x7F);
 
@@ -198,12 +198,12 @@ TEST(HashProcessor, CanServeNextRequestAfterCompletion)
 {
     open();
     auto first = accumulate();
-    processor.handle(first);
+    processor.handleRequest(first);
     interrupt(npos::dev::hal::Hash::INPUT_COMPLETE);
     api.responded.clear();
     auto second = accumulate();
 
-    processor.handle(second);
+    processor.handleRequest(second);
     interrupt(npos::dev::hal::Hash::INPUT_COMPLETE);
 
     CHECK_EQUAL(Hash::SUCCESS, statusOfResponse());

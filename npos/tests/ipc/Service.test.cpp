@@ -40,8 +40,9 @@ TEST(Service, InitializeDefaultsToNothing)
     struct Minimal : public npos::ipc::Service
     {
         using npos::ipc::Service::Service;
-        void handle(npos::ipc::Message&) override {}
-        bool accepts(npos::ipc::Message::Type) const override { return false; }
+        void handleRequest(npos::ipc::Message&) override {}
+        void handleResponse(npos::ipc::Message&) override {}
+        bool acceptsRequest(npos::ipc::Message::Type) const override { return false; }
     };
 
     Minimal minimal(api);
@@ -55,10 +56,24 @@ TEST(Service, ApiRecordsSendAndRespond)
     npos::ipc::Message message;
     message.type = 7;
 
-    service.getApi().send(message);
+    service.setId(5);
+
+    service.getApi().send(service, message);
     service.getApi().respond(message);
 
     CHECK_EQUAL(1, api.sent.size());
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(7, api.sent[0].type);
+}
+
+TEST(Service, ApiSendStampsSenderOidOfService)
+{
+    npos::ipc::Message message;
+    service.setId(5);
+
+    service.getApi().send(service, message);
+
+    CHECK_EQUAL(3, api.sent[0].sender.portId);
+    CHECK_EQUAL(5, api.sent[0].sender.serviceId);
+    CHECK_FALSE(api.sent[0].isResponse);
 }

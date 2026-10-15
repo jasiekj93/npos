@@ -150,9 +150,9 @@ TEST(Echo, IgnoresUnexpectedResponses)
     npos::ipc::Message message;
     message.type = msg::Type::FILE_WRITE;
 
-    echo.handle(message);
+    echo.handleResponse(message);
     message.type = npos::ipc::DEVICE_MESSAGE_TYPE;
-    echo.handle(message);
+    echo.handleResponse(message);
 
     CHECK_EQUAL(0, host.exitCount);
 }

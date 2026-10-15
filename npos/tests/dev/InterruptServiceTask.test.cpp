@@ -18,11 +18,13 @@ namespace
     public:
         using npos::dev::InterruptService::InterruptService;
 
-        void handle(npos::ipc::Message&) override { handled++; }
-        bool accepts(npos::ipc::Message::Type type) const override { return type == 0x1000; }
+        void handleRequest(npos::ipc::Message&) override { handled++; }
+        void handleResponse(npos::ipc::Message&) override { responses++; }
+        bool acceptsRequest(npos::ipc::Message::Type type) const override { return type == 0x1000; }
         void onInterrupt(const npos::dev::hal::Interrupt&) override { interrupts++; }
 
         int handled = 0;
+        int responses = 0;
         int interrupts = 0;
     };
 }

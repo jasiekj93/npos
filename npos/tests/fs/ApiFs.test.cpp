@@ -16,8 +16,9 @@ namespace
     {
     public:
         using npos::ipc::Service::Service;
-        void handle(npos::ipc::Message&) override {}
-        bool accepts(npos::ipc::Message::Type) const override { return false; }
+        void handleRequest(npos::ipc::Message&) override {}
+        void handleResponse(npos::ipc::Message&) override {}
+        bool acceptsRequest(npos::ipc::Message::Type) const override { return false; }
     };
 }
 

@@ -603,7 +603,8 @@ namespace npos::cli::task
         void startRead()
         {
             dev::msg::Transciever request(device, dev::msg::Transciever::READ, READ_SIZE, etl::span<uint8_t>(rxBuffer, READ_SIZE));
-            send(request);
+            request.sender.portId = getId();
+            bus.send(request);
         }
 
         void flush()
@@ -617,7 +618,8 @@ namespace npos::cli::task
 
             writing = true;
             dev::msg::Transciever request(device, dev::msg::Transciever::WRITE, size, etl::span<uint8_t>(chunk, size));
-            send(request);
+            request.sender.portId = getId();
+            bus.send(request);
         }
 
         MessageQueueInt& messageQueue;

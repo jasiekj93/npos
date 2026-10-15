@@ -117,9 +117,9 @@ TEST(Cd, IgnoresUnexpectedResponses)
     npos::ipc::Message message;
     message.type = msg::Type::DIR_CLOSE;
 
-    cd.handle(message);
+    cd.handleResponse(message);
     message.type = msg::Type::DIR_OPEN;
-    cd.handle(message);
+    cd.handleResponse(message);
 
     CHECK_EQUAL(0, host.exitCount);
 }

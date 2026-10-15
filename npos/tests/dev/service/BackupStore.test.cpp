@@ -25,7 +25,7 @@ TEST_GROUP(BackupStore)
     void open()
     {
         npos::dev::msg::Open request("backup");
-        store.handle(request);
+        store.handleRequest(request);
         api.responded.clear();
     }
 
@@ -34,17 +34,17 @@ TEST_GROUP(BackupStore)
 
 TEST(BackupStore, AcceptsRegisterAndOpenMessages)
 {
-    CHECK_TRUE(store.accepts(npos::dev::msg::Type::BACKUP_REGISTERS));
-    CHECK_TRUE(store.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_FALSE(store.accepts(npos::dev::msg::Type::LED));
+    CHECK_TRUE(store.acceptsRequest(npos::dev::msg::Type::BACKUP_REGISTERS));
+    CHECK_TRUE(store.acceptsRequest(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(store.acceptsRequest(npos::dev::msg::Type::LED));
 }
 
 TEST(BackupStore, OpenEnablesAccessOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("backup");
 
-    store.handle(request);
-    store.handle(request);
+    store.handleRequest(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(1, registers.enableCount);
     CHECK_EQUAL(2, api.responded.size());
@@ -56,7 +56,7 @@ TEST(BackupStore, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(0, api.responded.size());
     CHECK_EQUAL(0, registers.enableCount);
@@ -66,7 +66,7 @@ TEST(BackupStore, RequestBeforeOpenIsRejected)
 {
     BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 0, &value);
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(BackupRegisters::NOT_INITIALIZED, statusOfResponse());
 }
@@ -76,7 +76,7 @@ TEST(BackupStore, RequestWithoutValuePointerIsRejected)
     open();
     BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 0, nullptr);
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(BackupRegisters::INVALID_VALUE_PTR, statusOfResponse());
 }
@@ -86,7 +86,7 @@ TEST(BackupStore, UnknownRegisterIsRejected)
     open();
     BackupRegisters request({ 3, 2 }, BackupRegisters::READ, npos::dev::hal::BackupRegisters::COUNT, &value);
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(BackupRegisters::INVALID_REGISTER, statusOfResponse());
 }
@@ -97,7 +97,7 @@ TEST(BackupStore, ReadReturnsRegisterValue)
     registers.registers[5] = 0xBEEF;
     BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 5, &value);
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(BackupRegisters::SUCCESS, statusOfResponse());
     CHECK_EQUAL(0xBEEF, value);
@@ -109,7 +109,7 @@ TEST(BackupStore, WriteStoresValueInRegister)
     value = 0x1234;
     BackupRegisters request({ 3, 2 }, BackupRegisters::WRITE, 7, &value);
 
-    store.handle(request);
+    store.handleRequest(request);
 
     CHECK_EQUAL(BackupRegisters::SUCCESS, statusOfResponse());
     CHECK_EQUAL(0x1234, registers.registers[7]);
@@ -120,7 +120,7 @@ TEST(BackupStore, IgnoresOtherMessageTypes)
     npos::ipc::Message message;
     message.type = npos::dev::msg::Type::LED;
 
-    store.handle(message);
+    store.handleRequest(message);
 
     CHECK_EQUAL(0, api.responded.size());
 }

@@ -23,7 +23,7 @@ TEST_GROUP(RtcClock)
     void open()
     {
         npos::dev::msg::Open request("clock");
-        clock.handle(request);
+        clock.handleRequest(request);
         api.responded.clear();
     }
 
@@ -93,9 +93,9 @@ TEST(RtcClock, ConversionsAreInverse)
 
 TEST(RtcClock, AcceptsClockAndOpenMessages)
 {
-    CHECK_TRUE(clock.accepts(npos::dev::msg::Type::CLOCK));
-    CHECK_TRUE(clock.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_FALSE(clock.accepts(npos::dev::msg::Type::LED));
+    CHECK_TRUE(clock.acceptsRequest(npos::dev::msg::Type::CLOCK));
+    CHECK_TRUE(clock.acceptsRequest(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(clock.acceptsRequest(npos::dev::msg::Type::LED));
 }
 
 TEST(RtcClock, OpenInitializesRtcOnce)
@@ -110,7 +110,7 @@ TEST(RtcClock, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(0, api.responded.size());
     CHECK_EQUAL(0, rtc.initCount);
@@ -121,7 +121,7 @@ TEST(RtcClock, OpenReportsInitFailure)
     rtc.failInit = true;
     npos::dev::msg::Open request("clock");
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(npos::dev::msg::Open::INIT_FAILURE, statusOfResponse());
 }
@@ -130,7 +130,7 @@ TEST(RtcClock, GetTimeBeforeOpenFails)
 {
     Clock request({ 3, 0 }, Clock::GET_TIME);
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::NOT_INITIALIZED, statusOfResponse());
 }
@@ -142,7 +142,7 @@ TEST(RtcClock, GetTimeReturnsRtcTimestamp)
     rtc.date = { 29, 9, 26 };
     Clock request({ 3, 0 }, Clock::GET_TIME);
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::SUCCESS, statusOfResponse());
     CHECK_EQUAL(1790686224, api.responded[0].output.attributes.value);
@@ -154,10 +154,10 @@ TEST(RtcClock, GetTimeReportsDeviceFailures)
     Clock request({ 3, 0 }, Clock::GET_TIME);
 
     rtc.failGetTime = true;
-    clock.handle(request);
+    clock.handleRequest(request);
     rtc.failGetTime = false;
     rtc.failGetDate = true;
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[0].output.status);
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[1].output.status);
@@ -167,7 +167,7 @@ TEST(RtcClock, SetTimeBeforeOpenFails)
 {
     Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::NOT_INITIALIZED, statusOfResponse());
 }
@@ -177,7 +177,7 @@ TEST(RtcClock, SetTimeProgramsRtcAndEchoesTimestamp)
     open();
     Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::SUCCESS, statusOfResponse());
     CHECK_EQUAL(1790686224, api.responded[0].output.attributes.value);
@@ -190,7 +190,7 @@ TEST(RtcClock, SetTimeRejectsInvalidTimestamp)
     open();
     Clock request({ 3, 0 }, Clock::SET_TIME, 5);
 
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::INVALID_TIMESTAMP, statusOfResponse());
 }
@@ -201,10 +201,10 @@ TEST(RtcClock, SetTimeReportsDeviceFailures)
     Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
 
     rtc.failSetTime = true;
-    clock.handle(request);
+    clock.handleRequest(request);
     rtc.failSetTime = false;
     rtc.failSetDate = true;
-    clock.handle(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[0].output.status);
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[1].output.status);

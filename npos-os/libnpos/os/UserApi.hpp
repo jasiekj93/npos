@@ -17,10 +17,10 @@ namespace npos::os
         inline void bind(ipc::Service::Api& target) { api = &target; }
         inline bool isBound() const { return api != nullptr; }
 
-        void send(ipc::Message& message) override
+        void send(ipc::Service& sender, ipc::Message& message) override
         {
             if(api)
-                api->send(message);
+                api->send(sender, message);
         }
 
         void respond(ipc::Message& message) override

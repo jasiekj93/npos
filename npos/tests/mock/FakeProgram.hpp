@@ -32,7 +32,7 @@ namespace mock
         }
 
         void resume() override { resumed++; }
-        void handle(npos::ipc::Message& message) override { handled.push_back(message.type); }
+        void handleResponse(npos::ipc::Message& message) override { handled.push_back(message.type); }
 
         void finish(int code = 0) { host->exit(*this, code); }
 

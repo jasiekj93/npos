@@ -39,7 +39,7 @@ TEST(Pwd, IgnoresMessages)
 {
     npos::ipc::Message message;
 
-    pwd.handle(message);
+    pwd.handleResponse(message);
 
     CHECK_EQUAL(0, api.sent.size());
 }

@@ -23,9 +23,16 @@ TEST_GROUP(SystemBus)
     npos::ipc::Message makeMessage(npos::ipc::PortId sender, npos::ipc::PortId recipient, npos::ipc::Message::Type type = 0x1000)
     {
         npos::ipc::Message message;
-        message.sender = sender;
+        message.sender = { sender, npos::ipc::NULL_SERVICE };
         message.recipient = { recipient, npos::ipc::NULL_SERVICE };
         message.type = type;
+        return message;
+    }
+
+    npos::ipc::Message makeResponse(npos::ipc::PortId sender, npos::ipc::PortId recipient)
+    {
+        auto message = makeMessage(sender, recipient);
+        message.isResponse = true;
         return message;
     }
 };
@@ -139,21 +146,45 @@ TEST(SystemBus, RespondGoesBackToSenderPort)
 {
     bus.addPort(first);
     bus.addPort(second);
-    auto message = makeMessage(11, 10);
+    auto message = makeResponse(11, 10);
 
-    bus.respond(message);
+    bus.send(message);
 
     CHECK_EQUAL(0, first.received.size());
     CHECK_EQUAL(1, second.received.size());
     CHECK_EQUAL(1, second.received[0]->referenceCount);
 }
 
+TEST(SystemBus, ResponseIsRoutedBySenderNotByRecipient)
+{
+    bus.addPort(first);
+    bus.addPort(second);
+    auto message = makeResponse(10, 11);
+
+    bus.send(message);
+
+    CHECK_EQUAL(1, first.received.size());
+    CHECK_EQUAL(0, second.received.size());
+}
+
+TEST(SystemBus, ResponseIsNotBroadcast)
+{
+    bus.addPort(first);
+    bus.addPort(second);
+    auto message = makeResponse(10, npos::ipc::NULL_PORT);
+
+    bus.send(message);
+
+    CHECK_EQUAL(1, first.received.size());
+    CHECK_EQUAL(0, second.received.size());
+}
+
 TEST(SystemBus, RespondToUnknownSenderDoesNothing)
 {
     bus.addPort(first);
-    auto message = makeMessage(77, 10);
+    auto message = makeResponse(77, 10);
 
-    bus.respond(message);
+    bus.send(message);
 
     CHECK_EQUAL(0, first.received.size());
 }
@@ -241,9 +272,9 @@ TEST(SystemBus, RespondIsForwardedToSuccessorWhenSenderIsRemote)
     successor.addPort(remote);
     bus.addPort(first);
     bus.setSuccesor(successor);
-    auto message = makeMessage(20, 10);
+    auto message = makeResponse(20, 10);
 
-    bus.respond(message);
+    bus.send(message);
 
     CHECK_EQUAL(0, first.received.size());
     CHECK_EQUAL(1, remote.received.size());

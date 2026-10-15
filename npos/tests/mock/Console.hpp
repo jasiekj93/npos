@@ -34,7 +34,8 @@ namespace mock
             bus.sent.erase(bus.sent.begin());
             auto& response = reinterpret_cast<npos::dev::msg::Open&>(message);
             response.setStatus(success ? npos::dev::msg::Open::SUCCESS : npos::dev::msg::Open::INIT_FAILURE).setOpened({ 5, 0 });
-            message.sender = terminal.getId();
+            message.sender.portId = terminal.getId();
+            message.isResponse = true;
             feed(message);
             pump();
         }
@@ -62,7 +63,8 @@ namespace mock
                     continue;
 
                 auto& request = reinterpret_cast<npos::dev::msg::Transciever&>(message);
-                message.sender = terminal.getId();
+                message.sender.portId = terminal.getId();
+                message.isResponse = true;
 
                 if(request.getOperation() == npos::dev::msg::Transciever::WRITE)
                 {

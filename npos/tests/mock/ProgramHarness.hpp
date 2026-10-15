@@ -42,7 +42,7 @@ namespace mock
             auto message = take();
             auto& response = reinterpret_cast<npos::fs::msg::file::Open&>(message);
             response.setStatus(status).setOpened(opened);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerDirOpen(npos::fs::msg::Status status, npos::ipc::Oid opened = { 5, 0 })
@@ -50,7 +50,7 @@ namespace mock
             auto message = take();
             auto& response = reinterpret_cast<npos::fs::msg::dir::Open&>(message);
             response.setStatus(status).setOpened(opened);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerClose(npos::fs::msg::Status status = npos::fs::msg::Status::SUCCESS)
@@ -58,7 +58,7 @@ namespace mock
             auto message = take();
             auto& response = reinterpret_cast<npos::fs::msg::file::Close&>(message);
             response.setStatus(status);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerDirClose(npos::fs::msg::Status status = npos::fs::msg::Status::SUCCESS)
@@ -66,7 +66,7 @@ namespace mock
             auto message = take();
             auto& response = reinterpret_cast<npos::fs::msg::dir::Close&>(message);
             response.setStatus(status);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerRead(const char* data, npos::fs::msg::Status status = npos::fs::msg::Status::SUCCESS)
@@ -76,7 +76,7 @@ namespace mock
             auto length = std::strlen(data);
             std::memcpy(message.output.data, data, length);
             response.setOutputLength(length).setStatus(status);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerWrite(npos::fs::msg::Status status = npos::fs::msg::Status::SUCCESS)
@@ -84,7 +84,7 @@ namespace mock
             auto message = take();
             auto& response = reinterpret_cast<npos::fs::msg::file::Write&>(message);
             response.setOutputLength(message.input.size).setStatus(status);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         void answerDirRead(npos::fs::msg::Status status, npos::fs::msg::dir::Entry::Type type = npos::fs::msg::dir::Entry::FILE,
@@ -97,7 +97,7 @@ namespace mock
             entry.size = size;
             std::strncpy(entry.name, name, sizeof(entry.name) - 1);
             response.setStatus(status);
-            program.handle(message);
+            program.handleResponse(message);
         }
 
         npos::cli::Program& program;

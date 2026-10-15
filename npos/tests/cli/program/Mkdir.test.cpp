@@ -23,7 +23,7 @@ TEST_GROUP(Mkdir)
     {
         auto message = filesystem.take();
         reinterpret_cast<msg::dir::Make&>(message).setStatus(status);
-        mkdir.handle(message);
+        mkdir.handleResponse(message);
     }
 };
 
@@ -90,10 +90,10 @@ TEST(Mkdir, IgnoresUnexpectedResponses)
     npos::ipc::Message message;
     message.type = msg::Type::DIR_MAKE;
 
-    mkdir.handle(message);
+    mkdir.handleResponse(message);
     mkdir.start(host, "b");
     message.type = msg::Type::DIR_OPEN;
-    mkdir.handle(message);
+    mkdir.handleResponse(message);
 
     CHECK_EQUAL(0, host.exitCount);
 }

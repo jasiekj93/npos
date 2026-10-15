@@ -116,6 +116,56 @@ TEST(ServiceTask, ProcessDispatchesToAddressedService)
     CHECK_EQUAL(1, second.handled.size());
 }
 
+TEST(ServiceTask, ProcessDispatchesResponseToSenderService)
+{
+    task.subscribe(first);
+    task.subscribe(second);
+    npos::ipc::Message message;
+    message.type = 0x1000;
+    message.isResponse = true;
+    message.sender = { 6, 1 };
+    message.recipient = { 7, 0 };
+
+    task.receive(message);
+    task.process();
+
+    CHECK_EQUAL(0, first.handledResponses.size());
+    CHECK_EQUAL(1, second.handledResponses.size());
+    CHECK_EQUAL(0, first.handled.size());
+    CHECK_EQUAL(0, second.handled.size());
+    CHECK_EQUAL(1, bus.released.size());
+}
+
+TEST(ServiceTask, ProcessIgnoresResponseFromOutOfRangeSenderService)
+{
+    task.subscribe(first);
+    npos::ipc::Message message;
+    message.type = 0x1000;
+    message.isResponse = true;
+    message.sender = { 6, 9 };
+
+    task.receive(message);
+    task.process();
+
+    CHECK_EQUAL(0, first.handledResponses.size());
+    CHECK_EQUAL(0, first.handled.size());
+    CHECK_EQUAL(1, bus.released.size());
+}
+
+TEST(ServiceTask, ProcessIgnoresResponseWithoutSenderService)
+{
+    task.subscribe(first);
+    npos::ipc::Message message;
+    message.type = 0x1000;
+    message.isResponse = true;
+
+    task.receive(message);
+    task.process();
+
+    CHECK_EQUAL(0, first.handledResponses.size());
+    CHECK_EQUAL(0, first.handled.size());
+}
+
 TEST(ServiceTask, ProcessIgnoresOutOfRangeServiceId)
 {
     task.subscribe(first);
@@ -167,14 +217,31 @@ TEST(ServiceTask, ProcessWithoutMessagesDoesNothing)
 
 TEST(ServiceTask, SendToOtherPortGoesThroughBusWithSenderSet)
 {
+    task.subscribe(first);
+    task.subscribe(second);
     npos::ipc::Message message;
     message.recipient = { 7, 0 };
 
-    task.send(message);
+    task.send(second, message);
 
     CHECK_EQUAL(1, bus.sent.size());
     POINTERS_EQUAL(&message, bus.sent[0]);
-    CHECK_EQUAL(6, message.sender);
+    CHECK_EQUAL(6, message.sender.portId);
+    CHECK_EQUAL(1, message.sender.serviceId);
+    CHECK_FALSE(message.isResponse);
+}
+
+TEST(ServiceTask, SendMarksMessageAsRequest)
+{
+    task.subscribe(first);
+    npos::ipc::Message message;
+    message.recipient = { 7, 0 };
+    message.isResponse = true;
+
+    task.send(first, message);
+
+    CHECK_FALSE(message.isResponse);
+    CHECK_EQUAL(0, bus.responded.size());
 }
 
 TEST(ServiceTask, SendWithinTheSameTaskIsDispatchedWithoutBus)
@@ -184,17 +251,19 @@ TEST(ServiceTask, SendWithinTheSameTaskIsDispatchedWithoutBus)
     message.type = 0x1000;
     message.recipient = { 6, 0 };
 
-    task.send(message);
+    task.send(first, message);
 
     CHECK_EQUAL(0, bus.sent.size());
     CHECK_EQUAL(1, first.handled.size());
+    CHECK_EQUAL(0, first.handledResponses.size());
 }
 
 TEST(ServiceTask, BroadcastSendGoesThroughBus)
 {
+    task.subscribe(first);
     npos::ipc::Message message;
 
-    task.send(message);
+    task.send(first, message);
 
     CHECK_EQUAL(1, bus.sent.size());
 }
@@ -204,22 +273,26 @@ TEST(ServiceTask, RespondToOwnSenderIsDispatchedLocally)
     task.subscribe(first);
     npos::ipc::Message message;
     message.type = 0x1000;
-    message.sender = 6;
-    message.recipient = { 6, 0 };
+    message.sender = { 6, 0 };
+    message.recipient = { 7, 0 };
 
     task.respond(message);
 
+    CHECK_TRUE(message.isResponse);
     CHECK_EQUAL(0, bus.responded.size());
-    CHECK_EQUAL(1, first.handled.size());
+    CHECK_EQUAL(0, bus.sent.size());
+    CHECK_EQUAL(1, first.handledResponses.size());
+    CHECK_EQUAL(0, first.handled.size());
 }
 
 TEST(ServiceTask, RespondToOtherSenderGoesThroughBus)
 {
     npos::ipc::Message message;
-    message.sender = 2;
+    message.sender = { 2, 0 };
 
     task.respond(message);
 
+    CHECK_TRUE(message.isResponse);
     CHECK_EQUAL(1, bus.responded.size());
     POINTERS_EQUAL(&message, bus.responded[0]);
 }

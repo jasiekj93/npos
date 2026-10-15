@@ -15,8 +15,14 @@ namespace mock
     class FakeBus : public npos::ipc::Bus
     {
     public:
-        void send(npos::ipc::Message& message) override { sent.push_back(&message); }
-        void respond(npos::ipc::Message& message) override { responded.push_back(&message); }
+        // Responses (isResponse) are recorded separately from requests.
+        void send(npos::ipc::Message& message) override
+        {
+            if(message.isResponse)
+                responded.push_back(&message);
+            else
+                sent.push_back(&message);
+        }
         void release(npos::ipc::Message* message) override { released.push_back(message); }
 
         etl::vector<npos::ipc::Message*, 16> sent;

@@ -70,7 +70,7 @@ TEST_GROUP(Terminal)
     {
         npos::ipc::Oid sender{10, 0};
         npos::cli::msg::Syslog message(sender, npos::cli::log::Level::INFO, text, false);
-        message.sender = 10;
+        message.sender.portId = 10;
         terminal.receive(message);
         terminal.process();
         console.pump();
@@ -612,7 +612,8 @@ TEST(Terminal, ResponsesAreForwardedToRunningProgram)
     console.type("fake\r");
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
-    response.sender = terminal.getId();
+    response.sender.portId = terminal.getId();
+    response.isResponse = true;
 
     console.feed(response);
 
@@ -625,7 +626,8 @@ TEST(Terminal, ResponsesWithoutRunningProgramAreDropped)
     start();
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
-    response.sender = terminal.getId();
+    response.sender.portId = terminal.getId();
+    response.isResponse = true;
 
     console.feed(response);
 
@@ -637,7 +639,7 @@ TEST(Terminal, MessagesFromOtherPortsAreIgnored)
     terminal.initialize();
     npos::ipc::Message foreign = bus.sent[0];
     bus.sent.clear();
-    foreign.sender = 9;
+    foreign.sender.portId = 9;
     reinterpret_cast<npos::dev::msg::Open&>(foreign).setStatus(npos::dev::msg::Open::SUCCESS).setOpened({ 5, 0 });
 
     console.feed(foreign);
@@ -709,7 +711,7 @@ TEST(Terminal, LogWithoutTextIsIgnored)
     start();
     npos::ipc::Message message;
     message.type = npos::cli::msg::Type::SYSLOG;
-    message.sender = 9;
+    message.sender.portId = 9;
     message.input.data = nullptr;
 
     console.feed(message);
@@ -884,7 +886,7 @@ TEST(Terminal, IsReadyOnlyWithQueuedMessages)
 {
     npos::ipc::Message message;
     message.type = npos::dev::msg::Type::OPEN;
-    message.sender = terminal.getId();
+    message.sender.portId = terminal.getId();
 
     CHECK_FALSE(terminal.isReady());
 
@@ -909,7 +911,8 @@ TEST(Terminal, ProcessedMessagesAreReleasedToTheBus)
     start();
     npos::ipc::Message response;
     response.type = npos::fs::msg::Type::FILE_OPEN;
-    response.sender = terminal.getId();
+    response.sender.portId = terminal.getId();
+    response.isResponse = true;
     auto before = bus.released.size();
 
     console.feed(response);
@@ -922,7 +925,7 @@ TEST(Terminal, MessagesFromOtherPortsAreReleasedWithoutQueueing)
 {
     npos::ipc::Message foreign;
     foreign.type = npos::dev::msg::Type::OPEN;
-    foreign.sender = 9;
+    foreign.sender.portId = 9;
 
     terminal.receive(foreign);
 
@@ -935,7 +938,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
     start();
     char text[] = "original";
     npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, text, false);
-    message.sender = 10;
+    message.sender.portId = 10;
 
     terminal.receive(message);
     text[0] = 'X';
@@ -1011,19 +1014,24 @@ TEST(Terminal, RequestsAreSentFromTheTerminalPort)
 {
     terminal.initialize();
 
-    CHECK_EQUAL(3, bus.sent[0].sender);
+    CHECK_EQUAL(3, bus.sent[0].sender.portId);
+    CHECK_FALSE(bus.sent[0].isResponse);
 }
 
 TEST(Terminal, ActsAsApiOfItsPrograms)
 {
-    npos::ipc::Service::Api& api = terminal;
+    npos::ipc::Service::Api& terminalApi = terminal;
+    mock::FakeProgram owner{terminal};
+    owner.setId(4);
     npos::ipc::Message message;
     message.type = npos::fs::msg::Type::FILE_OPEN;
 
-    api.send(message);
-    api.respond(message);
+    terminalApi.send(owner, message);
+    terminalApi.respond(message);
 
-    CHECK_EQUAL(3, api.getPortId());
-    CHECK_EQUAL(3, bus.sent[0].sender);
+    CHECK_EQUAL(3, terminalApi.getPortId());
+    CHECK_EQUAL(3, bus.sent[0].sender.portId);
+    CHECK_EQUAL(4, bus.sent[0].sender.serviceId);
     CHECK_EQUAL(1, bus.responded.size());
+    CHECK_TRUE(bus.responded[0].isResponse);
 }

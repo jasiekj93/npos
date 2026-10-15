@@ -153,13 +153,13 @@ TEST(Ls, IgnoresResponsesOutOfOrder)
     message.type = msg::Type::DIR_READ;
     message.output.status = msg::Status::SUCCESS;
 
-    ls.handle(message);
+    ls.handleResponse(message);
     message.type = msg::Type::DIR_OPEN;
-    ls.handle(message);
+    ls.handleResponse(message);
     message.type = msg::Type::DIR_CLOSE;
-    ls.handle(message);
+    ls.handleResponse(message);
     message.type = npos::ipc::DEVICE_MESSAGE_TYPE;
-    ls.handle(message);
+    ls.handleResponse(message);
 
     CHECK_TRUE(host.outputIs(""));
     CHECK_EQUAL(0, host.exitCount);

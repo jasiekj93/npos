@@ -64,7 +64,7 @@ namespace npos::ipc
         void receive(const Message& message) override
         {
             if(messageQueue.full())
-                return; //TODO handle
+                return bus.release(const_cast<Message*>(&message)); 
             else
                 messageQueue.push(const_cast<Message*>(&message));
         }

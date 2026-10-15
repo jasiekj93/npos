@@ -29,7 +29,7 @@ TEST_GROUP(UartInterrupt)
     void open()
     {
         npos::dev::msg::Open request("uart0");
-        service.handle(request);
+        service.handleRequest(request);
         api.responded.clear();
     }
 
@@ -46,17 +46,17 @@ TEST_GROUP(UartInterrupt)
 
 TEST(UartInterrupt, AcceptsTranscieverAndOpenMessages)
 {
-    CHECK_TRUE(service.accepts(npos::dev::msg::Type::TRANSCIEVER));
-    CHECK_TRUE(service.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_FALSE(service.accepts(npos::dev::msg::Type::LED));
+    CHECK_TRUE(service.acceptsRequest(npos::dev::msg::Type::TRANSCIEVER));
+    CHECK_TRUE(service.acceptsRequest(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(service.acceptsRequest(npos::dev::msg::Type::LED));
 }
 
 TEST(UartInterrupt, OpenInitializesUartOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("uart0");
 
-    service.handle(request);
-    service.handle(request);
+    service.handleRequest(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(1, uart.initCount);
     CHECK_EQUAL(2, api.responded.size());
@@ -67,7 +67,7 @@ TEST(UartInterrupt, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("uart1");
 
-    service.handle(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(0, api.responded.size());
 }
@@ -77,7 +77,7 @@ TEST(UartInterrupt, OpenReportsInitFailure)
     uart.failInit = true;
     npos::dev::msg::Open request("uart0");
 
-    service.handle(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(npos::dev::msg::Open::INIT_FAILURE, statusOfResponse());
 }
@@ -86,7 +86,7 @@ TEST(UartInterrupt, TransferBeforeOpenIsRejected)
 {
     auto request = read();
 
-    service.handle(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(Transciever::NOT_INITIALIZED, statusOfResponse());
 }
@@ -96,7 +96,7 @@ TEST(UartInterrupt, ReadStartsReceptionIntoRequestBuffer)
     open();
     auto request = read(4);
 
-    service.handle(request);
+    service.handleRequest(request);
 
     POINTERS_EQUAL(rx, uart.received);
     CHECK_EQUAL(4, uart.receivedSize);
@@ -108,7 +108,7 @@ TEST(UartInterrupt, ReceiveCompleteAnswersWithLength)
 {
     open();
     auto request = read(4);
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(UartInterrupt::RECEIVE_COMPLETE);
 
@@ -122,9 +122,9 @@ TEST(UartInterrupt, SecondReadWhileBusyIsRejected)
     open();
     auto first = read();
     auto second = read();
-    service.handle(first);
+    service.handleRequest(first);
 
-    service.handle(second);
+    service.handleRequest(second);
 
     CHECK_EQUAL(Transciever::BUSY, statusOfResponse());
     CHECK_EQUAL(0, api.responded[0].output.readWrite.length);
@@ -136,14 +136,14 @@ TEST(UartInterrupt, ReadFailureIsReportedAndFreesTheSlot)
     uart.failReceive = true;
     auto request = read();
 
-    service.handle(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(Transciever::DEVICE_ERROR, statusOfResponse());
     CHECK_EQUAL(0, request.referenceCount);
 
     uart.failReceive = false;
     auto again = read();
-    service.handle(again);
+    service.handleRequest(again);
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(1, again.referenceCount);
@@ -154,7 +154,7 @@ TEST(UartInterrupt, WriteStartsTransmission)
     open();
     auto request = write(6);
 
-    service.handle(request);
+    service.handleRequest(request);
 
     POINTERS_EQUAL(tx, uart.transmitted);
     CHECK_EQUAL(6, uart.transmittedSize);
@@ -165,7 +165,7 @@ TEST(UartInterrupt, TransmitCompleteAnswersWithLength)
 {
     open();
     auto request = write(6);
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(UartInterrupt::TRANSMIT_COMPLETE);
 
@@ -179,9 +179,9 @@ TEST(UartInterrupt, SecondWriteWhileBusyIsRejected)
     open();
     auto first = write();
     auto second = write();
-    service.handle(first);
+    service.handleRequest(first);
 
-    service.handle(second);
+    service.handleRequest(second);
 
     CHECK_EQUAL(Transciever::BUSY, statusOfResponse());
 }
@@ -192,7 +192,7 @@ TEST(UartInterrupt, WriteFailureIsReported)
     uart.failTransmit = true;
     auto request = write();
 
-    service.handle(request);
+    service.handleRequest(request);
 
     CHECK_EQUAL(Transciever::DEVICE_ERROR, statusOfResponse());
     CHECK_EQUAL(0, request.referenceCount);
@@ -203,8 +203,8 @@ TEST(UartInterrupt, ReadAndWriteCanRunTogether)
     open();
     auto reading = read();
     auto writing = write();
-    service.handle(reading);
-    service.handle(writing);
+    service.handleRequest(reading);
+    service.handleRequest(writing);
 
     interrupt(UartInterrupt::TRANSMIT_COMPLETE);
     interrupt(UartInterrupt::RECEIVE_COMPLETE);
@@ -218,7 +218,7 @@ TEST(UartInterrupt, ErrorInterruptFailsPendingRead)
 {
     open();
     auto request = read();
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(UartInterrupt::ERROR);
 
@@ -230,7 +230,7 @@ TEST(UartInterrupt, ErrorInterruptFailsPendingWriteWhenNoRead)
 {
     open();
     auto request = write();
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(UartInterrupt::ERROR);
 
@@ -253,7 +253,7 @@ TEST(UartInterrupt, InterruptFromOtherPeripheralIsIgnored)
 {
     open();
     auto request = write();
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(UartInterrupt::TRANSMIT_COMPLETE, Interrupt::HASH);
 
@@ -264,7 +264,7 @@ TEST(UartInterrupt, UnknownEventIsIgnored)
 {
     open();
     auto request = write();
-    service.handle(request);
+    service.handleRequest(request);
 
     interrupt(0x7F);
 

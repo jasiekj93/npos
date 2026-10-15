@@ -162,7 +162,7 @@ TEST(Cat, IgnoresResponsesOutOfOrder)
     message.output.status = msg::Status::SUCCESS;
     message.output.readWrite.length = 5;
 
-    cat.handle(message);
+    cat.handleResponse(message);
 
     CHECK_TRUE(host.outputIs(""));
     CHECK_FALSE(filesystem.hasRequest());
@@ -175,7 +175,7 @@ TEST(Cat, IgnoresUnrelatedMessageTypes)
     npos::ipc::Message message;
     message.type = npos::ipc::DEVICE_MESSAGE_TYPE;
 
-    cat.handle(message);
+    cat.handleResponse(message);
 
     CHECK_FALSE(filesystem.hasRequest());
 }

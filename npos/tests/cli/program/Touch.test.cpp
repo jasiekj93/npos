@@ -90,7 +90,7 @@ TEST(Touch, IgnoresUnexpectedResponses)
     npos::ipc::Message message;
     message.type = msg::Type::FILE_CLOSE;
 
-    touch.handle(message);
+    touch.handleResponse(message);
 
     CHECK_EQUAL(0, host.exitCount);
 }

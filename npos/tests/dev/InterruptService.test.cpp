@@ -18,8 +18,9 @@ namespace
     public:
         using npos::dev::InterruptService::InterruptService;
 
-        void handle(npos::ipc::Message&) override {}
-        bool accepts(npos::ipc::Message::Type) const override { return false; }
+        void handleRequest(npos::ipc::Message&) override {}
+        void handleResponse(npos::ipc::Message&) override {}
+        bool acceptsRequest(npos::ipc::Message::Type) const override { return false; }
 
         void onInterrupt(const npos::dev::hal::Interrupt& interrupt) override { codes.push_back(interrupt.code); }
 

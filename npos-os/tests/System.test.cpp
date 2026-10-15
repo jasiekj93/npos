@@ -38,7 +38,7 @@ TEST_GROUP(System)
     // Stops the system once the probe sees the expected response type.
     void stopOn(os::System& system, ipc::Message::Type type, std::function<void(ipc::Message&)> check = nullptr)
     {
-        probe.onMessage = [&system, type, check](mock::Probe&, ipc::Message& message)
+        probe.onResponse = [&system, type, check](mock::Probe&, ipc::Message& message)
         {
             if(message.type != type)
                 return;
@@ -219,7 +219,7 @@ TEST(System, UserServiceCanReadTheClock)
     npos::dev::Timestamp timestamp = 0;
 
     probe.onInitialize = [&](mock::Probe& self) { dev::api::open(self, "clock"); };
-    probe.onMessage = [&](mock::Probe& self, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe& self, ipc::Message& message)
     {
         if(message.type == dev::msg::Type::OPEN)
             dev::api::getTime(self, static_cast<dev::msg::Open&>(message).getOpened());
@@ -248,7 +248,7 @@ TEST(System, SeveralDevicesOfOneKindAreServedByName)
         dev::api::open(self, "rtc1");
         dev::api::open(self, "rtc2");
     };
-    probe.onMessage = [&](mock::Probe&, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe&, ipc::Message& message)
     {
         if(message.type == dev::msg::Type::OPEN and openStatus(message) == dev::msg::Open::SUCCESS)
             opened++;
@@ -297,7 +297,7 @@ TEST(System, SeveralInterruptUartsAndHashesAreServed)
         dev::api::open(self, "uart1");
         dev::api::open(self, "hash");
     };
-    probe.onMessage = [&](mock::Probe&, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe&, ipc::Message& message)
     {
         if(message.type == dev::msg::Type::OPEN and openStatus(message) == dev::msg::Open::SUCCESS)
             opened++;
@@ -324,7 +324,7 @@ TEST(System, PollingUartsTransmitSynchronously)
     dev::msg::Transciever::Status status = dev::msg::Transciever::DEVICE_ERROR;
 
     probe.onInitialize = [&](mock::Probe& self) { dev::api::open(self, "ttyS0"); };
-    probe.onMessage = [&](mock::Probe& self, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe& self, ipc::Message& message)
     {
         if(message.type == dev::msg::Type::OPEN)
             dev::api::transcieverWrite(self, static_cast<dev::msg::Open&>(message).getOpened(), etl::span<const uint8_t>(data, sizeof(data)));
@@ -350,7 +350,7 @@ TEST(System, BackupRegistersAreWrittenAndRead)
     dev::msg::BackupRegisters::Value written = 77;
 
     probe.onInitialize = [&](mock::Probe& self) { dev::api::open(self, "backup"); };
-    probe.onMessage = [&](mock::Probe& self, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe& self, ipc::Message& message)
     {
         if(message.type == dev::msg::Type::OPEN)
             dev::api::backupWrite(self, static_cast<dev::msg::Open&>(message).getOpened(), 4, written);
@@ -409,7 +409,7 @@ TEST(System, FilesystemSavesFilesWrittenByUserServices)
     auto state = State::OPEN_FOR_WRITE;
 
     probe.onInitialize = [&](mock::Probe& self) { fs::api::file::open(self, "f.txt", fs::Flags::WRITE_ONLY | fs::Flags::CREATE); };
-    probe.onMessage = [&](mock::Probe& self, ipc::Message& message)
+    probe.onResponse = [&](mock::Probe& self, ipc::Message& message)
     {
         if(message.type == fs::msg::Type::FILE_OPEN and state == State::OPEN_FOR_WRITE)
         {

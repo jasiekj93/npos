@@ -25,16 +25,16 @@ TEST_GROUP(LedHandler)
 
 TEST(LedHandler, AcceptsLedAndOpenMessages)
 {
-    CHECK_TRUE(handler.accepts(npos::dev::msg::Type::LED));
-    CHECK_TRUE(handler.accepts(npos::dev::msg::Type::OPEN));
-    CHECK_FALSE(handler.accepts(npos::dev::msg::Type::CLOCK));
+    CHECK_TRUE(handler.acceptsRequest(npos::dev::msg::Type::LED));
+    CHECK_TRUE(handler.acceptsRequest(npos::dev::msg::Type::OPEN));
+    CHECK_FALSE(handler.acceptsRequest(npos::dev::msg::Type::CLOCK));
 }
 
 TEST(LedHandler, OpenWithItsNameAnswersWithItsOid)
 {
     npos::dev::msg::Open request("leds");
 
-    handler.handle(request);
+    handler.handleRequest(request);
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(npos::dev::msg::Open::SUCCESS, statusOfResponse());
@@ -46,7 +46,7 @@ TEST(LedHandler, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
 
-    handler.handle(request);
+    handler.handleRequest(request);
 
     CHECK_EQUAL(0, api.responded.size());
 }
@@ -57,9 +57,9 @@ TEST(LedHandler, SwitchesLedsOnOffAndToggles)
     npos::dev::msg::Led off({ 3, 1 }, 1, npos::dev::msg::Led::OFF);
     npos::dev::msg::Led toggle({ 3, 1 }, 0, npos::dev::msg::Led::TOGGLE);
 
-    handler.handle(on);
-    handler.handle(toggle);
-    handler.handle(off);
+    handler.handleRequest(on);
+    handler.handleRequest(toggle);
+    handler.handleRequest(off);
 
     CHECK_EQUAL(1, led1.onCount);
     CHECK_EQUAL(1, led1.offCount);
@@ -72,7 +72,7 @@ TEST(LedHandler, UnknownLedIsReported)
 {
     npos::dev::msg::Led request({ 3, 1 }, 5, npos::dev::msg::Led::ON);
 
-    handler.handle(request);
+    handler.handleRequest(request);
 
     CHECK_EQUAL(npos::dev::msg::Led::LED_NOT_FOUND, statusOfResponse());
     CHECK_EQUAL(0, led0.onCount + led1.onCount);
@@ -83,7 +83,7 @@ TEST(LedHandler, IgnoresOtherMessageTypes)
     npos::ipc::Message message;
     message.type = npos::dev::msg::Type::CLOCK;
 
-    handler.handle(message);
+    handler.handleRequest(message);
 
     CHECK_EQUAL(0, api.responded.size());
 }

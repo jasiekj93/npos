@@ -16,8 +16,16 @@ namespace mock
     class RecordingApi : public npos::ipc::Service::Api
     {
     public:
-        void send(npos::ipc::Message& message) override { sent.push_back(message); }
-        void respond(npos::ipc::Message& message) override { responded.push_back(message); }
+        void send(npos::ipc::Service& sender, npos::ipc::Message& message) override
+        {
+            message.sender = sender.getOid();
+            sent.push_back(message);
+        }
+        void respond(npos::ipc::Message& message) override
+        {
+            message.isResponse = true;
+            responded.push_back(message);
+        }
         npos::ipc::PortId getPortId() const override { return portId; }
 
         npos::ipc::PortId portId = 3;
