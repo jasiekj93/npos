@@ -131,7 +131,7 @@ namespace npos::ipc
 
     // Keeps the message in the pool after the handler returns; pair it with releaseMessage().
     template<typename T>
-    inline T* storeMessage(Message& message)
+    inline T* storeMessage(T& message)
     {
         static_assert(std::is_base_of<Message, T>::value, "T must be derived from Message");
         message.referenceCount++;
