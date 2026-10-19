@@ -35,14 +35,13 @@ TEST(Message, StoreMessageTakesAReferenceAndReturnsTheDerivedType)
     struct Derived : public npos::ipc::Message {};
 
     Derived message;
-    npos::ipc::Message& base = message;
 
-    Derived* stored = npos::ipc::storeMessage<Derived>(base);
+    Derived* stored = npos::ipc::storeMessage<Derived>(message);
 
     POINTERS_EQUAL(&message, stored);
     CHECK_EQUAL(1, message.referenceCount);
 
-    npos::ipc::storeMessage<Derived>(base);
+    npos::ipc::storeMessage<Derived>(message);
 
     CHECK_EQUAL(2, message.referenceCount);
 }

@@ -7,6 +7,7 @@
  */
 
 #include <etl/string_stream.h>
+#include <etl/vector.h>
 
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/cli/msg/Syslog.hpp>

@@ -13,6 +13,7 @@
 
 #include <libnpos/fs/msg/Type.hpp>
 #include <libnpos/fs/msg/Status.hpp>
+#include <libnpos/fs/utils/String.hpp>
 #include <libnpos/ipc/Message.hpp>
 
 namespace npos::fs::msg::dir
@@ -33,7 +34,7 @@ namespace npos::fs::msg::dir
 
         inline etl::string_view getName() const
         {
-            return etl::string_view(name, strnlen(name, NAME_SIZE));
+            return etl::string_view(name, utils::strnlen(name, NAME_SIZE));
         }
     };
 
