@@ -236,11 +236,12 @@ namespace npos::cli::task
         }
 
         // SYSLOG is the only request the terminal serves, everything else queued is an answer.
+        // Once the terminal device is open, an Open answer belongs to the running program.
         void handle(ipc::Message& message)
         {
             if(message.type == cli::msg::Type::SYSLOG)
                 onLog(message);
-            else if(message.type == dev::msg::Type::OPEN)
+            else if(message.type == dev::msg::Type::OPEN and not opened)
                 onOpen(static_cast<dev::msg::Open&>(message));
             else if(message.type == dev::msg::Type::TRANSCIEVER)
                 onTransciever(static_cast<dev::msg::Transciever&>(message));

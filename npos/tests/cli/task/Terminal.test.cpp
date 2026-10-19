@@ -639,6 +639,22 @@ TEST(Terminal, ResponsesAreForwardedToRunningProgram)
     CHECK_EQUAL(npos::fs::msg::Type::FILE_OPEN, program.handled[0]);
 }
 
+TEST(Terminal, OpenAnswerGoesToTheRunningProgramOnceTheDeviceIsOpen)
+{
+    start();
+    console.type("fake\r");
+    console.take();
+    npos::dev::msg::Open response("clock");
+    response.setStatus(npos::dev::msg::Open::SUCCESS).setOpened({ 4, 1 });
+    response.sender.portId = terminal.getId();
+
+    console.feed(response);
+
+    CHECK_EQUAL(1, program.handled.size());
+    CHECK_EQUAL(npos::dev::msg::Type::OPEN, program.handled[0]);
+    CHECK_OUTPUT("");
+}
+
 TEST(Terminal, ResponsesWithoutRunningProgramAreDropped)
 {
     start();

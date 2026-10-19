@@ -37,16 +37,14 @@ namespace npos::dev::service
                     if(readRequest != nullptr)
                         return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
-                    request.referenceCount++;
-                    readRequest = &request;
+                    readRequest = ipc::storeMessage<msg::Transciever>(request);
 
                     auto buffer = request.getOutputBuffer();
                     auto result = uart.receiveIt(buffer.data(), request.getInputLength());
 
                     if(not result)
                     {
-                        request.referenceCount--;
-                        readRequest = nullptr;
+                        ipc::releaseMessage(&readRequest);
                         return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
@@ -55,16 +53,14 @@ namespace npos::dev::service
                     if(writeRequest != nullptr)
                         return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
-                    request.referenceCount++;
-                    writeRequest = &request;
+                    writeRequest = ipc::storeMessage<msg::Transciever>(request);
                     
                     auto buffer = request.getInputBuffer();
                     auto result = uart.transmitIt(buffer.data(), buffer.size());
 
                     if(not result)
                     {
-                        request.referenceCount--;
-                        writeRequest = nullptr;
+                        ipc::releaseMessage(&writeRequest);
                         return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
@@ -97,8 +93,7 @@ namespace npos::dev::service
                     return;
 
                 auto* request = writeRequest;
-                request->referenceCount--;
-                writeRequest = nullptr;
+                ipc::releaseMessage(&writeRequest);
                 return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
 
@@ -108,8 +103,7 @@ namespace npos::dev::service
                     return;
 
                 auto* request = readRequest;
-                request->referenceCount--;
-                readRequest = nullptr;
+                ipc::releaseMessage(&readRequest);
                 return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
             
@@ -118,16 +112,14 @@ namespace npos::dev::service
                 if(readRequest != nullptr)
                 {
                     auto* request = readRequest;
-                    request->referenceCount--;
-                    readRequest = nullptr;
+                    ipc::releaseMessage(&readRequest);
                     return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
 
                 if(writeRequest != nullptr)
                 {
                     auto* request = writeRequest;
-                    request->referenceCount--;
-                    writeRequest = nullptr;
+                    ipc::releaseMessage(&writeRequest);
                     return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
             }

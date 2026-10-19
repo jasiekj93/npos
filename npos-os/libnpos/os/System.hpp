@@ -39,6 +39,8 @@
 #include <libnpos/cli/program/Cd.hpp>
 #include <libnpos/cli/program/Pwd.hpp>
 #include <libnpos/cli/program/Mkdir.hpp>
+#include <libnpos/cli/program/Random.hpp>
+#include <libnpos/cli/program/Date.hpp>
 
 #include <libnpos/os/UserApi.hpp>
 
@@ -102,6 +104,8 @@ namespace npos::os
         bool cli = false;
         // Name of the transciever device (e.g. uart) the terminal runs on.
         etl::string_view terminalDevice = "uart0";
+        // Name of the clock device (rtc) the date program uses.
+        etl::string_view clockDevice = "clock";
         Priorities priorities;
     };
 
@@ -223,8 +227,8 @@ namespace npos::os
     private:
         struct Programs
         {
-            explicit Programs(ipc::Service::Api& api)
-                : cat(api), echo(api), touch(api), ls(api), cd(api), pwd(api), mkdir(api)
+            explicit Programs(ipc::Service::Api& api, etl::string_view clockDevice)
+                : cat(api), echo(api), touch(api), ls(api), cd(api), pwd(api), mkdir(api), random(api), date(api, clockDevice)
             {
             }
 
@@ -235,6 +239,8 @@ namespace npos::os
             cli::program::Cd cd;
             cli::program::Pwd pwd;
             cli::program::Mkdir mkdir;
+            cli::program::Random random;
+            cli::program::Date date;
         };
 
         void addTask(nps::Task& task, ipc::Port& port)
@@ -323,7 +329,7 @@ namespace npos::os
             {
                 terminal.emplace(config.priorities.terminal, memory.terminalQueue, memory.logPayloads, memory.programs,
                     bus, config.terminalDevice);
-                programs.emplace(*terminal);
+                programs.emplace(*terminal, config.clockDevice);
 
                 terminal->addProgram(programs->cat);
                 terminal->addProgram(programs->echo);
@@ -332,6 +338,8 @@ namespace npos::os
                 terminal->addProgram(programs->cd);
                 terminal->addProgram(programs->pwd);
                 terminal->addProgram(programs->mkdir);
+                terminal->addProgram(programs->random);
+                terminal->addProgram(programs->date);
                 addTask(*terminal, *terminal);
             }
 

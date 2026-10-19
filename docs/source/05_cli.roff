@@ -138,6 +138,29 @@ T}
 mkdir <katalog>	T{
 tworzy katalog
 T}
+random <rozmiar> [> | >> <plik>] T{
+losuje bajty i wypisuje je szesnastkowo albo zapisuje surowe do pliku
+T}
+date [-s RRRR-MM-DD [GG:MM[:SS]]]       T{
+wypisuje czas urządzenia zegara albo go ustawia
+T}
 .TE
+.PP
+Program
+.CW random
+ma generator, który zachowuje stan między uruchomieniami, więc każde wywołanie daje inne bajty. Ziarno
+jest stałe, więc po każdym uruchomieniu systemu ciąg jest ten sam.
+Program
+.CW date
+otwiera zegar o nazwie
+.CW Config::clockDevice
+(domyślnie
+.CW clock )
+i wysyła
+.CW dev::msg::Clock .
+Na otwarcie urządzenia, które nie istnieje, nikt nie odpowiada, więc program rejestruje timer i po
+1000 tyknięciach kończy z błędem. Czas jest czasem UTC, a funkcje przeliczające znacznik czasu na datę
+i z powrotem są w
+.CW cli::utils::text .
 
 .so blankPage.roff

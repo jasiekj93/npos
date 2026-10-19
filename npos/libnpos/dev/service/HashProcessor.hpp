@@ -44,13 +44,11 @@ namespace npos::dev::service
 
                 if(request.getOperation() == msg::Hash::Operation::ACCUMULATE)
                 {
-                    request.referenceCount++;
-                    currentRequest = &request;
+                    currentRequest = ipc::storeMessage<msg::Hash>(request);
 
                     if(not hash.accumulateIt(request.getInput()))
                     {
-                        request.referenceCount--;
-                        currentRequest = nullptr;
+                        ipc::releaseMessage(&currentRequest);   
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
                     }
                 }
@@ -59,13 +57,11 @@ namespace npos::dev::service
                     if(request.getOutput().size() != hal::Hash::DIGEST_SIZE)
                         return getApi().respond(request.setStatus(msg::Hash::Status::INVALID_OUTPUT_SIZE));
 
-                    request.referenceCount++;
-                    currentRequest = &request;
+                    currentRequest = ipc::storeMessage<msg::Hash>(request);
 
                     if(not hash.accumulateEndIt(request.getInput(), request.getOutput()))
                     {
-                        request.referenceCount--;
-                        currentRequest = nullptr;
+                        ipc::releaseMessage(&currentRequest);
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
                     }
                 }
@@ -98,16 +94,14 @@ namespace npos::dev::service
             case hal::Hash::Event::DIGEST_COMPLETE:
             {
                 auto* request = currentRequest;
-                request->referenceCount--;
-                currentRequest = nullptr;
+                ipc::releaseMessage(&currentRequest);
                 return getApi().respond(request->setStatus(msg::Hash::Status::SUCCESS));
             }
             
             case hal::Hash::Event::ERROR:
             {
                 auto* request = currentRequest;
-                request->referenceCount--;
-                currentRequest = nullptr;
+                ipc::releaseMessage(&currentRequest);
                 return getApi().respond(request->setStatus(msg::Hash::Status::DEVICE_FAILURE));
             }
             default:

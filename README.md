@@ -87,7 +87,9 @@ With `config.cli = true` the terminal runs on a transciever device (`config.term
 line editing (arrows, Home, End, Delete, Ctrl-A/E/U/C), a 5 line history and prints logs above the edited line
 (`Terminal::setLogLevel()` sets the minimum level, INFO by default). The terminal is a task of its own and the `Api` of its programs;
 the log text is copied into a pool slot on receive, because the sender's buffer exists only during the call.
-Programs: `cat`, `echo` (with `>` and `>>`), `touch`, `ls`, `cd`, `pwd`, `mkdir`. Paths are at most 64 characters.
+Programs: `cat`, `echo` (with `>` and `>>`), `touch`, `ls`, `cd`, `pwd`, `mkdir`, `random <size> [> | >> <file>]`
+(random bytes as hex or raw into a file) and `date [-s YYYY-MM-DD [HH:MM[:SS]]]` (talks to the clock device
+`config.clockDevice`, "clock" by default). Paths are at most 64 characters.
 
 Try it: `./bin/Pc32/debug/cli.elf` (input comes from stdin, so pace piped commands with short pauses).
 
