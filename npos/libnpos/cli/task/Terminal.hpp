@@ -14,8 +14,10 @@
 #include <etl/span.h>
 #include <etl/string.h>
 #include <etl/string_view.h>
+#include <etl/to_string.h>
 #include <etl/vector.h>
 
+#include <libnpos/Version.hpp>
 #include <libnpos/nps/Task.hpp>
 #include <libnpos/ipc/Bus.hpp>
 #include <libnpos/ipc/Port.hpp>
@@ -39,6 +41,7 @@ namespace npos::cli::task
         static constexpr size_t CHUNK_SIZE = 64;
         static constexpr size_t MAX_READ_ERRORS = 3;
         static constexpr size_t HISTORY_SIZE = 5;
+        static constexpr size_t GREETING_SIZE = 96;
 
         using MessageQueueInt = etl::iqueue<ipc::Message*>;
         using PayloadPoolInt = etl::ipool;
@@ -126,6 +129,9 @@ namespace npos::cli::task
         //nps::Task
         void initialize() override
         {
+            // Kept in the output buffer until the device is opened.
+            printGreeting();
+
             dev::msg::Open request(deviceName);
             request.sender.portId = getId();
             bus.send(request);
@@ -250,9 +256,22 @@ namespace npos::cli::task
             device = response.getOpened();
             opened = true;
 
-            print("\r\nnpos terminal, type 'help'\r\n");
             prompt();
             startRead();
+        }
+
+        void printGreeting()
+        {
+            etl::string<GREETING_SIZE> text("\r\nWelcome to npos ");
+
+            etl::to_string(static_cast<unsigned>(VERSION.major), text, true);
+            text.push_back('.');
+            etl::to_string(static_cast<unsigned>(VERSION.minor), text, true);
+            text.push_back('.');
+            etl::to_string(static_cast<unsigned>(VERSION.patch), text, true);
+            text.append("\r\nType 'help' to list the available programs.\r\n");
+
+            print(etl::string_view(text.data(), text.size()));
         }
 
         void onTransciever(dev::msg::Transciever& response)

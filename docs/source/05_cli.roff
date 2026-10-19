@@ -16,6 +16,17 @@ Zadanie
 w trybie odczytu na do 64 bajtów. Każdy odebrany bajt jest naciśnięciem klawisza.
 Wyjście jest kolejkowane i wysyłane porcjami, a gdy poprzedni zapis jeszcze trwa,
 dane czekają w buforze.
+.PP
+Przy uruchomieniu zadania (
+.CW initialize() )
+terminal kolejkuje powitanie z wersją systemu z
+.CW npos::VERSION ,
+które trafia na wyjście zaraz po otwarciu urządzenia i przed pierwszym znakiem zachęty.
+Terminal nie czeka na podłączenie konsoli, bo interfejs
+.CW hal::UartPolling
+i
+.CW hal::UartInterrupt
+nie udostępnia informacji o połączeniu.
 .IP_dot
 Edycja linii: backspace, Delete, Home, End, strzałki lewo i prawo, Ctrl-A, Ctrl-E,
 Ctrl-U (kasuje linię), Ctrl-C (porzuca linię). Rozpoznawane są sekwencje escape

@@ -19,6 +19,7 @@
 #include <libnpos/emulator/Power.hpp>
 #include <libnpos/emulator/Watchdog.hpp>
 #include <libnpos/dev/Api.hpp>
+#include <libnpos/dev/service/Heartbeat.hpp>
 #include <libnpos/fs/Api.hpp>
 
 #include <CppUTest/TestHarness.h>
@@ -392,6 +393,36 @@ TEST(System, TimerTaskAnswersUserTimers)
     system.start();
 
     CHECK_TRUE(fired);
+}
+
+TEST(System, HeartbeatTogglesItsLedOnEveryTimerEvent)
+{
+    struct CountingLed : public emulator::Led
+    {
+        void toggle() override
+        {
+            toggles++;
+
+            if(onToggle)
+                onToggle();
+        }
+
+        int toggles = 0;
+        std::function<void()> onToggle;
+    };
+
+    CountingLed led;
+    etl::vector<dev::hal::Led*, 1> leds { &led };
+    os::LedBank banks[] = { { leds, "leds" } };
+    hal.leds = banks;
+    dev::service::Heartbeat heartbeat{api, "leds", 0, 1};
+    ipc::Service* heartbeatServices[1] = { &heartbeat };
+    os::System system(hal, storage.memory(), heartbeatServices, api);
+    led.onToggle = [&]() { if(led.toggles == 2) system.getScheduler().stop(); };
+
+    system.start();
+
+    CHECK_EQUAL(2, led.toggles);
 }
 
 TEST(System, RequestToUnknownPortIsAnsweredWithPortNotFound)

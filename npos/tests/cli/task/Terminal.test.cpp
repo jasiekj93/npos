@@ -20,7 +20,6 @@ using npos::cli::task::Terminal;
 TEST_GROUP(Terminal)
 {
     static constexpr const char* PROMPT = "npos:/> ";
-    static constexpr const char* BANNER = "\r\nnpos terminal, type 'help'\r\nnpos:/> ";
 
     mock::RecordingApi api;
     mock::RecordingBus bus;
@@ -32,6 +31,26 @@ TEST_GROUP(Terminal)
     mock::FakeProgram program{api};
 
     void setup() override { terminal.setId(3); }
+
+    // Text printed when the task starts.
+    static etl::string<128> greeting()
+    {
+        etl::string<128> text("\r\nWelcome to npos ");
+        etl::to_string(static_cast<unsigned>(npos::VERSION.major), text, true);
+        text.push_back('.');
+        etl::to_string(static_cast<unsigned>(npos::VERSION.minor), text, true);
+        text.push_back('.');
+        etl::to_string(static_cast<unsigned>(npos::VERSION.patch), text, true);
+        text.append("\r\nType 'help' to list the available programs.\r\n");
+        return text;
+    }
+
+    static etl::string<128> banner()
+    {
+        auto text = greeting();
+        text.append(PROMPT);
+        return text;
+    }
 
     void start()
     {
@@ -93,7 +112,7 @@ TEST(Terminal, OpenedDeviceShowsBannerAndPromptAndStartsReading)
 
     console.open();
 
-    CHECK_OUTPUT(BANNER);
+    CHECK_OUTPUT(banner().c_str());
     CHECK_TRUE(console.reading);
 }
 
@@ -735,14 +754,40 @@ TEST(Terminal, LogWithoutTextIsIgnored)
     CHECK_OUTPUT("");
 }
 
-TEST(Terminal, LogBeforeDeviceIsOpenedIsShownAfterOpening)
+TEST(Terminal, LogBeforeDeviceIsOpenedIsShownAfterTheGreeting)
 {
     terminal.initialize();
 
     log("early");
     console.open();
 
-    CHECK_OUTPUT("[{10:0} info] early\r\n\r\nnpos terminal, type 'help'\r\nnpos:/> ");
+    auto expected = greeting();
+    expected.append("[{10:0} info] early\r\n");
+    expected.append(PROMPT);
+    CHECK_OUTPUT(expected.c_str());
+}
+
+TEST(Terminal, GreetingIsQueuedWhenTheTaskStartsAndSentOnceTheDeviceIsOpened)
+{
+    terminal.initialize();
+
+    CHECK_EQUAL(0, console.writes);
+
+    console.open();
+
+    CHECK_TRUE(console.writes > 0);
+    CHECK_OUTPUT(banner().c_str());
+}
+
+TEST(Terminal, GreetingContainsTheVersion)
+{
+    terminal.initialize();
+    console.open();
+
+    auto text = console.take();
+
+    CHECK_TRUE(strstr(text.c_str(), "Welcome to npos ") != nullptr);
+    CHECK_TRUE(strstr(text.c_str(), "Type 'help'") != nullptr);
 }
 
 TEST(Terminal, LogsAreHandledWhileOutputIsStillBeingSent)

@@ -52,6 +52,11 @@ służy do odczytu i zapisu w urządzeniach szeregowych. Odczyt prosi o
 .I do
 N bajtów. Urządzenie może zwrócić mniej i wtedy podaje faktyczną liczbę przez
 .CW setOutputLength() .
+.PP
+.CW dev::Heartbeat
+to serwis użytkownika, a nie urządzenia. Dostaje w konstruktorze nazwę urządzenia
+ledów, numer leda i interwał. Przy uruchomieniu otwiera urządzenie, rejestruje powtarzalny
+timer i po każdym zdarzeniu przełącza wskazany led, co daje miganie diody wskazujące, że system działa.
 .subchapter "Zadania systemowe"
 .IP_bold Timer
 przyjmuje
