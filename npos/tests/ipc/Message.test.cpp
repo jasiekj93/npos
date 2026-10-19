@@ -30,6 +30,74 @@ TEST(Message, OutputStatusDefaultsToNotSupported)
     CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, message.output.status);
 }
 
+TEST(Message, StoreMessageTakesAReferenceAndReturnsTheDerivedType)
+{
+    struct Derived : public npos::ipc::Message {};
+
+    Derived message;
+    npos::ipc::Message& base = message;
+
+    Derived* stored = npos::ipc::storeMessage<Derived>(base);
+
+    POINTERS_EQUAL(&message, stored);
+    CHECK_EQUAL(1, message.referenceCount);
+
+    npos::ipc::storeMessage<Derived>(base);
+
+    CHECK_EQUAL(2, message.referenceCount);
+}
+
+TEST(Message, ReleaseMessageDropsTheReferenceAndClearsThePointer)
+{
+    struct Derived : public npos::ipc::Message {};
+
+    Derived message;
+    Derived* stored = npos::ipc::storeMessage<Derived>(message);
+
+    npos::ipc::releaseMessage(&stored);
+
+    CHECK_EQUAL(0, message.referenceCount);
+    CHECK_TRUE(stored == nullptr);
+}
+
+TEST(Message, ReleaseMessageKeepsOtherReferences)
+{
+    struct Derived : public npos::ipc::Message {};
+
+    Derived message;
+    message.referenceCount = 2;
+    Derived* stored = &message;
+
+    npos::ipc::releaseMessage(&stored);
+
+    CHECK_EQUAL(1, message.referenceCount);
+}
+
+TEST(Message, ReleaseMessageNeverUnderflows)
+{
+    struct Derived : public npos::ipc::Message {};
+
+    Derived message;
+    Derived* stored = &message;
+
+    npos::ipc::releaseMessage(&stored);
+
+    CHECK_EQUAL(0, message.referenceCount);
+    CHECK_TRUE(stored == nullptr);
+}
+
+TEST(Message, ReleaseMessageIgnoresNullPointers)
+{
+    struct Derived : public npos::ipc::Message {};
+
+    Derived* none = nullptr;
+
+    npos::ipc::releaseMessage(&none);
+    npos::ipc::releaseMessage<Derived>(nullptr);
+
+    CHECK_TRUE(none == nullptr);
+}
+
 TEST(Message, InputRawOverlapsTypedFields)
 {
     npos::ipc::Message message;

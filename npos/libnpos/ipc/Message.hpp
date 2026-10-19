@@ -8,6 +8,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #include <libnpos/ipc/Oid.hpp>
 
@@ -128,23 +129,27 @@ namespace npos::ipc
     static constexpr Message::Type USER_MESSAGE_TYPE = 0x0500;
 
 
+    // Keeps the message in the pool after the handler returns; pair it with releaseMessage().
     template<typename T>
     inline T* storeMessage(Message& message)
     {
         static_assert(std::is_base_of<Message, T>::value, "T must be derived from Message");
         message.referenceCount++;
-        return &message;
+        return static_cast<T*>(&message);
     }
 
+    // Drops the reference taken by storeMessage() and clears the pointer.
     template<typename T>
     inline void releaseMessage(T** message)
     {
         static_assert(std::is_base_of<Message, T>::value, "T must be derived from Message");
-        if(message == nullptr || *message == nullptr)
+
+        if(message == nullptr or *message == nullptr)
             return;
 
         if((*message)->referenceCount > 0)
             (*message)->referenceCount--;
+
         *message = nullptr;
     }
 }
