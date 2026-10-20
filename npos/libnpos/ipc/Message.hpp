@@ -127,29 +127,4 @@ namespace npos::ipc
     static constexpr Message::Type FILESYSTEM_MESSAGE_TYPE = 0x0300;
     static constexpr Message::Type CLI_MESSAGE_TYPE = 0x0400;
     static constexpr Message::Type USER_MESSAGE_TYPE = 0x0500;
-
-
-    // Keeps the message in the pool after the handler returns; pair it with releaseMessage().
-    template<typename T>
-    inline T* storeMessage(T& message)
-    {
-        static_assert(std::is_base_of<Message, T>::value, "T must be derived from Message");
-        message.referenceCount++;
-        return static_cast<T*>(&message);
-    }
-
-    // Drops the reference taken by storeMessage() and clears the pointer.
-    template<typename T>
-    inline void releaseMessage(T** message)
-    {
-        static_assert(std::is_base_of<Message, T>::value, "T must be derived from Message");
-
-        if(message == nullptr or *message == nullptr)
-            return;
-
-        if((*message)->referenceCount > 0)
-            (*message)->referenceCount--;
-
-        *message = nullptr;
-    }
 }

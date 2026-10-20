@@ -12,6 +12,7 @@
 #include <etl/vector.h>
 #include <etl/queue.h>
 
+#include <libnpos/ipc/MessageStore.hpp>
 #include <libnpos/dev/InterruptService.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
 #include <libnpos/dev/msg/Open.hpp>
@@ -26,6 +27,7 @@ namespace npos::dev::service
             : InterruptService(api, interruptQueue, hash)
             , hash(hash)
             , name(name)
+            , currentRequest(*this)
         {
         }
 
@@ -38,17 +40,17 @@ namespace npos::dev::service
                 if(isInitalized == false)
                     return getApi().respond(request.setStatus(msg::Hash::Status::NOT_INITIALIZED));
 
-                if(currentRequest != nullptr)
+                if(currentRequest.hasValue())
                     return getApi().respond(request.setStatus(msg::Hash::Status::BUSY));
 
 
                 if(request.getOperation() == msg::Hash::Operation::ACCUMULATE)
                 {
-                    currentRequest = ipc::storeMessage<msg::Hash>(request);
+                    currentRequest.store(request); 
 
                     if(not hash.accumulateIt(request.getInput()))
                     {
-                        ipc::releaseMessage(&currentRequest);   
+                        currentRequest.release();
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
                     }
                 }
@@ -57,11 +59,11 @@ namespace npos::dev::service
                     if(request.getOutput().size() != hal::Hash::DIGEST_SIZE)
                         return getApi().respond(request.setStatus(msg::Hash::Status::INVALID_OUTPUT_SIZE));
 
-                    currentRequest = ipc::storeMessage<msg::Hash>(request);
+                    currentRequest.store(request);
 
                     if(not hash.accumulateEndIt(request.getInput(), request.getOutput()))
                     {
-                        ipc::releaseMessage(&currentRequest);
+                        currentRequest.release();
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
                     }
                 }
@@ -82,7 +84,7 @@ namespace npos::dev::service
 
         void onInterrupt(const hal::Interrupt& interrupt) override
         {
-            if(currentRequest == nullptr)
+            if(not currentRequest.hasValue())
                 return;
 
             if(interrupt.type != hal::Interrupt::Type::HASH)
@@ -93,15 +95,13 @@ namespace npos::dev::service
             case hal::Hash::Event::INPUT_COMPLETE:
             case hal::Hash::Event::DIGEST_COMPLETE:
             {
-                auto* request = currentRequest;
-                ipc::releaseMessage(&currentRequest);
+                auto* request = currentRequest.release();
                 return getApi().respond(request->setStatus(msg::Hash::Status::SUCCESS));
             }
             
             case hal::Hash::Event::ERROR:
             {
-                auto* request = currentRequest;
-                ipc::releaseMessage(&currentRequest);
+                auto* request = currentRequest.release();
                 return getApi().respond(request->setStatus(msg::Hash::Status::DEVICE_FAILURE));
             }
             default:
@@ -134,6 +134,6 @@ namespace npos::dev::service
         hal::Hash& hash;
         etl::string_view name;
         bool isInitalized = false;
-        dev::msg::Hash* currentRequest = nullptr;
+        ipc::MessageStore<dev::msg::Hash> currentRequest;
     };
 }

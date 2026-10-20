@@ -6,6 +6,7 @@
  * @date 02-10-2026
  */
 
+#include <libnpos/ipc/MessageStore.hpp>
 #include <libnpos/dev/InterruptService.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
 #include <libnpos/dev/msg/Open.hpp>
@@ -20,6 +21,8 @@ namespace npos::dev::service
             : InterruptService(api, interruptQueue, uart)
             , uart(uart)
             , name(name)
+            , readRequest(*this)
+            , writeRequest(*this)
         {
         }
 
@@ -34,33 +37,33 @@ namespace npos::dev::service
 
                 if(request.getOperation() == msg::Transciever::Operation::READ)
                 {
-                    if(readRequest != nullptr)
+                    if(readRequest.hasValue())
                         return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
-                    readRequest = ipc::storeMessage<msg::Transciever>(request);
+                    readRequest.store(request);
 
                     auto buffer = request.getOutputBuffer();
                     auto result = uart.receiveIt(buffer.data(), request.getInputLength());
 
                     if(not result)
                     {
-                        ipc::releaseMessage(&readRequest);
+                        readRequest.release();
                         return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
                 else if(request.getOperation() == msg::Transciever::Operation::WRITE)
                 {
-                    if(writeRequest != nullptr)
+                    if(writeRequest.hasValue())
                         return getApi().respond(request.setStatus(msg::Transciever::Status::BUSY).setOutputLength(0));
 
-                    writeRequest = ipc::storeMessage<msg::Transciever>(request);
+                    writeRequest.store(request);
                     
                     auto buffer = request.getInputBuffer();
                     auto result = uart.transmitIt(buffer.data(), buffer.size());
 
                     if(not result)
                     {
-                        ipc::releaseMessage(&writeRequest);
+                        writeRequest.release();
                         return getApi().respond(request.setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                     }
                 }
@@ -89,38 +92,34 @@ namespace npos::dev::service
             {
             case hal::UartInterrupt::Event::TRANSMIT_COMPLETE:
             {
-                if(writeRequest == nullptr)
+                if(not writeRequest.hasValue())
                     return;
 
-                auto* request = writeRequest;
-                ipc::releaseMessage(&writeRequest);
+                auto* request = writeRequest.release();
                 return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
 
             case hal::UartInterrupt::Event::RECEIVE_COMPLETE:
             {
-                if(readRequest == nullptr)
+                if(not readRequest.hasValue())
                     return;
 
-                auto* request = readRequest;
-                ipc::releaseMessage(&readRequest);
+                auto* request = readRequest.release();
                 return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
             }
             
             case hal::UartInterrupt::Event::ERROR:
             {
-                if(readRequest != nullptr)
+                if(readRequest.hasValue())
                 {
-                    auto* request = readRequest;
-                    ipc::releaseMessage(&readRequest);
-                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
+                    auto* request = readRequest.release();
+                    getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
 
-                if(writeRequest != nullptr)
+                if(writeRequest.hasValue())
                 {
-                    auto* request = writeRequest;
-                    ipc::releaseMessage(&writeRequest);
-                    return getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
+                    auto* request = writeRequest.release();
+                    getApi().respond(request->setStatus(msg::Transciever::Status::DEVICE_ERROR).setOutputLength(0));
                 }
             }
             default:
@@ -153,7 +152,7 @@ namespace npos::dev::service
         hal::UartInterrupt& uart;
         etl::string_view name;
         bool isInitalized = false;
-        dev::msg::Transciever* readRequest = nullptr;
-        dev::msg::Transciever* writeRequest = nullptr;
+        ipc::MessageStore<dev::msg::Transciever> readRequest;
+        ipc::MessageStore<dev::msg::Transciever> writeRequest;
     };
 }
