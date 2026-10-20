@@ -60,6 +60,11 @@ namespace npos::ipc
             return (pointer != nullptr);
         }
 
+        inline const T* get() const
+        {
+            return pointer;
+        }
+
     private:
         Service& owner;
         T* pointer;
