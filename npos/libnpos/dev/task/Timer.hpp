@@ -17,10 +17,10 @@ namespace npos::dev::task
 {
     struct CompareTimerMessage : public etl::binary_function<msg::Timer*, msg::Timer*, bool>
     {
-        // less
+        // etl::priority_queue keeps the "largest" element on top, so order by greater to get the earliest event first.
         bool operator()(const msg::Timer* lhs, const msg::Timer* rhs) const
         {
-            return lhs->getEventTick() < rhs->getEventTick();
+            return lhs->getEventTick() > rhs->getEventTick();
         }
     };
 
@@ -95,13 +95,14 @@ namespace npos::dev::task
             if(messageQueue.empty())
                 return;
 
-            auto& timerMessage = messageQueue.top();
+            // top() refers to a slot inside the heap, which pop() overwrites, so keep a copy of the pointer.
+            msg::Timer* timerMessage = messageQueue.top();
 
             if(timerMessage->getEventTick() > systemTick.getTick())
                 return;
-                
-            bus.respond(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
+
             messageQueue.pop();
+            bus.respond(timerMessage->setStatus(msg::Timer::Status::SUCCESS));
 
             if(timerMessage->getMode() == msg::Timer::Mode::REPEATING)
             {
