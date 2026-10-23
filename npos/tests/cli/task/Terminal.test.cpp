@@ -88,7 +88,7 @@ TEST_GROUP(Terminal)
     void log(const char* text)
     {
         npos::ipc::Oid sender{10, 0};
-        npos::cli::msg::Syslog message(sender, npos::cli::log::Level::INFO, text, false);
+        npos::cli::msg::Syslog message(sender, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, text, false);
         message.sender.portId = 10;
         terminal.receiveRequest(message);
         terminal.process();
@@ -1013,7 +1013,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
 {
     start();
     char text[] = "original";
-    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, text, false);
+    npos::cli::msg::Syslog message({ 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, text, false);
     message.sender.portId = 10;
 
     terminal.receiveRequest(message);
@@ -1026,7 +1026,7 @@ TEST(Terminal, LogTextIsCopiedToThePayloadPoolOnReceive)
 
 TEST(Terminal, QueuedLogPointsAtAPayloadSlot)
 {
-    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, "abc", false);
+    npos::cli::msg::Syslog message({ 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "abc", false);
 
     terminal.receiveRequest(message);
 
@@ -1047,9 +1047,9 @@ TEST(Terminal, PayloadSlotIsFreedAfterTheLogIsHandled)
 TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
 {
     npos::cli::msg::Syslog logs[5] = {
-        { { 10, 0 }, npos::cli::log::Level::INFO, "a", false }, { { 10, 0 }, npos::cli::log::Level::INFO, "b", false },
-        { { 10, 0 }, npos::cli::log::Level::INFO, "c", false }, { { 10, 0 }, npos::cli::log::Level::INFO, "d", false },
-        { { 10, 0 }, npos::cli::log::Level::INFO, "e", false } };
+        { { 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "a", false }, { { 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "b", false },
+        { { 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "c", false }, { { 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "d", false },
+        { { 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, "e", false } };
 
     for(auto& message : logs)
         terminal.receiveRequest(message);
@@ -1062,7 +1062,7 @@ TEST(Terminal, LogsAreDroppedWhenPayloadPoolIsFull)
 TEST(Terminal, TooLongLogIsDropped)
 {
     etl::string<200> text(npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH + 1, 'x');
-    npos::cli::msg::Syslog message({ 10, 0 }, npos::cli::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
+    npos::cli::msg::Syslog message({ 10, 0 }, { terminal.getId(), 0 }, npos::cli::log::Level::INFO, etl::string_view(text.c_str(), text.size()), false);
 
     terminal.receiveRequest(message);
 
@@ -1075,8 +1075,8 @@ TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
 {
     Terminal::MessageQueue<1> smallQueue;
     Terminal small{2, smallQueue, payloads, programList, bus, "uart0"};
-    npos::cli::msg::Syslog first({ 10, 0 }, npos::cli::log::Level::INFO, "a", false);
-    npos::cli::msg::Syslog second({ 10, 0 }, npos::cli::log::Level::INFO, "b", false);
+    npos::cli::msg::Syslog first({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "a", false);
+    npos::cli::msg::Syslog second({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "b", false);
 
     small.receiveRequest(first);
     small.receiveRequest(second);

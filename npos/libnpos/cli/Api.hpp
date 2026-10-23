@@ -10,8 +10,10 @@
 
 namespace npos::cli::api
 {
+    inline npos::ipc::Oid recipient = npos::ipc::NULL_OID;
+
     inline utils::LogStream syslog(ipc::Service& sender, log::Level level)
     {
-        return utils::LogStream(sender, level);
+        return utils::LogStream(sender, recipient, level);
     }
 }

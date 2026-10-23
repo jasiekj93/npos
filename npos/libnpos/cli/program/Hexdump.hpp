@@ -1,0 +1,221 @@
+#pragma once
+
+/**
+ * @file Hexdump.hpp
+ * @author Adrian Szczepanski
+ * @date 23-10-2026
+ */
+
+#include <etl/span.h>
+#include <etl/string.h>
+
+#include <libnpos/cli/Program.hpp>
+#include <libnpos/cli/utils/Text.hpp>
+#include <libnpos/fs/Api.hpp>
+
+namespace npos::cli::program
+{
+    class Hexdump : public Program
+    {
+    public:
+        explicit Hexdump(Api& api)
+            : Program(api, "hexdump", "hexdump <file> - print file contents as hex and ASCII")
+        {
+        }
+
+        void start(Host& terminal, etl::string_view args) override
+        {
+            host = &terminal;
+            auto rest = args;
+            auto name = utils::text::token(rest);
+
+            if(name.empty())
+            {
+                host->print("usage: hexdump <file>\r\n");
+                return host->exit(*this, 1);
+            }
+
+            if(not utils::text::resolve(host->getWorkingDirectory(), name, path))
+            {
+                host->print("hexdump: path too long\r\n");
+                return host->exit(*this, 1);
+            }
+
+            exitCode = 0;
+            fileOffset = 0;
+            line.clear();
+            printed = 0;
+            waiting = false;
+            state = State::OPENING;
+            fs::api::file::open(*this, etl::string_view(path.c_str(), path.size()), fs::Flags::READ_ONLY);
+        }
+
+        void resume() override
+        {
+            if(waiting)
+                print();
+        }
+
+        void handleResponse(ipc::Message& message) override
+        {
+            switch(message.type)
+            {
+            case fs::msg::Type::FILE_OPEN:
+                return onOpen(static_cast<fs::msg::file::Open&>(message));
+            case fs::msg::Type::FILE_READ:
+                return onRead(static_cast<fs::msg::file::Read&>(message));
+            case fs::msg::Type::FILE_CLOSE:
+                return onClose();
+            default:
+                return;
+            }
+        }
+
+    private:
+        static constexpr size_t BYTES_PER_LINE = 16;
+
+        enum class State { IDLE, OPENING, READING, CLOSING };
+
+        void onOpen(fs::msg::file::Open& response)
+        {
+            if(state != State::OPENING)
+                return;
+
+            if(response.getStatus() != fs::msg::Status::SUCCESS)
+            {
+                report(response.getStatus());
+                state = State::IDLE;
+                return host->exit(*this, exitCode);
+            }
+
+            file = response.getOpened();
+            state = State::READING;
+            readNext();
+        }
+
+        void onRead(fs::msg::file::Read& response)
+        {
+            if(state != State::READING)
+                return;
+
+            if(response.getStatus() != fs::msg::Status::SUCCESS)
+            {
+                report(response.getStatus());
+                return close();
+            }
+
+            length = response.getOutputLength();
+
+            if(length == 0)
+            {
+                // Final line with the total size, like the classic hexdump.
+                line.clear();
+                appendOffset(fileOffset);
+                line += "\r\n";
+                printed = 0;
+                finishing = true;
+                return print();
+            }
+
+            format();
+            finishing = false;
+            printed = 0;
+            print();
+        }
+
+        void onClose()
+        {
+            if(state == State::CLOSING)
+            {
+                state = State::IDLE;
+                host->exit(*this, exitCode);
+            }
+        }
+
+        void appendHex(uint32_t value, int digits)
+        {
+            static constexpr char HEX[] = "0123456789abcdef";
+            for(int shift = (digits - 1) * 4; shift >= 0; shift -= 4)
+                line.push_back(HEX[(value >> shift) & 0xF]);
+        }
+
+        void appendOffset(size_t offset)
+        {
+            appendHex(static_cast<uint32_t>(offset), 8);
+        }
+
+        void format()
+        {
+            line.clear();
+            appendOffset(fileOffset);
+            line += "  ";
+
+            for(size_t i = 0; i < BYTES_PER_LINE; ++i)
+            {
+                if(i < length)
+                    appendHex(buffer[i], 2);
+                else
+                    line += "  ";
+
+                line.push_back(' ');
+                if(i == BYTES_PER_LINE / 2 - 1)
+                    line.push_back(' ');
+            }
+
+            line += " |";
+            for(size_t i = 0; i < length; ++i)
+                line.push_back(buffer[i] >= 0x20 and buffer[i] < 0x7F ? static_cast<char>(buffer[i]) : '.');
+            line += "|\r\n";
+
+            fileOffset += length;
+        }
+
+        void print()
+        {
+            printed += host->print(etl::string_view(line.c_str() + printed, line.size() - printed));
+
+            waiting = printed < line.size();
+            if(waiting)
+                return;
+
+            if(finishing)
+                return close();
+
+            readNext();
+        }
+
+        void readNext()
+        {
+            fs::api::file::read(*this, file, BYTES_PER_LINE, etl::span<uint8_t>(buffer, sizeof(buffer)));
+        }
+
+        void close()
+        {
+            state = State::CLOSING;
+            fs::api::file::close(*this, file);
+        }
+
+        void report(fs::msg::Status status)
+        {
+            exitCode = 1;
+            host->print("hexdump: ");
+            host->print(etl::string_view(path.c_str(), path.size()));
+            host->print(": ");
+            host->print(utils::text::describe(status));
+            host->print("\r\n");
+        }
+
+        Host* host = nullptr;
+        State state = State::IDLE;
+        etl::string<utils::text::MAX_PATH> path;
+        ipc::Oid file = ipc::NULL_OID;
+        uint8_t buffer[BYTES_PER_LINE];
+        etl::string<96> line;
+        size_t fileOffset = 0;
+        size_t length = 0;
+        size_t printed = 0;
+        bool waiting = false;
+        bool finishing = false;
+        int exitCode = 0;
+    };
+}

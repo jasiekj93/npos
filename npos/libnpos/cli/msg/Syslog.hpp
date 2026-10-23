@@ -15,9 +15,10 @@ namespace npos::cli::msg
 {
     struct Syslog : public ipc::Message
     {
-        Syslog(ipc::Oid sender, log::Level level, etl::string_view message, bool overflow)
+        Syslog(ipc::Oid sender, ipc::Oid recipient, log::Level level, etl::string_view message, bool overflow)
         {
             this->type = msg::Type::SYSLOG;
+            this->recipient = recipient;
             this->input.link.target = sender;
             this->input.link.attributes.value = level;
             this->input.link.attributes.mode = overflow;

@@ -20,9 +20,10 @@ namespace npos::cli::utils
         static constexpr size_t MAX_NUMBER_LENGTH = 20; 
         static constexpr size_t MAX_MESSAGE_LENGTH = 128; 
 
-        LogStream(ipc::Service& sender, log::Level level)
+        LogStream(ipc::Service& sender, ipc::Oid recipient, log::Level level)
             : level(level)
             , sender(sender)
+            , recipient(recipient)
             , stream(buffer)
             , overflowFlag(false)
         {
@@ -142,7 +143,7 @@ namespace npos::cli::utils
 
         inline LogStream& operator<<(const log::Endl&) 
         { 
-            msg::Syslog request(sender.getOid(), level, buffer, overflowFlag);
+            msg::Syslog request(sender.getOid(), recipient, level, buffer, overflowFlag);
             sender.getApi().send(sender, request);
 
             buffer.clear();
@@ -154,6 +155,7 @@ namespace npos::cli::utils
     private:
         log::Level level;
         ipc::Service& sender;
+        ipc::Oid recipient;
         etl::string<MAX_MESSAGE_LENGTH> buffer;
         etl::string<MAX_NUMBER_LENGTH> numberBuffer;
         etl::string_stream stream;

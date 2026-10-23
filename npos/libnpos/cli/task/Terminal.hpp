@@ -21,6 +21,7 @@
 #include <libnpos/nps/Task.hpp>
 #include <libnpos/ipc/Bus.hpp>
 #include <libnpos/ipc/Port.hpp>
+#include <libnpos/cli/Api.hpp>
 #include <libnpos/cli/Program.hpp>
 #include <libnpos/cli/utils/LogStream.hpp>
 #include <libnpos/cli/utils/Text.hpp>
@@ -133,6 +134,7 @@ namespace npos::cli::task
         //nps::Task
         void initialize() override
         {
+            api::recipient = { getId(), 0 };
             // Kept in the output buffer until the device is opened.
             printGreeting();
 
