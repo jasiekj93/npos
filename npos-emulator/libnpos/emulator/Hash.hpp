@@ -50,8 +50,9 @@ namespace npos::emulator
                 return false;
 
             if(verbose)
-
                 std::cout << "Emulator: Hash accumulateEndIt, input size: " << input.size() << ", output size: " << output.size() << std::endl;
+
+            etl::fill(output.begin(), output.end(), 0);
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::HASH, Event::DIGEST_COMPLETE});
