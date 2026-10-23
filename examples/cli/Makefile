@@ -70,7 +70,7 @@ ldscript =
 # custom_cxx_flags :=
 
 # Uncomment if you want to add library flags and the end of the linking command (e.g. -pthread)
-# terminating_libs := 
+terminating_libs := -pthread
 
 # Append rest of Makefile from template
 include $(make_dir)/Program.mk
