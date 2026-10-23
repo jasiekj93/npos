@@ -134,4 +134,14 @@ namespace npos::nps
         Task* idleTask;
         Task* watchdogTask;
     };
+
+    template<size_t MAX_TASKS>
+    class SchedulerStatic : public Scheduler
+    {
+    public:
+        SchedulerStatic() : Scheduler(taskListStatic) {}
+    
+    private:
+        TaskList<MAX_TASKS> taskListStatic;
+    };
 }

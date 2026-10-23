@@ -205,4 +205,18 @@ namespace npos::ipc
         PortId initialPort;
         SystemBus* succesor;
     };
+
+    template<size_t PORTS, size_t POOL_SIZE>
+    class SystemBusStatic : public SystemBus
+    {
+    public:
+        SystemBusStatic(npos::ipc::PortId initialPort)
+            : SystemBus(portsStatic, poolStatic, initialPort)
+        {
+        }
+
+    private:
+        PortList<PORTS> portsStatic;
+        Pool<POOL_SIZE> poolStatic;
+    };
 }

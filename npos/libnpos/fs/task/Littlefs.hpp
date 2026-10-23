@@ -458,4 +458,19 @@ namespace npos::fs::task
         lfs_config config{};
         bool mounted = false;
     };
+
+    template<size_t MESSAGE_SIZE, size_t FILES>
+    class LittlefsStatic : public Littlefs<FILES>
+    {
+    public:
+        using Base = Littlefs<FILES>;
+
+        LittlefsStatic(npos::nps::Task::Priority priority, ipc::Bus& bus, hal::Flash& flash, hal::ICache* icache) 
+            : Base(priority, messageQueueStatic, bus, flash, icache)
+        {
+        }
+
+    private:
+        typename Base::template MessageQueue<MESSAGE_SIZE> messageQueueStatic;
+    };
 }

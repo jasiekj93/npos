@@ -22,6 +22,7 @@
 #include <libnpos/ipc/Bus.hpp>
 #include <libnpos/ipc/Port.hpp>
 #include <libnpos/cli/Program.hpp>
+#include <libnpos/cli/utils/LogStream.hpp>
 #include <libnpos/cli/utils/Text.hpp>
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
@@ -52,6 +53,9 @@ namespace npos::cli::task
 
         template<size_t N>
         using ProgramList = etl::vector<Program*, N>;
+
+        template<size_t N>
+        using PayloadPool = etl::generic_pool<npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, N>;
 
         // Slots of the payload pool hold the text of one log each.
         Terminal(Priority priority, MessageQueueInt& messageQueue, PayloadPoolInt& payloads, ProgramListInt& programs,
@@ -673,5 +677,21 @@ namespace npos::cli::task
         uint8_t rxBuffer[READ_SIZE];
         uint8_t lastInput = 0;
         char lastOutput = 0;
+    };
+
+
+    template <size_t QUEUE_SIZE, size_t PROGRAMS, size_t PAYLOADS>
+    class TerminalStatic : public Terminal
+    {
+    public:
+        TerminalStatic(Priority priority, ipc::Bus& bus, etl::string_view deviceName)
+            : Terminal(priority, messageQueueStatic, payloadsStatic, programsStatic, bus, deviceName)
+        {
+        }
+
+    private:
+        MessageQueue<QUEUE_SIZE> messageQueueStatic;
+        PayloadPool<PAYLOADS> payloadsStatic;
+        ProgramList<PROGRAMS> programsStatic;
     };
 }

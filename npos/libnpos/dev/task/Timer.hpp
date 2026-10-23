@@ -117,4 +117,17 @@ namespace npos::dev::task
         hal::SystemTick& systemTick;
         ipc::Bus& bus;
     };
+
+    template<size_t SIZE>
+    class TimerStatic : public Timer
+    {
+    public:
+        TimerStatic(Priority priority, hal::SystemTick& systemTick, ipc::Bus& bus)
+            : Timer(priority, messageQueueStatic, bus, systemTick)
+        {
+        }
+
+    private:
+        MessageQueue<SIZE> messageQueueStatic;
+    };
 }

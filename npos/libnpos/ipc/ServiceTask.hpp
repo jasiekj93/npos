@@ -215,4 +215,20 @@ namespace npos::ipc
         ResponseQueueInt& responseQueue;
         Bus& bus;
     };
+
+
+    template <size_t REQUEST_SIZE, size_t RESPONSE_SIZE, size_t SERVICES>
+    class ServiceTaskStatic : public ServiceTask
+    {
+    public:
+        ServiceTaskStatic(Priority priority, Bus& bus)
+            : ServiceTask(priority, servicesStatic, requestQueueStatic, responseQueueStatic, bus)
+        {
+        }
+
+    private:
+        ServiceList<SERVICES> servicesStatic;
+        RequestQueue<REQUEST_SIZE> requestQueueStatic;
+        ResponseQueue<RESPONSE_SIZE> responseQueueStatic;
+    };
 }
