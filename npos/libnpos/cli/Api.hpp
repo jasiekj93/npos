@@ -10,7 +10,7 @@
 
 namespace npos::cli::api
 {
-    utils::LogStream syslog(ipc::Service& sender, log::Level level)
+    inline utils::LogStream syslog(ipc::Service& sender, log::Level level)
     {
         return utils::LogStream(sender, level);
     }
