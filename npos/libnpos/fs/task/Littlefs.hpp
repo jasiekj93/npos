@@ -54,7 +54,6 @@ namespace npos::fs::task
             , flash(flash)
             , icache(icache)
         {
-            //mount?
         }
 
         //Port

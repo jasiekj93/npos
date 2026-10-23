@@ -51,4 +51,19 @@ namespace npos::dev
             return ServiceTask::process();
         }
     };
+
+    template <size_t REQUEST_SIZE, size_t RESPONSE_SIZE, size_t SERVICES>
+    class InterruptServiceTaskStatic : public InterruptServiceTask
+    {
+    public:
+        InterruptServiceTaskStatic(Priority priority, ipc::Bus& bus)
+            : InterruptServiceTask(priority, servicesStatic, requestQueueStatic, responseQueueStatic, bus)
+        {
+        }
+
+    private:
+        InterruptServiceList<SERVICES> servicesStatic;
+        RequestQueue<REQUEST_SIZE> requestQueueStatic;
+        ResponseQueue<RESPONSE_SIZE> responseQueueStatic;
+    };
 }
