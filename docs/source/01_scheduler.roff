@@ -6,68 +6,84 @@ biblioteki
 .B npos
 (katalog
 .CW npos/libnpos/nps )
-zawiera planistę zadań. Jest to planista kooperacyjny: zadanie wykonuje
+zawiera planistę zadań 
+.I Scheduler ) ( 
+Jest to planista kooperacyjny: zadanie wykonuje
 jedną porcję pracy w metodzie
 .CW process()
-i oddaje sterowanie. Nie ma wywłaszczania.
-.subchapter "Zadanie"
-.PP
-Klasa
-.CW nps::Task
-opisuje zadanie. Zadanie ma priorytet (liczba całkowita bez znaku) oraz trzy metody:
-.IP_bold initialize()
-wywoływana raz przed pierwszym przebiegiem pętli,
-.IP_bold isReady()
-informuje, czy zadanie ma coś do zrobienia,
-.IP_bold process()
-wykonuje jedną porcję pracy.
-.LP
-Mniejsza wartość priorytetu oznacza wcześniejsze wykonanie. Porównanie zadań
-realizuje obiekt funkcyjny
-.CW nps::CompareTasks .
-.subchapter "Pętla planisty"
-.PP
-Klasa
-.CW nps::Scheduler
-nie przydziela pamięci. Lista zadań jest podawana przez użytkownika jako
-.CW Scheduler::TaskListInt& ,
-a gotowy kontener o stałym rozmiarze to
-.CW Scheduler::TaskList<N> .
-Zadania dodaje się metodą
-.CW addTask() ,
-która zwraca
-.CW false
-gdy lista jest pełna.
-.PP
-Metoda
-.CW start()
-działa następująco:
-.IP_dot
-sortuje zadania rosnąco po priorytecie i wywołuje
-.CW initialize()
-każdego z nich, następnie to samo dla następcy (planisty podłączonego przez
-.CW setSuccesor() ),
-zadania nadzorcy (watchdog) i zadania bezczynności (idle),
-.IP_dot
-w każdym obiegu pętli wykonuje zadanie watchdog, jeżeli jest gotowe,
-.IP_dot
-wykonuje pierwsze gotowe zadanie z listy; jeżeli żadne nie jest gotowe, pyta następcę,
-.IP_dot
-gdy nie ma gotowych zadań, wykonuje zadanie bezczynności.
-.LP
-Pętlę przerywa metoda
-.CW stop() .
-Uwaga: wywołanie
-.CW stop()
-w trakcie inicjalizacji jest ignorowane, ponieważ flaga pracy jest ustawiana
-dopiero po inicjalizacji.
-.subchapter "Zadania nadzorcze"
-.PP
-Zadania
-.CW setWatchdogTask()
-i
-.CW setIdleTask()
-nie trafiają na listę zadań. Planista uruchamia je poza kolejnością priorytetów,
-dlatego nie mają konfigurowalnego priorytetu.
+i oddaje sterowanie. Nie ma wywłaszczania zadań. Przestrzeń pamięci taska jest wspólna dla całego systemu.
+Oczywiście przerwania urządzenia nadal przerywają działanie taska, ale ich pełna obsługa powinna być obsłużona w systemie
+(więcej w rodziale 
+.CW "Urządzenia" ) 
+.
 
-.so blankPage.roff
+.PP
+Scheduler może mieć swojego następcę 
+.I Successor ) ( 
+, który wykonuje zadanie w momencie, gdy bieżący planista nie ma gotowych zadań.
+Mechanizm powstał na potrzeby mechanizmu 
+.I ARM Trustzone-M ,
+aby system mógł pracować w przestrzeni Non-secure i Secure jednocześnie.
+Scheduler, na którym wywołana jest metoda
+.CW start()
+jest nadrzędny w stosunku do swojego następcy, co oznacza, że dopóki ma gotowe zadania do wykonania, następca nie będzie uruchamiany.
+
+.PP
+Do schedulera przypisać można dwa zadania specjalne:
+.IP_dot 
+.B idle 
+- Zadanie wykonywane, gdy planista, ani następca nie mają gotowych zadań. Służy do wprowdzania urządzenia w stan niskiego poboru energii.
+.IP_dot 
+.B watchdog 
+- Zadanie wykonywane do odświeżania sprzętowego watchdoga, w celu zapobiegania jego zawieszeniu.
+
+.PP
+Najważniejsze metody schedulera to:
+.IP
+.CW Scheduler(TaskListInt& taskList)
+- konstruktor. Jako argument przyjmuje listę zadań do obsługi przez planistę w postaci wektora wskaźników na taski.
+Lista ta powinna być pusta, scheduler sam zarządza dodawaniem i usuwaniem zadań.
+.IP
+.CW addTask(Task& task)
+- Dodaje zadanie do listy zadań. Jeżeli lista jest pełna zwraca
+.I false .
+.IP
+.CW start()
+- inicalizuje taski, uruchamia scheduler w nieskończonej pętli. 
+.IP
+.CW setSuccesor(SchedulerSuccessor& ss)
+- Ustawia następce planisty. Może to być kolejny obiekt schedulera lub np. proxy do planisty w innej przestrzeni ARM Truszone-M.
+.IP
+.CW setIdleTask(Task& task)
+- Ustawia zadanie idle. Task nie jest zaliczany do puli tasków w systemie.
+.IP
+.CW setWatchdogTask(Task& task)
+- Ustawia zadanie watchdog. Task nie jest zaliczany do puli tasków w systemie.
+.IP
+.CW stop()
+- Zatrzymuje scheduler.
+
+.subchapter "Task"
+.PP
+Task jest pojedynczym zadaniem w systemie, określającym jednostkę pracy do wykonania przez scheduler. 
+Kolejność uruchamiania tasków określa priorytet przypisany do każdego taska. Im większa liczba, 
+tym wyższy priorytet i zadanie uruchomione zostanie wcześniej.
+
+.PP
+Najważniejsze metody taska to:
+
+.IP
+.CW initialize()
+- Metoda wykonywana przez scheduler przy starcie. 
+.IP
+.CW isReady()
+- Zgłasza gotowość taska do wykonania. Metoda powinna zwracać
+.I true 
+jeżeli task jest gotowy do przetworzenia, w przeciwnym razie
+.I false .
+.IP
+.CW process()
+- Metoda wykonywana przez scheduler w celu realizacji jednostki pracy przypisanej do taska.
+
+.bp
+

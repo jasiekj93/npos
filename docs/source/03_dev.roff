@@ -5,7 +5,7 @@ Moduł
 biblioteki
 .B npos
 (katalog
-.CW npos/libnpos/dev )
+.CW libnpos/dev )
 udostępnia urządzenia sprzętowe jako serwisy. Każde urządzenie ma interfejs
 warstwy sprzętowej (HAL) w
 .CW hal/ ,
@@ -15,6 +15,22 @@ serwis w
 .CW service/
 oraz, dla zasobów systemowych, zadania w
 .CW task/ .
+
+.PP
+Zaletą tego rozwiązania jest przenaszalność aplikacji pomiędzy różnymi platformami sprzętowymi.
+Serwisy użytkownika komunikują się ze sprzęteme poprzez zdefiniowane wiadomości w module
+.CW dev::msg .
+Również w przypadku, gdy interfejs HAL jest niekompatybilny z danym układem, użytkownik
+może opracować własne interfejsy i serwisy do ich obsługi. Ważne jest natomiast, aby zachować zgodność z mechanizmami komunikacji i zarządzania wiadomościami w module
+.CW dev .
+.IP
+.B WAŻNE!
+W przypadku definiowania własnych wiadomości do obsługi peryferiów, które nie są zdefiniowane w module
+.CW dev::msg 
+należy korzystać z typów w zakresie
+.CW USER_MESSAGE_TYPE
+i unikać konfliktów z typami zdefiniowanymi w systemie.
+
 .subchapter "Otwieranie urządzeń"
 .PP
 Urządzenie jest identyfikowane nazwą. Klient wysyła rozgłoszeniowe
@@ -24,52 +40,99 @@ Urządzenie jest identyfikowane nazwą. Klient wysyła rozgłoszeniowe
 Odpowiada serwis o pasującej nazwie, przekazując w
 .CW getOpened()
 swój Oid. Dalsze żądania są kierowane już bezpośrednio do tego Oid, dzięki czemu nie
-obciążają magistrali rozgłoszeniami. Serwis o innej nazwie milczy.
-.subchapter "Serwisy"
-.TS
-center box;
-lb lb lb
-l l l.
-Serwis	HAL	Wiadomość
-LedHandler	hal::Led	msg::Led
-RtcClock	hal::Rtc	msg::Clock
-BackupStore	hal::BackupRegisters	msg::BackupRegisters
-UartPolling	hal::UartPolling	msg::Transciever
-UartInterrupt	hal::UartInterrupt	msg::Transciever
-HashProcessor	hal::Hash	msg::Hash
-.TE
-.PP
-Serwisy oparte na przerwaniach dziedziczą po
-.CW dev::InterruptService .
-Przerwanie trafia do kolejki przerwań podanej przez użytkownika, a zadanie
-.CW dev::InterruptServiceTask
-obsługuje je przed zwykłymi wiadomościami. Żądanie, które trwa dłużej niż jedno wywołanie,
-jest przechowywane przez serwis ze zwiększonym licznikiem odwołań i oddawane po przerwaniu.
-.PP
-Transciever (
-.CW dev::msg::Transciever )
-służy do odczytu i zapisu w urządzeniach szeregowych. Odczyt prosi o
-.I do
-N bajtów. Urządzenie może zwrócić mniej i wtedy podaje faktyczną liczbę przez
-.CW setOutputLength() .
-.PP
-.CW dev::Heartbeat
-to serwis użytkownika, a nie urządzenia. Dostaje w konstruktorze nazwę urządzenia
-ledów, numer leda i interwał. Przy uruchomieniu otwiera urządzenie, rejestruje powtarzalny
-timer i po każdym zdarzeniu przełącza wskazany led, co daje miganie diody wskazujące, że system działa.
-.subchapter "Zadania systemowe"
-.IP_bold Timer
-przyjmuje
-.CW dev::msg::Timer
-(jednorazowy lub powtarzalny) i odpowiada po upływie interwału, korzystając z
-.CW hal::SystemTick .
-.IP_bold Idle
-usypia procesor przez
-.CW hal::Power
-gdy nie ma pracy.
-.IP_bold Watchdog
-odświeża układ nadzorujący w każdym obiegu planisty.
-.LP
-Idle i Watchdog mają stały priorytet 0 i są uruchamiane przez planistę poza listą zadań.
+obciążają magistrali rozgłoszeniami. 
 
-.so blankPage.roff
+.subchapter "Obsługa urządzeń"
+.PP
+W pliku 
+.CW libnpos/dev/Api.hpp
+zdefiniowane są funkcje do obsługi urządzeń sprzętowych.
+Autor rekomenduje wywoływanie funkcji API do wysyłania żądań do sprzętu, co pozwoli na ewentualną zgodność
+aplikacji użytkownika w przypadku aktualizacji wiadomości w module
+.CW dev::msg .
+
+.PP
+Przetwarzanie odpowiedzi wymaga sprawdzenia typu wiadomości
+.CW ipc::Message::Type ), (
+rzutowania jej na odpowiednią strukturę modułu 
+.CW dev::msg ,
+a następnie skorzystania z getterów i setterów udostępnionych przez tą strukturę wiadomości.
+Istotnym elementem jest sprawdzenie statusu wiadomości, gdyż serwisy urządzeń jedynie zgłaszają błędy,
+ale to po stronie użytkownika spoczywa odpowiedzialność za ich obsłużenie w ramach pisanej aplikacji.
+
+.subchapter "Obsługa przerwań"
+.PP
+W pliku 
+.CW libnpos/dev//hal/Interrupt.hpp
+zdefiniowana jest struktura przerwania.
+Interfejs
+.CW "Interruptable"
+służy do wyłączania przerwań na danym peryferium. 
+Z drugiej strony interfejs
+.CW "InterruptHandler"
+umożliwia obsługę przerwań generowanych przez peryferium.
+Przyjęto założenie, że jedno peryferium generuje przerwania dla jednego handlera.
+
+.PP
+Implementacją interfejsu
+.CW "InterruptHandler"
+jest
+.CW "InterruptService" .
+Jest to klasa dziedzicząca po zwykłym serwisie, jednak dodatkowo posiada kolejkę przerwań, która jest obsługiwana w sprzętowej procedurze obsługi
+przerwań 
+.I ISR ). (
+W celu uniknięcia zjawiska wyścigu, pomiędzy ISR, a standardową pracą procesora, 
+.CW "InterruptService"
+stosuje mechanizmy synchronizacji, aby zapewnić bezpieczny dostęp do kolejki przerwań zarówno z poziomu ISR, jak i standardowej pracy procesora.
+W tym celu peyferium musi implementować interfejs
+.CW "Interruptable" ", "
+aby możłiwe było wyłączenie przerwań na czas modyfikacji kolejki.
+
+.IP
+.B WAŻNE!
+Po stronie użytkownika spoczywa odpowiedzialność na właściwe zarządzanie przerwaniami, poprzez metody interfejsu 
+.CW "Interruptable"
+peryferium którego dotyczy!
+
+.PP
+Do zarządzania 
+.CW "InterruptService"
+służy klasa
+.CW "InterruptServiceTask" .
+Jest to specjalna implementacja klasycznego zadania 
+.CW "ServiceTask" ,
+który wywołuje odpowiednie metody serwisu przerwaniowego, do zarządzania przerwaniami.
+W pierwszej kolejności obsługiwane są zgłoszone przerwania każdego serwisu.
+Dopiero potem są przetwarzane wiadomości.
+
+.IP
+.B WAŻNE!
+Zadanie
+.CW "InterruptServiceTask"
+może subskrybować
+.B TYLKO
+serwisy 
+.CW "InterruptService" .
+Nie należy mieszać zwykłych serwisów z serwisami przerwaniowymi w ramach tego samego zadania!
+
+.subchapter "Zadania specjalne"
+.PP
+W module
+.CW dev
+zaimplementowane zostały także taski do obsługi timera i schdulera.
+Task
+.CW "Idle" "oraz"
+.CW "Watchdog"
+służą do obsługi odpowiednio trybu bezczynności procesora oraz nadzorowania poprawności działania systemu, zdefiniowane w
+.CW "nps::Scheduler" "."
+
+.PP
+Task timera służy do wysyłania zdarzeń związanych z upływem określonego czasu, umożliwiając w ten sposób realizację operacji czasowych w aplikacjach użytkownika.
+Sposób korzystania z timera zdefiniowany jest w API modułu
+.CW "dev" "."
+Możliwe jest skonfigurowanie timera cyklicznie, aby generował zdarzenia w regularnych odstępach czasu.
+Aby task działał dokładnie, konieczne jest zapewnienie odpowiedniej precyzji zegara systemowego
+.CW "hal::SystemTick"
+oraz wysokiego priorytetu taska timera.
+
+.bp

@@ -7,188 +7,379 @@ biblioteki
 (katalog
 .CW npos/libnpos/ipc )
 definiuje wiadomości, adresowanie oraz magistralę łączącą zadania.
+
+W systemie zastosowano rozdzielenie mechanizmu podziału czasu
+.I task ) (
+od mechanizmu komunikacji międzyprocesowej
+.I service ) (
+Oznacza to, że użytkownik może niezależnie tworzyć obsługę wiadomości, bez konieczności ingerencji w mechanizm podziału czasu i kolejkowania wiadomości.
+Na etapie konstruowania konkretnej instancji systemu należy jedynie przypisać serwis do obiektu taska, który będzie go obsługiwał (więcej o tym w dalszej części rozdziału).
+
 .subchapter "Adresowanie"
 .PP
-Obiekt systemu jest adresowany przez
-.CW ipc::Oid ,
-czyli parę (port, serwis). Port to adres zadania na magistrali, a identyfikator
-serwisu to indeks serwisu w zadaniu. Wartości
-.CW NULL_PORT
+Podstawowym elementem odniesienia w systemie komunikacji międzyprocesowej jest identyfikator obiektu (OID - 
+.I "Object Identifier" ")."
+OID określa zarówno serwis użytkownika, uchwyt do pliku czy urządzenie w systemie.
+OID składa się z:
+.IP
+.CW portId
+- Identyfikator portu, do którego trafia wiadomość na magistrali. Portem jest np. task z przypisanymi serwisami, czy task zarządzający plikami w systemie (o portach będzie w dalszej części rozdziału). 
+.IP
+.CW serviceId
+- Identyfikator obiektu w ramach portu. Obiektem może być np. serwis użytkownika, plik itp.
+
+.PP
+Specjalnym przypadkiem jest 
+.CW "NULL_OID" ", "
+który oznacza brak przypisanego obiektu w systemie. Najczęściej jest używany do rozgłaszania wiadomości
+.I broadcast ")," ( 
+gdy odbiorca nie jest znany serwisowi.
+
+.subchapter "Wiadomości"
+.PP
+W pliku
+.CW Message.hpp
+zdefiniowano strukturę wiadomości.
+Składa się z nagłówka oraz struktur 
+.I Input " i"
+.I Output .
+
+.PP
+Header składa się z:
+.IP
+.CW "Oid sender"
+- nadawca wiadomości. 
+.IP
+.CW "Oid recipient"
+- odbiorca wiadomości. 
+.IP
+.CW "ReferenceCount referenceCount"
+- licznik referencji wiadomości. 
+.IP
+.CW "Type type"
+- typ wiadomości.
+
+.IP
+.B WAZNE!
+Użytkownik nie powinien modyfikować pól nagłówka wiadomości, gdyż są one zarządzane przez system.
+
+.PP
+Struktury 
+.I Input
+oraz
+.I Output
+zawierają dane przesyłane w wiadomości. Zawierają one pola specyficzne dla danego typu wiadomości oraz pole
+.CW raw
+dla niestandardowych danych definiowanych przez użytkownika.
+Jeden obiekt wiadomości wykorzystywany jest zarówno do wysyłania żądania jak i odpowiedzi na nie.
+Zasada jest taka, że serwis nadawczy wypełnia pola ze struktury 
+.I Input ,
+a odbiorca przetwarza dane i wypełnia pola ze struktury 
+.I Output 
+(nie dotyczy przypadków odczytu 
+.I read ", "
+gdzie nadawca wypełnia pola
+.CW data 
 i
-.CW NULL_SERVICE
-(255) oznaczają brak adresu. Adres
-.CW NULL_OID
-oznacza rozgłaszanie.
+.CW size
+w strukturze 
+.I Output ")."
+
+
+.IP
+.B WAŻNE!
+Pola 
+.CW data
+w strukturach 
+.I Input " i"
+.I Output
+zawierają wskaźnik do danych, ale nie zapewniają automatycznego zarządzania pamięcią. Użytkownik musi samodzielnie zapewnić przydział pamięci do danych do czasu otrzymania odpowiedzi!.
+
+.subsubchapter "Typy wiadomości"
 .PP
-Oid wskazuje wyłącznie na obiekty, które mogą zawieść z powodu sprzętu lub plików,
-na przykład otwarte urządzenie albo otwarty plik. Zadania i serwisy nie są obiektami.
-.subchapter "Wiadomość"
+Typ wiadomości jest podstawowym mechanizmem rozróżniania wiadomości w systemie.
+.IP
+.B WAZNE!
+Stosowanie tego samego typu dla różnych wiadomości może prowadzić do konfliktów w systemie!
+
+W pliku
+.CW Message.hpp
+zdefiniowano zakresy typów wiadomości:
+.DS I
+.CW "OS_ERROR_MESSAGE_TYPE = 0x0000;"
+.CW "DEVICE_MESSAGE_TYPE = 0x0100;"
+.CW "DRIVER_MESSAGE_TYPE = 0x0200;"
+.CW "FILESYSTEM_MESSAGE_TYPE = 0x0300;"
+.CW "CLI_MESSAGE_TYPE = 0x0400;"
+.CW "USER_MESSAGE_TYPE = 0x0500;"
+.DE
+
+Użytkownik powinien definiować własne typy wiadomości w zakresie od
+.CW USER_MESSAGE_TYPE
+do
+.CW UINT16_MAX
+(0xFFFF) i unikać konfliktów z typami zdefiniowanymi w systemie.
+
+.subsubchapter "Status wiadomości"
 .PP
-Struktura
-.CW ipc::Message
-ma stały rozmiar. Zawiera:
-.IP_bold sender
-adres nadawcy (Oid), do którego wraca odpowiedź,
-.IP_bold recipient
-adres odbiorcy (Oid),
-.IP_bold type
-typ wiadomości,
-.IP_bold referenceCount
-licznik odwołań, gdy wiadomość jest przechowywana w puli,
-.IP_bold input
-dane wejściowe: unia pól typowanych (otwarcie, atrybuty, odczyt lub zapis, połączenie)
-oraz wskaźnik i rozmiar bufora,
-.IP_bold output
-analogiczna część wyjściowa ze statusem odpowiedzi. Domyślny status to
-.CW STATUS_MESSAGE_NOT_SUPPORTED ,
-więc odbiorca bez obsługi żądania nie musi go zmieniać.
-.LP
-Wiadomość nie ma pola określającego, czy jest żądaniem, czy odpowiedzią. O kierunku
-decyduje to, którą metodą trafia do odbiorcy: żądania przez
-.CW send() ,
-odpowiedzi przez
-.CW respond() .
-Odpowiedź jest tym samym obiektem co żądanie, nie jest kopiowana.
-.LP
-Typy wiadomości są podzielone na zakresy: błędy systemowe, urządzenia,
-sterowniki, system plików, cli oraz użytkownika. Każdy moduł definiuje własne typy od początku swojego zakresu
-(na przykład
-.CW cli::msg::Type::SYSLOG
-od
-.CW CLI_MESSAGE_TYPE ")."
-Konkretne wiadomości dziedziczą po
-.CW ipc::Message
-i dodają wyłącznie akcesory, bez nowych pól. Bufory nie są kopiowane, więc muszą
-istnieć do czasu obsłużenia odpowiedzi.
-.subchapter "Serwis"
+Odbiorca wiadomości powinien uzupełnić pole
+.CW status
+w strukturze 
+.I Output .
+Status wiadomości informuje nadawcę o wyniku przetwarzania wiadomości przez odbiorcę.
+
 .PP
-Serwis (
-.CW ipc::Service )
-implementuje metody
-.CW handleRequest() ,
-.CW handleResponse() ,
-.CW acceptsRequest()
-oraz opcjonalnie
-.CW initialize()
-i
-.CW handleUnknownRequest() .
-Komunikuje się przez interfejs
-.CW Service::Api :
-.CW send(sender, message) ,
-.CW respond()
-i
-.CW getPortId() .
-Obiekt
-.CW Api
-jest podawany w konstruktorze, a implementuje go zadanie serwisów. Odpowiedzi na własne
-żądania serwis dostaje w
-.CW handleResponse() ,
-a cudze żądania w
-.CW handleRequest() .
+W strukturze
+.CW Message
+zdefiniowano statusy zwracane automatycznie przez system:
+.DS I
+.CW "STATUS_MESSAGE_NOT_SUPPORTED = 0xFF;"
+.CW "STATUS_PORT_NOT_FOUND = 0xFE;"
+.CW "STATUS_SERVICE_NOT_FOUND = 0xFD;"
+.DE
+
+Użytkownik definiując własne statusy wiadomości powinien unikać konfliktów z statusami zdefiniowanymi w systemie.
+Najlepszą praktyką jest stosowanie typu 
+.CW enum
+indeksowanego od zera.
+W systemie przyjęto założenie, że status o wartości
+.CW 0 "(zero)"
+oznacza brak błędów.
+
+.subsubchapter "Definiowanie własnych wiadomości"
 .PP
-Żądanie zaadresowane wprost do serwisu, który nie akceptuje jego typu, trafia do
-.CW handleUnknownRequest() .
-Domyślnie ta metoda nic nie robi, a nadawca dostaje odpowiedź ze statusem
-.CW STATUS_MESSAGE_NOT_SUPPORTED .
-Tak samo odpowiadają magistrala i zadanie, gdy adresowany port lub serwis nie istnieje albo nie akceptuje typu.
-Rozgłoszenie, którego nikt nie akceptuje, nie jest odrzucane. Rozgłoszenie nie powinno być żądaniem z odpowiedzią,
-bo jedna wiadomość służy wtedy wielu odbiorcom.
+Własne typy wiadomości powinny być strukturą dziedziczącą po strukturze 
+.CW Message .
+.B "NIE WOLNO JEDNAK ROZSZERZAĆ STRUKTURY O DODATKOWE POLA!" . 
+Własne typy danych powinny być dopasowane do instniejącej struktury, a pobieranie i ustawianie wartości odbywać się
+powinno za pomocą przygotowanych funkcji dostępowych (getterów i setterów).
+
 .PP
-.CW ipc::FsmService
-to serwis będący automatem skończonym. Stany dziedziczą po
-.CW FsmService::State
-(metody
-.CW onEnter() ,
-.CW onExit() ,
-.CW acceptsRequest() ,
-.CW handleRequest() ,
-.CW handleResponse()
-i
-.CW handleUnknownRequest() ).
-Obsługa zwraca identyfikator następnego stanu albo
-.CW NO_STATE_CHANGE .
-Serwis akceptuje typy wiadomości wyłącznie bieżącego stanu, a po
-.CW start()
-wchodzi w stan o indeksie 0.
-.subchapter "Zadanie serwisów"
+Przykłady definicji własnych wiadomości znajdują się w folderach 
+.CW "libnpos/dev/msg" ,
+.CW "libnpos/fs/msg" ", czy"
+.CW "libnpos/cli/msg" .
+
+.subchapter "Serwisy"
 .PP
-Klasa
-.CW ipc::ServiceTask
-jest jednocześnie zadaniem, portem na magistrali i
-.CW Service::Api .
-Listę serwisów i dwie kolejki wiadomości dostaje od użytkownika jako interfejsy
-.CW ServiceListInt& ,
-.CW RequestQueueInt&
-i
-.CW ResponseQueueInt& .
-Kolejka odpowiedzi musi pomieścić wszystkie jednocześnie oczekujące odpowiedzi, bo odpowiedź,
-która się nie zmieści, jest zwracana magistrali i nadawca jej nie dostanie. Zadanie obsługuje jedną wiadomość na
-.CW process() ,
-odpowiedzi przed żądaniami.
-.IP_dot
-.CW subscribe()
-nadaje serwisowi identyfikator równy indeksowi w liście,
-.IP_dot
-wiadomość do tego samego portu jest obsługiwana od razu, bez kolejkowania,
-.IP_dot
-wiadomość do innego portu trafia na magistralę,
-.IP_dot
-odbiorca z konkretnym identyfikatorem serwisu dostaje wiadomość bezpośrednio, a przy
-.CW NULL_SERVICE
-wiadomość trafia do wszystkich serwisów, które akceptują jej typ.
-.LP
-Odpowiedzi są adresowane po polu
-.CW sender
-z żądania i trafiają do
-.CW handleResponse()
-serwisu nadawcy. Wiadomość, która nie mieści się w kolejce, jest zwracana magistrali
-(
-.CW release() ),
-więc nie blokuje miejsca w puli.
-.subchapter "Magistrala"
+Serwisy w systemie NPOS są elementem logiki tworzonej aplikacji.
+Są odpowiedzialne za obsługę wiadomości przychodzących i realizację odpowiednich działań w systemie.
+
 .PP
-Interfejs
-.CW ipc::Bus
-ma metody
-.CW send() ,
-.CW respond()
-i
-.CW release() .
-Implementacja
-.CW ipc::SystemBus
-przyjmuje listę portów oraz pulę wiadomości od użytkownika. Numery portów
-są nadawane od wartości początkowej, więc dwie magistrale mogą mieć rozłączne zakresy
-i być połączone jako następcy.
-.IP_dot
-Wiadomość spoza puli jest kopiowana do puli przed doręczeniem, ze zerowym licznikiem odwołań.
-Odpowiedź jest tym samym obiektem co żądanie, więc w obrębie jednej magistrali nie jest kopiowana.
-.IP_dot
-Każde doręczenie zwiększa licznik odwołań, a
-.CW release()
-zmniejsza go i zwraca wiadomość do puli, gdy licznik spadnie do zera. Na czas rozgłaszania
-magistrala trzyma własne odwołanie, żeby port mógł zwolnić wiadomość od razu.
-.IP_dot
-Rozgłaszanie omija port nadawcy i porty, które nie akceptują typu wiadomości.
-.IP_dot
-Żądanie do konkretnego portu jest doręczane przez
-.CW receiveRequest() ,
-jeśli port akceptuje typ. W przeciwnym razie magistrala woła
-.CW handleUnknownRequest()
-portu i odpowiada nadawcy statusem
-.CW STATUS_MESSAGE_NOT_SUPPORTED .
-Tak samo kończy się adres nieistniejącego portu.
-.IP_dot
-Odpowiedź wraca do portu zapisanego w polu
-.CW sender
-przez
-.CW receiveResponse() .
-.IP_dot
-Nieznany port jest przekazywany następcy, o ile istnieje. Następca jest sprawdzany tylko jeden raz,
-więc magistrale wskazujące na siebie nawzajem nie zapętlają się.
-.IP_dot
-Gdy pula jest wyczerpana, wiadomość jest odrzucana.
-.LP
-Moduł ipc nie zawiera logowania. Logi są zwykłą wiadomością rozgłoszeniową modułu cli,
-wysyłaną przez
-.CW Service::Api::send()
-(patrz rozdział o terminalu).
+Komunikacja z systemem odbywa się za pomocą interfejsu
+.CW "Service::Api" ,
+który dostarczany jest w konstruktorze obiektu serwisu.
+Gdy serwis chce wysłać żądanie musi wywołać metodę 
+.CW "send()" ,
+natomiast gdy odpowiada na nadchodzące żądanie, powinien wywołać metodę
+.CW "respond()" .
+
+.IP
+.B "WAŻNE!"
+Odpowiadając na istniejącą wiadomość metodą 
+.CW "send()"
+zamiast
+.CW "respond()"
+może spowodować nieprawidłowe działanie systemu!
+
+.PP
+Użytkownik tworząc serwis musi dostarczyć następujące metody:
+.IP
+.CW "initialize()"
+- metoda uruchamiana podczas inicjalizacji serwisu. Może posłużyć do przygotowania zasobów lub konfiguracji serwisu,
+otwarcia pliku lub urządzeń.
+
+.IP
+.CW "handleRequest(Message&)"
+- obsługa przychodzących żądań do serwisu. Żądanie może zostać obsłużone od razu lub odłożone na później (przez klasę 
+.CW "MessageStore" )
+w celu wysłania żądania do innego serwisu (np. odczytania zawartości pliku).
+.IP
+.CW "handleResponse(Message&)"
+- obsługa odpowiedzi na wysłane wcześniej żądania.
+
+.IP
+.CW "acceptsRequest(Message::Type) const"
+- metoda zwraca typ obsługiwanych żądań przez serwis. Nieobsługiwane typy zostaną automatycznie obsłużone przez system.
+
+.IP
+.B "WAŻNE!"
+Nie należy samemu wywoływać metody
+.CW "setId" ,
+gdyż skutkuje to błędnym adresowaniem OID serwisu. 
+
+.PP
+Przykłady implementacji serwisów znajdują się w folderach 
+.CW "libnpos/dev/service" ", "
+.CW "libnpos/fs/service" ", "
+.CW "libnpos/cli/service" " lub w przykładach w folderze "
+.CW "examples" .
+
+.subsubchapter "Maszyny stanów"
+.PP
+Gdy obsługa żądania przez serwis wymaga wysłania kolejnych wiadomości lub oczekiwania na odpowiedzi, można wykorzystać klasę
+.CW FsmService ", "
+który pozwala zaimplementować serwis w formie maszyny stanów.
+
+.PP
+Główną różnicą w stosunku do implementacji standardowego serwisu jest to, że w tym przypadku korzysta się z interfejsu klasy
+.CW "FsmService::State" ", "
+który reprezentuje pojedynczy stan. Metody
+.CW "handleRequest" ", "
+.CW "handleResponse"
+zwracają 
+.CW "FsmService::State::ID" ", "
+który jest unikalnym identyfikatorem w maszynie stanów.
+W przypadku gdy obsługa wiadomości wymaga przejścia do innego stanu, metoda powinna zwrócić identyfikator tego stanu.
+W przeciwnym wypadku powinna zwrócić
+.CW "NO_STATE_CHANGE" ", lub "
+.CW "getId()" .
+
+.PP
+W konstruktorze 
+.CW "FsmService"
+należy podać tablicę stanów w kolejności odpowiadającej ich ID.
+Także ID powinny być typem wyliczeniowym 
+.CW enum
+.B "indeksowanym od ZERA!"
+
+.subchapter "ServiceTask"
+.PP
+.CW "ServiceTask"
+jest specjalnym rodzajem taska odpowiedzialnym za komunikację z magistralą systemową, odbiorem i kolejkowaniem wiadomości
+oraz przekazywaniem ich do serwisów. Jest także implementacją interfejsu
+.CW "Service::Api" ", "
+, tzn. dostarcza mechanizmów do komunikacji z magistralą systemową poprzez serwisy.
+
+.PP
+Oprócz listy serwisów, 
+.CW "ServiceListInt" " , "
+.CW "ServiceTask"
+zawiera też kolejki wiadomości przychodzących i wychodzących:
+.CW "RequestQueueInt" " oraz "
+.CW "ResponseQueueInt" .
+W kolejce nie są jednak przechowywane kopie wiadomości, a jedynie wskaźniki do nich, dzięki mechanizmowi alokacji w 
+magistrali systemowej (więcej o tym w dalszej części rozdziału).
+Dzięki temu kolejki mogą być odpowiednio duże bez znacznego obciążenia pamięci (jeden slot kolejki zajmuje tylko 4 bajty w architekrurze 32-bitowej).
+
+.PP
+Wiadomości wysyłane między serwisami w ramach tego samego taska są wykonywane bezpośrednio, bez przechodzenia przez magistralę systemową i scheduler.
+Dzięki temu skraca się czas wykonania, gdyż wiadomośc nie przechodzi niepotrzebnie przez magistralę, wydłużając drogę wiadomości i alokując dodatkowo pamięć w globalnej puli.
+Z drugiej jednak strony jeżeli wiele serwisów wymienia wiadomości w ramach jednego taska, zwiększa się porcja czasu działania taska w ramach jednego cyklu schedulera,
+a więc gdy pojawi się zadanie o wyższym priorytecie, wydłuży się czas jego oczekiwania. Dotyczy to też resetowania licznika watchdog przez scheduler, co może prowadzić do zresetowania
+procesora. Dodatkowo zwiększa się stos wywołań, co przy ograniczonej pamięci urządzenia może prowadzić do jej przepełnienia.
+.B "Należy to wziąć pod uwagę przy projektowaniu własnej aplikacji!"
+
+.PP
+Najważniejsze metody to:
+.IP
+.CW "ServiceTask(Priority priority, ServiceListInt& services, RequestQueueInt& requestQueue, ResponseQueueInt& responseQueue, Bus& bus)"
+- konstruktor. Oprócz priorytetu taska należy mu także dostarczyć kontener 
+.CW "ServiceListInt"
+do przechowywania listy serwisów. Nie należy go uzupełniać samemu, ponieważ task sam zarządza dodawaniem i 
+przydzielaniem OID.
+Dodatkowo task wymaga dostarczenia kolejek wiadomości przychodzących i wychodzących.
+
+.IP
+.CW "subscribe(Service& service)"
+- metoda na przyłączenie serwisu do taska. Po wywołaniu tej metody serwis otrzymuje przypisany OID.
+
+
+.subchapter "Magistrala systemowa"
+.PP
+Implementacją magistrali systemowej jest klasa
+.CW "SystemBus" .
+Istotnym mechanizmem magistrali jest globalna pula do alokacji wiadomości trafiających na magistralę.
+Mechanizm ten pozwala na optymalizację zużycia pamięci, gdyż porty magistrali przechowują jedynie wskaźniki na wiadomości. 
+Dzięki temu wyeliminowany został kosztowny proces kopiowania wiadomości między portami.
+Dodatkowo w przypadku wiadomości rozgłoszeniowych wszystkie porty odbiorcze operują na tym samym egzemplarzu wiadomości.
+
+.PP
+Mechanizm globalnej alokacji wymusza stosowanie jednak pewnych zasad przy obsłudze wiadomości.
+Przykładowo, w module 
+.CW "dev"
+zdefiniowana jest wiadomość 
+.CW Open
+służąca do odkrywania OID urządzeń. 
+W przypadku gdy każde z urządzeń obsługuje ten typ wiadomości, wymagany jest dodatkowy mechanizm rozróżniający czy dana wiadomość adresowana jest do danego urządzenia
+(w tym przypadku poprzez pole 
+.I name ")."
+Gdyby wiele urządzeń odpowiadałoby na tą sąmą wiadomość w kolejce odbiorczej taska pojawiłoby się wiele wskaźników do tej samej wiadomości.
+Ponadto wartość struktury 
+.CW Output
+wiadomości zawierałaby dane dotyczące ostatniego urządzenia, które odpowiedziało na tę wiadomość.
+.B "Należy to wziąć pod uwagę przy projektowaniu własnych wiadomości!"
+
+Obiekty klasy
+.CW "Message"
+zawierają pole 
+.CW "ReferenceCount" ", "
+które jest licznikiem odwołań do danej wiadomości.
+Magistrala zwiększa go za każdym razem, gdy port odbiera wiadomość. Rolą portu jest natomiast jego zmniejszanie po obsłużeniu wiadomości.
+Gdy licznik odwołań osiągnie zero, wiadomość zostanie zwolniona z globalnej puli alokacji.
+
+.IP
+.B WAŻNE!
+Z tego powodu użytkownik nigdy nie powinien sam modyfikować licznika 
+.CW "ReferenceCount" "."
+W przypadku gdy obsługa wiadomości wymaga odłożenia jej na później, należy skorzystać z obiektu
+.CW "MessageStore!"
+
+.PP
+Najważniejsze metody:
+.IP
+.CW "SystemBus(PortListInt& ports, PoolInt& pool, PortId initialPort)"
+- konstruktor. Należy podać kontener do przechowywania wskaźników do portów, pulę alokacji wiadomości oraz identyfikator startowy portu.
+.IP
+.CW "addPort(Port& port)"
+- dodaje port do magistrali oraz nadaje mu identyfikator.
+.IP
+.CW "setSuccesor(SystemBus& succ)"
+- ustawia następcę magistrali systemowej, do którego będą przekazywane wiadomości w innym kontekście.
+
+.subsubchapter "Porty i adresowanie"
+.PP
+Do magistrali systemowej rejestrują się porty. Są to w większości obiekty
+.CW "ServiceTask" ", "
+a także inne taski specjalne jak np. task systemu plików.
+Należy pamiętać, że mechanizm subskrypcji do schedulera jest niezależny od mechanizmu subskrypcji do magistrali systemowej.
+
+.PP
+Tak jak w przypadku klasy
+.CW "nps::Scheduler"
+magistrala systemowa może mieć ustawionego następcę (
+.CW "Succesor" "), "
+który służy do przekazywania wiadomości do schedulera w innym kontekście np. części Non-secure w ramach mechanizmu ARM Trustzone-M.
+Aby uniknąć konfliktu adresacji OID, w konstruktorze
+.CW "SystemBus"
+podaje się identyfikator startowy portu, od której magistrala ma adresować kolejne porty.
+Dzięki temu np. id portów w części Secure mogą zaczynać się od zera, a w części Non-secure od 128.
+
+.subchapter "Przechowywanie wiadomości"
+.PP
+W przypadku gdy obsługa wiadomości wymaga jej odłożenia na później (np. w celu wcześniejszego odczytania zawartości pliku lub skorzystania z urządzenia)
+należy skorzystać z obiektu
+.CW "MessageStore" "."
+W przypadku wiadomości pochodzących z magistrali systemowej obiekt ten zwiększy licznik odwołań.
+.CW "MessageStore"
+obsługuje także żądania pochodzące z tego samego taska, poprzez skopiowanie wiadomości do lokalnego bufora.
+
+.PP
+Najważniejsze metody:
+.IP
+.CW "MessageStore(Service& owner)"
+- konstruktor, należy podać referencję do właściciela magazynu wiadomości (serwisu).
+.IP
+.CW "store(T& message)"
+- zapisuje wiadomość w magazynie wiadomości i zwraca wskaźnik do niej.
+.IP
+.CW "release()"
+- zwalnia przechowywaną wiadomość, zmniejszając licznik odwołań i zwraca wskaźnik do niej.
+.IP
+.CW "hasValue() const"
+- sprawdza, czy w magazynie znajduje się jakaś wiadomość.
+.IP
+.CW "get() const"
+- zwraca wskaźnik do przechowywanej wiadomości, nie zmieniając licznika odwołań.
+
+.bp

@@ -6,18 +6,9 @@ biblioteki
 .B npos
 (katalog
 .CW npos/libnpos/fs )
-definiuje interfejs systemu plików, a zadanie
-.CW fs::task::Littlefs<N>
-implementuje go na bibliotece littlefs. Parametr N to liczba jednocześnie otwartych
-plików oraz, osobno, katalogów.
-.subchapter "Obsługa sprzętu"
-.PP
-Pamięć opisuje
-.CW fs::hal::Flash
-(blokowy dostęp do pamięci flash) i opcjonalnie
-.CW fs::hal::ICache
-(pamięć podręczna instrukcji jest wyłączana na czas programowania). Jeżeli
-montowanie się nie powiedzie, zadanie formatuje pamięć i montuje ją ponownie.
+definiuje interfejs systemu plików, poprzez wiadomości zdefiniowane w module
+.CW fs::msg .
+
 .subchapter "Wiadomości"
 .TS
 center box;
@@ -46,21 +37,62 @@ utworzenie katalogu
 T}
 .TE
 .PP
-Otwarcie zwraca Oid pliku lub katalogu. Pole identyfikatora serwisu w tym Oid to
-indeks slotu w zadaniu. Odczyt katalogu kończy status
+Otwarcie zwraca Oid pliku lub katalogu. Odczyt katalogu kończy status
 .CW END_OF_DIRECTORY ;
 wpisy
 .CW .
 i
 .CW ..
-nie są zwracane. Brak wolnego slotu skutkuje odpowiedzią
+nie są zwracane. Otwarcie zbyt wielu plików lub katalogów w systemie skutkuje odpowiedzią
 .CW NO_MEMORY .
-.PP
-Ścieżki w żądaniach otwarcia i utworzenia katalogu muszą być zakończone zerem,
-ponieważ trafiają bezpośrednio do littlefs. Funkcje
-.CW fs::api::file::*
-i
-.CW fs::api::dir::*
-wysyłają żądania w imieniu serwisu.
 
-.so blankPage.roff
+.subchapter "Obsługa systemu plików"
+.PP
+W pliku 
+.CW libnpos/fs/Api.hpp
+zdefiniowane są funkcje do obsługi systemu plików.
+Autor rekomenduje wywoływanie funkcji API do wysyłania żądań do systemu plików, co pozwoli na ewentualną zgodność
+aplikacji użytkownika w przypadku aktualizacji wiadomości w module
+.CW fs::msg .
+
+.PP
+Przetwarzanie odpowiedzi wymaga sprawdzenia typu wiadomości
+.CW ipc::Message::Type ), (
+rzutowania jej na odpowiednią strukturę modułu 
+.CW fs::msg ,
+a następnie skorzystania z getterów i setterów udostępnionych przez tą strukturę wiadomości.
+Istotnym elementem jest sprawdzenie statusu wiadomości, gdyż serwisy urządzeń jedynie zgłaszają błędy,
+ale to po stronie użytkownika spoczywa odpowiedzialność za ich obsłużenie w ramach pisanej aplikacji.
+
+.subchapter "Implementacja systemu plików"
+.PP
+Aktualnie implementacja systemu plików opiera się na pamięci flash i wykorzystuje bibliotekę littlefs do zarządzania strukturą katalogów i plików.
+System plików obsługuje podstawowe operacje na plikach i katalogach, takie jak otwieranie, odczyt, zapis, zamykanie oraz tworzenie katalogów.
+
+.PP
+Implementacja systemu plików zrealizowana jest w zadaniu
+.CW "task::Littlefs" .
+OID pliku lub katalogu składa się z identyfikatora portu taska oraz lokalnego identyfikatora pliku lub katalogu w tablicy plików lub katalogów tego taska.
+Tworząc task należy podać rozmiar tablicy plików i katalogów, które będą obsługiwane przez ten task oraz kolejkę wiadomości zadania.
+
+.subsubchapter "Obsługa sprzętu"
+.PP
+Pamięć opisuje
+.CW fs::hal::Flash
+(blokowy dostęp do pamięci flash) i opcjonalnie
+.CW fs::hal::ICache
+(pamięć podręczna instrukcji jest wyłączana na czas programowania). Jeżeli
+montowanie się nie powiedzie, zadanie formatuje pamięć i montuje ją ponownie.
+
+.subsubchapter "Własna implementacja systemu plików"
+.PP
+Istnieje możliwość implementacji systemu plików w oparciu o inną bibliotekę niż 
+.I littlefs .
+Wymagane jest zachowanie spójności z wiadomościami modułu 
+.CW fs::msg .
+Możliwe jest także utworzenie w systemie więcej niż jednej instancji systemu plików (np. system plików na pamięci RAM i FLASH jednocześnie, lub kilka
+układów pamięci jednocześnie).
+Autor rekomenduje rozróżnianie instancji systemu poprzez ścieżki do katalogów głównych poszczególnych instancji (np. /flash/plik.txt i /ram/plik.txt).
+W ten sposób użytkownik może wysyłać wiadomości rozgłoszeniowe Open do wszystkich instancji, a odpowiadać będzie ten system plików, którego katalog główny odpowiada ścieżce podanej w żądaniu.
+
+.bp

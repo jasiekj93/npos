@@ -3,17 +3,23 @@
 NPOS
 .br
 Non Preemptive Operating System
+.br
 Architektura oprogramowania
 .AU
 Adrian SZCZEPAŃSKI
 
 .AB
-NPOS jest systemem czasu rzeczywistego bez wywłaszczeń. 
+NPOS jest kooperatywnym systemem przeznaczonym na urządzenia embedded. 
 Powstał na potrzeby urządzeń wbudowanych typu 'safety-critical', gdzie
 zastosowanie systemu RTOS z wywłaszczeniami jest niemożliwe. 
-System ma zaimplementowany mechanizm komunikacji międzyprocesowej (IPC),
-który jest podstawą wymiany danych w systemie. Na jego podstawie zdefiniowany
-został interfejs do korzystania z urządzeń (devices) oraz plików (filesystem).
+W systemie oprócz mechanizmu podziału czasu między wątkami opracowany został
+kompletny mechanizm komunikacji międzyprocesowej (IPC). 
+W systmie zastosowano istotny rozdział pomiędzy podziałem czasu procesora (task), od
+logiki obsługi wiadomości międzyprocesowej (service).
+Ponadto oprogramowanie zawiera interfejs do komunikacji z systemem plików, 
+urządzeniami peryferyjnymi oraz konsolę systemową. Niniejszy dokument zawiera
+opis najważniejszych elementów systemu jak również zasady tworzenia własnych 
+aplikacji na ten system.
 .AE
 
 .bp
