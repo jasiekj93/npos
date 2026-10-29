@@ -13,7 +13,7 @@ namespace npos::emulator
     class Rtc : public npos::dev::hal::Rtc
     {
     public:
-        bool initalize() override
+        bool initialize() override
         {
             return true;
         }

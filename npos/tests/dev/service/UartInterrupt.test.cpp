@@ -268,7 +268,7 @@ TEST(UartInterrupt, InterruptFromOtherPeripheralIsIgnored)
     auto request = write();
     service.handleRequest(request);
 
-    interrupt(UartInterrupt::TRANSMIT_COMPLETE, Interrupt::HASH);
+    interrupt(UartInterrupt::TRANSMIT_COMPLETE, Interrupt::HASH_INT);
 
     CHECK_EQUAL(0, api.responded.size());
 }

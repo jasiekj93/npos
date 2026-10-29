@@ -87,7 +87,7 @@ namespace npos::dev::service
             if(not currentRequest.hasValue())
                 return;
 
-            if(interrupt.type != hal::Interrupt::Type::HASH)
+            if(interrupt.type != hal::Interrupt::Type::HASH_INT)
                 return;
 
             switch (interrupt.code)

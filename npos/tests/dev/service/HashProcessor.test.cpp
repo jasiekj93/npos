@@ -32,7 +32,7 @@ TEST_GROUP(HashProcessor)
         api.responded.clear();
     }
 
-    void interrupt(npos::dev::hal::Interrupt::Code code, Interrupt::Type type = Interrupt::HASH)
+    void interrupt(npos::dev::hal::Interrupt::Code code, Interrupt::Type type = Interrupt::HASH_INT)
     {
         hash.fire(type, code);
         processor.processInterrupt();

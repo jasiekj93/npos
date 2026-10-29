@@ -29,7 +29,7 @@ namespace npos::dev::hal
 
         virtual ~Rtc() = default;
 
-        virtual bool initalize() = 0;
+        virtual bool initialize() = 0;
 
         virtual bool setTime(const Time&) = 0;
         virtual bool getTime(Time&) = 0;

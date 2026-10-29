@@ -54,7 +54,7 @@ TEST(InterruptServiceTask, IsNotReadyWithoutWork)
 
 TEST(InterruptServiceTask, IsReadyWhenServiceHasPendingInterrupt)
 {
-    device.fire(npos::dev::hal::Interrupt::HASH, 0);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 0);
 
     CHECK_TRUE(task.isReady());
 }
@@ -72,7 +72,7 @@ TEST(InterruptServiceTask, ProcessHandlesInterruptBeforeMessages)
     npos::ipc::Message message;
     message.type = 0x1000;
     task.receiveRequest(message);
-    device.fire(npos::dev::hal::Interrupt::HASH, 0);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 0);
 
     task.process();
 

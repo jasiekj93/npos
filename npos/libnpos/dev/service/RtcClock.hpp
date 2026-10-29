@@ -207,7 +207,7 @@ namespace npos::dev::service
 
             if(not isInitalized)
             {
-                if(not rtc.initalize())
+                if(not rtc.initialize())
                     status = msg::Open::Status::INIT_FAILURE;
                 else
                     isInitalized = true;

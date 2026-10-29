@@ -14,7 +14,7 @@ namespace npos::dev::hal
     {
         enum Type
         {
-            HASH = 0,
+            HASH_INT = 0,
             UART,
             WATCHDOG
         };

@@ -13,7 +13,7 @@ namespace mock
     class FakeRtc : public npos::dev::hal::Rtc
     {
     public:
-        bool initalize() override { initCount++; return not failInit; }
+        bool initialize() override { initCount++; return not failInit; }
         bool setTime(const Time& value) override { time = value; return not failSetTime; }
         bool getTime(Time& value) override { value = time; return not failGetTime; }
         bool setDate(const Date& value) override { date = value; return not failSetDate; }

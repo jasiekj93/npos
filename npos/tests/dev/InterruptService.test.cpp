@@ -48,7 +48,7 @@ TEST(InterruptService, NoInterruptIsPendingInitially)
 
 TEST(InterruptService, InterruptFromDeviceBecomesPending)
 {
-    device.fire(npos::dev::hal::Interrupt::HASH, 1);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 1);
 
     CHECK_TRUE(service.isInterruptPending());
 }
@@ -63,8 +63,8 @@ TEST(InterruptService, PendingCheckGuardsDeviceInterrupts)
 
 TEST(InterruptService, ProcessInterruptDeliversInOrder)
 {
-    device.fire(npos::dev::hal::Interrupt::HASH, 1);
-    device.fire(npos::dev::hal::Interrupt::HASH, 2);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 1);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 2);
 
     service.processInterrupt();
     service.processInterrupt();
@@ -85,9 +85,9 @@ TEST(InterruptService, ProcessInterruptWithoutPendingDoesNothing)
 
 TEST(InterruptService, InterruptsAreDroppedWhenQueueIsFull)
 {
-    device.fire(npos::dev::hal::Interrupt::HASH, 1);
-    device.fire(npos::dev::hal::Interrupt::HASH, 2);
-    device.fire(npos::dev::hal::Interrupt::HASH, 3);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 1);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 2);
+    device.fire(npos::dev::hal::Interrupt::HASH_INT, 3);
 
     service.processInterrupt();
     service.processInterrupt();
