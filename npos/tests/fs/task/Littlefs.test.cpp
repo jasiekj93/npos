@@ -602,3 +602,73 @@ TEST(Littlefs, FilesCanBeCreatedInMadeDirectory)
     CHECK_EQUAL(msg::dir::Entry::FILE, entry.type);
     CHECK_TRUE(entry.getName() == "a.txt");
 }
+
+
+TEST(Littlefs, RemoveFileDeletesIt)
+{
+    write("a.txt", "x");
+    msg::file::Remove remove("a.txt");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, remove.getStatus());
+    msg::file::Open open("a.txt", Flags::READ_ONLY);
+    run(open);
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, open.getStatus());
+}
+
+TEST(Littlefs, RemoveMissingFileFails)
+{
+    msg::file::Remove remove("missing");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, remove.getStatus());
+}
+
+TEST(Littlefs, RemoveFileRejectsDirectory)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    msg::file::Remove remove("docs");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::IS_A_DIRECTORY, remove.getStatus());
+}
+
+TEST(Littlefs, RemoveDirectoryDeletesEmptyDirectory)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    msg::dir::Remove remove("docs");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, remove.getStatus());
+    msg::dir::Open open("docs");
+    run(open);
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, open.getStatus());
+}
+
+TEST(Littlefs, RemoveNotEmptyDirectoryFails)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    write("docs/a.txt", "x");
+    msg::dir::Remove remove("docs");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::DIRECTORY_NOT_EMPTY, remove.getStatus());
+}
+
+TEST(Littlefs, RemoveDirectoryRejectsFile)
+{
+    write("a.txt", "x");
+    msg::dir::Remove remove("a.txt");
+
+    run(remove);
+
+    CHECK_EQUAL(msg::Status::NOT_A_DIRECTORY, remove.getStatus());
+}

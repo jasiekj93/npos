@@ -11,10 +11,12 @@
 #include <libnpos/fs/msg/file/Close.hpp>
 #include <libnpos/fs/msg/file/Read.hpp>
 #include <libnpos/fs/msg/file/Write.hpp>
+#include <libnpos/fs/msg/file/Remove.hpp>
 #include <libnpos/fs/msg/dir/Open.hpp>
 #include <libnpos/fs/msg/dir/Close.hpp>
 #include <libnpos/fs/msg/dir/Read.hpp>
 #include <libnpos/fs/msg/dir/Make.hpp>
+#include <libnpos/fs/msg/dir/Remove.hpp>
 
 namespace npos::fs::api
 {
@@ -43,6 +45,12 @@ namespace npos::fs::api
             npos::fs::msg::file::Write request(file, buffer);
             sender.getApi().send(sender, request);
         }
+
+        inline void remove(ipc::Service& sender, etl::string_view path)
+        {
+            npos::fs::msg::file::Remove request(path);
+            sender.getApi().send(sender, request);
+        }
     }
 
     namespace dir
@@ -68,6 +76,12 @@ namespace npos::fs::api
         inline void make(ipc::Service& sender, etl::string_view path)
         {
             npos::fs::msg::dir::Make request(path);
+            sender.getApi().send(sender, request);
+        }
+        
+        inline void remove(ipc::Service& sender, etl::string_view path)
+        {
+            npos::fs::msg::dir::Remove request(path);
             sender.getApi().send(sender, request);
         }
     }

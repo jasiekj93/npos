@@ -65,10 +65,12 @@ namespace npos::fs::task
             case msg::Type::FILE_CLOSE:
             case msg::Type::FILE_READ:
             case msg::Type::FILE_WRITE:
+            case msg::Type::FILE_REMOVE:
             case msg::Type::DIR_OPEN:
             case msg::Type::DIR_CLOSE:
             case msg::Type::DIR_READ:
             case msg::Type::DIR_MAKE:
+            case msg::Type::DIR_REMOVE:
                 return true;
             default:
                 return false;
@@ -265,6 +267,10 @@ namespace npos::fs::task
                 return dirRead(static_cast<msg::dir::Read&>(message));
             case msg::Type::DIR_MAKE:
                 return dirMake(static_cast<msg::dir::Make&>(message));
+            case msg::Type::FILE_REMOVE:
+                return fileRemove(static_cast<msg::file::Remove&>(message));
+            case msg::Type::DIR_REMOVE:
+                return dirRemove(static_cast<msg::dir::Remove&>(message));
             default:
                 return handleUnknownRequest(message);
             }
@@ -318,6 +324,33 @@ namespace npos::fs::task
         void dirMake(msg::dir::Make& request)
         {
             bus.respond(request.setStatus(fromLfsStatus(lfs_mkdir(&filesystem, request.getPath().data()))));
+        }
+
+        void dirRemove(msg::dir::Remove& request)
+        {
+            bus.respond(request.setStatus(remove(request.getPath().data(), LFS_TYPE_DIR)));
+        }
+
+        void fileRemove(msg::file::Remove& request)
+        {
+            bus.respond(request.setStatus(remove(request.getPath().data(), LFS_TYPE_REG)));
+        }
+
+        // lfs_remove accepts both types, so the type is checked first. The path must be null terminated.
+        msg::Status remove(const char* path, uint8_t expectedType)
+        {
+            lfs_info info;
+            auto result = lfs_stat(&filesystem, path, &info);
+
+            if(result == LFS_ERR_OK)
+            {
+                if(info.type != expectedType)
+                    return expectedType == LFS_TYPE_DIR ? msg::Status::NOT_A_DIRECTORY : msg::Status::IS_A_DIRECTORY;
+
+                result = lfs_remove(&filesystem, path);
+            }
+
+            return fromLfsStatus(result);
         }
 
         void dirClose(msg::dir::Close& request)
