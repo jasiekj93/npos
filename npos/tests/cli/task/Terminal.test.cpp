@@ -26,7 +26,8 @@ TEST_GROUP(Terminal)
     Terminal::MessageQueue<8> queue;
     etl::generic_pool<npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, 4> payloads;
     Terminal::ProgramList<2> programList;
-    Terminal terminal{2, queue, payloads, programList, bus, "uart0"};
+    Terminal::RegisteredNames<2> names;
+    Terminal terminal{2, queue, payloads, programList, names, bus, "uart0"};
     mock::Console console{terminal, bus};
     mock::FakeProgram program{api};
 
@@ -1074,7 +1075,7 @@ TEST(Terminal, TooLongLogIsDropped)
 TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
 {
     Terminal::MessageQueue<1> smallQueue;
-    Terminal small{2, smallQueue, payloads, programList, bus, "uart0"};
+    Terminal small{2, smallQueue, payloads, programList, names, bus, "uart0"};
     npos::cli::msg::Syslog first({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "a", false);
     npos::cli::msg::Syslog second({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "b", false);
 
@@ -1108,4 +1109,75 @@ TEST(Terminal, ActsAsApiOfItsPrograms)
     CHECK_EQUAL(3, bus.sent[0].sender.portId);
     CHECK_EQUAL(4, bus.sent[0].sender.serviceId);
     CHECK_EQUAL(1, bus.responded.size());
+}
+
+
+TEST(Terminal, AcceptsRegisterName)
+{
+    CHECK_TRUE(terminal.accepts(npos::cli::msg::Type::REGISTER_NAME));
+}
+
+TEST(Terminal, RegisteredNameReplacesOidInLogs)
+{
+    start();
+    npos::cli::msg::RegisterName registration({ terminal.getId(), 0 }, "sensor");
+    registration.sender = { 10, 0 };
+
+    terminal.receiveRequest(registration);
+    terminal.process();
+    log("hello");
+
+    CHECK_EQUAL(npos::cli::msg::RegisterName::SUCCESS, registration.getStatus());
+    CHECK_EQUAL(1, bus.responded.size());
+    auto text = console.take();
+    CHECK_TRUE(strstr(text.c_str(), "[sensor ") != nullptr);
+    CHECK_TRUE(strstr(text.c_str(), "{10:0}") == nullptr);
+}
+
+TEST(Terminal, UnregisteredSenderStillShowsOid)
+{
+    start();
+    npos::cli::msg::RegisterName registration({ terminal.getId(), 0 }, "sensor");
+    registration.sender = { 11, 0 };
+
+    terminal.receiveRequest(registration);
+    terminal.process();
+    log("hello");
+
+    CHECK_TRUE(strstr(console.take().c_str(), "{10:0}") != nullptr);
+}
+
+TEST(Terminal, RegisteringTheSameOidAgainReplacesTheName)
+{
+    start();
+    npos::cli::msg::RegisterName first({ terminal.getId(), 0 }, "old");
+    npos::cli::msg::RegisterName second({ terminal.getId(), 0 }, "new");
+    first.sender = second.sender = { 10, 0 };
+
+    terminal.receiveRequest(first);
+    terminal.process();
+    terminal.receiveRequest(second);
+    terminal.process();
+    log("hello");
+
+    CHECK_EQUAL(1, names.size());
+    CHECK_TRUE(strstr(console.take().c_str(), "[new ") != nullptr);
+}
+
+TEST(Terminal, RegisterNameFailsWhenNoSpaceLeft)
+{
+    start();
+    npos::cli::msg::RegisterName a({ terminal.getId(), 0 }, "a"), b({ terminal.getId(), 0 }, "b"), c({ terminal.getId(), 0 }, "c");
+    a.sender = { 1, 0 };
+    b.sender = { 2, 0 };
+    c.sender = { 3, 0 };
+
+    for(auto* message : { &a, &b, &c })
+    {
+        terminal.receiveRequest(*message);
+        terminal.process();
+    }
+
+    CHECK_EQUAL(npos::cli::msg::RegisterName::NO_MEMORY, c.getStatus());
+    CHECK_EQUAL(2, names.size());
 }

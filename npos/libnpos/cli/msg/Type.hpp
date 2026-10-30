@@ -13,5 +13,6 @@ namespace npos::cli::msg
     enum Type : ipc::Message::Type
     {
         SYSLOG = ipc::CLI_MESSAGE_TYPE,
+        REGISTER_NAME,
     };
 }

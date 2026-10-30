@@ -28,6 +28,7 @@
 #include <libnpos/dev/msg/Open.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
 #include <libnpos/cli/msg/Syslog.hpp>
+#include <libnpos/cli/msg/RegisterName.hpp>
 #include <libnpos/fs/msg/Type.hpp>
 
 namespace npos::cli::task
@@ -48,6 +49,10 @@ namespace npos::cli::task
         using MessageQueueInt = etl::iqueue<ipc::Message*>;
         using PayloadPoolInt = etl::ipool;
         using ProgramListInt = etl::ivector<Program*>;
+        using RegisteredNamesInt = etl::ivector<etl::pair<ipc::Oid, etl::string_view>>;
+
+        template<size_t N>
+        using RegisteredNames = etl::vector<etl::pair<ipc::Oid, etl::string_view>, N>;
 
         template<size_t N>
         using MessageQueue = etl::queue<ipc::Message*, N>;
@@ -60,11 +65,12 @@ namespace npos::cli::task
 
         // Slots of the payload pool hold the text of one log each.
         Terminal(Priority priority, MessageQueueInt& messageQueue, PayloadPoolInt& payloads, ProgramListInt& programs,
-            ipc::Bus& bus, etl::string_view deviceName)
+            RegisteredNamesInt& names, ipc::Bus& bus, etl::string_view deviceName)
             : nps::Task(priority)
             , messageQueue(messageQueue)
             , payloads(payloads)
             , programs(programs)
+            , names(names)
             , bus(bus)
             , deviceName(deviceName)
             , logLevel(log::Level::INFO)
@@ -88,13 +94,21 @@ namespace npos::cli::task
         //Port
         bool accepts(ipc::Message::Type type) const override
         {
-            return type == cli::msg::SYSLOG;
+            return type == cli::msg::SYSLOG or type == cli::msg::REGISTER_NAME;
         }
 
         // The log text lives in the sender's buffer, so it is moved to a slot of the payload pool before queueing.
         void receiveRequest(const ipc::Message& message) override
         {
             auto& request = const_cast<ipc::Message&>(message);
+
+            if(request.type == cli::msg::REGISTER_NAME)
+            {
+                if(messageQueue.full())
+                    return bus.release(&request);
+
+                return messageQueue.push(&request);
+            }
 
             if(request.type != cli::msg::SYSLOG)
             {
@@ -241,12 +255,14 @@ namespace npos::cli::task
             return true;
         }
 
-        // SYSLOG is the only request the terminal serves, everything else queued is an answer.
+        // SYSLOG and REGISTER_NAME are the requests the terminal serves, everything else queued is an answer.
         // Once the terminal device is open, an Open answer belongs to the running program.
         void handle(ipc::Message& message)
         {
             if(message.type == cli::msg::Type::SYSLOG)
                 onLog(message);
+            else if(message.type == cli::msg::Type::REGISTER_NAME)
+                onRegisterName(static_cast<cli::msg::RegisterName&>(message));
             else if(message.type == dev::msg::Type::OPEN and not opened)
                 onOpen(static_cast<dev::msg::Open&>(message));
             else if(message.type == dev::msg::Type::TRANSCIEVER)
@@ -307,6 +323,42 @@ namespace npos::cli::task
             }
         }
 
+        // The name must stay valid for the lifetime of the program (e.g. a string literal).
+        void onRegisterName(cli::msg::RegisterName& request)
+        {
+            auto sender = request.sender;
+            auto name = request.getName();
+
+            for(auto& entry : names)
+            {
+                if(entry.first == sender)
+                {
+                    entry.second = name;
+                    return bus.respond(request.setStatus(cli::msg::RegisterName::SUCCESS));
+                }
+            }
+
+            if(names.full())
+                return bus.respond(request.setStatus(cli::msg::RegisterName::NO_MEMORY));
+
+            names.push_back(etl::pair<ipc::Oid, etl::string_view>(sender, name));
+            bus.respond(request.setStatus(cli::msg::RegisterName::SUCCESS));
+        }
+
+        void printSender(ipc::Oid oid)
+        {
+            for(auto& entry : names)
+            {
+                if(entry.first == oid)
+                {
+                    print(entry.second);
+                    return;
+                }
+            }
+
+            print(utils::text::printOid(oid));
+        }
+
         // Prints the log above the edited line, then restores the line.
         void onLog(ipc::Message& message)
         {
@@ -322,7 +374,7 @@ namespace npos::cli::task
                 print("\r\x1b[K");
 
             print("[");
-            print(utils::text::printOid(request.getSender()));
+            printSender(request.getSender());
             print(" ");
             print(utils::text::syslogLevel(request.getLevel()));
             if(request.getOverflow())
@@ -650,6 +702,7 @@ namespace npos::cli::task
         MessageQueueInt& messageQueue;
         PayloadPoolInt& payloads;
         ProgramListInt& programs;
+        RegisteredNamesInt& names;
         ipc::Bus& bus;
         etl::string_view deviceName;
         ipc::Oid device = ipc::NULL_OID;
@@ -682,12 +735,12 @@ namespace npos::cli::task
     };
 
 
-    template <size_t QUEUE_SIZE, size_t PROGRAMS, size_t PAYLOADS>
+    template <size_t QUEUE_SIZE, size_t PROGRAMS, size_t PAYLOADS, size_t NAMES = 16>
     class TerminalStatic : public Terminal
     {
     public:
         TerminalStatic(Priority priority, ipc::Bus& bus, etl::string_view deviceName)
-            : Terminal(priority, messageQueueStatic, payloadsStatic, programsStatic, bus, deviceName)
+            : Terminal(priority, messageQueueStatic, payloadsStatic, programsStatic, namesStatic, bus, deviceName)
         {
         }
 
@@ -695,5 +748,6 @@ namespace npos::cli::task
         MessageQueue<QUEUE_SIZE> messageQueueStatic;
         PayloadPool<PAYLOADS> payloadsStatic;
         ProgramList<PROGRAMS> programsStatic;
+        RegisteredNames<NAMES> namesStatic;
     };
 }

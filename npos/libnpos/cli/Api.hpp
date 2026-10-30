@@ -7,6 +7,7 @@
  */
 
 #include <libnpos/cli/utils/LogStream.hpp>
+#include <libnpos/cli/msg/RegisterName.hpp>
 
 namespace npos::cli::api
 {
@@ -15,5 +16,11 @@ namespace npos::cli::api
     inline utils::LogStream syslog(ipc::Service& sender, log::Level level)
     {
         return utils::LogStream(sender, recipient, level);
+    }
+
+    inline void registerName(ipc::Service& sender, etl::string_view name)
+    {
+        msg::RegisterName request(recipient, name);
+        sender.getApi().send(sender, request);
     }
 }

@@ -145,9 +145,10 @@ namespace npos::os
         // Slots of ipc::log::Stream::MAX_MESSAGE_LENGTH bytes, the terminal keeps the text of queued logs in them.
         cli::task::Terminal::PayloadPoolInt& logPayloads;
         cli::task::Terminal::ProgramListInt& programs;
+        cli::task::Terminal::RegisteredNamesInt& registeredNames;
     };
 
-    template<size_t Tasks = 8, size_t Services = 32, size_t Queue = 32, size_t Messages = 64, size_t DeviceServices = 16, size_t Programs = 16, size_t Logs = 8>
+    template<size_t Tasks = 8, size_t Services = 32, size_t Queue = 32, size_t Messages = 64, size_t DeviceServices = 16, size_t Programs = 16, size_t Logs = 8, size_t Names = 16>
     class Storage
     {
     public:
@@ -155,7 +156,7 @@ namespace npos::os
         {
             return Memory{ taskList, portList, messagePool, deviceServicePool, deviceServiceList, deviceRequests, deviceResponses,
                 interruptServiceList, interruptRequests, interruptResponses, userServiceList, userRequests, userResponses,
-                timerQueue, filesystemQueue, terminalQueue, logPayloadPool, programList };
+                timerQueue, filesystemQueue, terminalQueue, logPayloadPool, programList, registeredNames };
         }
 
     private:
@@ -177,6 +178,7 @@ namespace npos::os
         cli::task::Terminal::MessageQueue<Queue> terminalQueue;
         etl::generic_pool<cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, Logs> logPayloadPool;
         cli::task::Terminal::ProgramList<Programs> programList;
+        cli::task::Terminal::RegisteredNames<Names> registeredNames;
     };
 
     // Builds the whole system from hal interfaces: user, devices, interrupt devices, filesystem, timer, idle and watchdog tasks.
@@ -327,7 +329,7 @@ namespace npos::os
         {
             if(config.cli)
             {
-                terminal.emplace(config.priorities.terminal, memory.terminalQueue, memory.logPayloads, memory.programs,
+                terminal.emplace(config.priorities.terminal, memory.terminalQueue, memory.logPayloads, memory.programs, memory.registeredNames,
                     bus, config.terminalDevice);
                 programs.emplace(*terminal, config.clockDevice);
 
