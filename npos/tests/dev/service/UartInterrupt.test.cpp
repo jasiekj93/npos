@@ -33,9 +33,9 @@ TEST_GROUP(UartInterrupt)
         api.responded.clear();
     }
 
-    void interrupt(npos::dev::hal::Interrupt::Code code, Interrupt::Type type = Interrupt::UART)
+    void interrupt(npos::dev::hal::Interrupt::Code code, Interrupt::Value value = 0, Interrupt::Type type = Interrupt::UART)
     {
-        uart.fire(type, code);
+        uart.fire(type, code, value);
         service.processInterrupt();
     }
 
@@ -123,7 +123,7 @@ TEST(UartInterrupt, ReceiveCompleteAnswersWithLength)
     auto request = read(4);
     service.handleRequest(request);
 
-    interrupt(UartInterrupt::RECEIVE_COMPLETE);
+    interrupt(UartInterrupt::RECEIVE_COMPLETE, 4);
 
     CHECK_EQUAL(Transciever::SUCCESS, statusOfResponse());
     CHECK_EQUAL(4, api.responded[0].output.readWrite.length);
@@ -268,7 +268,7 @@ TEST(UartInterrupt, InterruptFromOtherPeripheralIsIgnored)
     auto request = write();
     service.handleRequest(request);
 
-    interrupt(UartInterrupt::TRANSMIT_COMPLETE, Interrupt::HASH_INT);
+    interrupt(UartInterrupt::TRANSMIT_COMPLETE, 0, Interrupt::HASH_INT);
 
     CHECK_EQUAL(0, api.responded.size());
 }

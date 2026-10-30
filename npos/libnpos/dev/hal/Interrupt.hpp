@@ -20,9 +20,11 @@ namespace npos::dev::hal
         };
 
         using Code = uint8_t;
+        using Value = uint32_t;
 
         Type type;
         Code code;
+        Value value;
     };
 
     class InterruptHandler

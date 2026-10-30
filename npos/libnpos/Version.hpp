@@ -32,7 +32,7 @@ namespace npos
 
     constexpr Version::Major VERSION_MAJOR = 0;
     constexpr Version::Minor VERSION_MINOR = 1;
-    constexpr Version::Patch VERSION_PATCH = 0;
+    constexpr Version::Patch VERSION_PATCH = 1;
 
     constexpr Version VERSION = { VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH };
 }

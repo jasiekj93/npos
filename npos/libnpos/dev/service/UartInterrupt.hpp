@@ -105,7 +105,7 @@ namespace npos::dev::service
                     return;
 
                 auto* request = readRequest.release();
-                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(request->getInputLength()));
+                return getApi().respond(request->setStatus(msg::Transciever::Status::SUCCESS).setOutputLength(interrupt.value));
             }
             
             case hal::UartInterrupt::Event::ERROR:

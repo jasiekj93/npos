@@ -13,10 +13,10 @@ namespace mock
     class InterruptSource
     {
     public:
-        void fire(npos::dev::hal::Interrupt::Type type, npos::dev::hal::Interrupt::Code code)
+        void fire(npos::dev::hal::Interrupt::Type type, npos::dev::hal::Interrupt::Code code, npos::dev::hal::Interrupt::Value value = 0)
         {
             if(handler)
-                handler->handleInterrupt({ type, code });
+                handler->handleInterrupt({ type, code, value });
         }
 
         npos::dev::hal::InterruptHandler* handler = nullptr;

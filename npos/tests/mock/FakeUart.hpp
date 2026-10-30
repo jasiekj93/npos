@@ -36,7 +36,7 @@ namespace mock
         void disableInterrupts() override { source.disableCount++; }
         void setHandler(npos::dev::hal::InterruptHandler* newHandler) override { source.handler = newHandler; }
 
-        void fire(npos::dev::hal::Interrupt::Type type, npos::dev::hal::Interrupt::Code code) { source.fire(type, code); }
+        void fire(npos::dev::hal::Interrupt::Type type, npos::dev::hal::Interrupt::Code code, npos::dev::hal::Interrupt::Value value = 0) { source.fire(type, code, value); }
 
         InterruptSource source;
         bool failInit = false;
