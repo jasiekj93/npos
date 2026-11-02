@@ -54,6 +54,9 @@ public:
             {
                 std::cout << "Hash computation failed." << std::endl;
             }
+
+            //close example
+            exit(0);
         }
     }
 

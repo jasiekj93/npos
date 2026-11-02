@@ -4,28 +4,52 @@
  * @date 2026-10-13
  */
 
-#include <libnpos/os/System.hpp>
+#include <cassert>
+
+#include <libnpos/nps/Scheduler.hpp>
+#include <libnpos/ipc/SystemBus.hpp>
+#include <libnpos/ipc/ServiceTask.hpp>
+#include <libnpos/dev/service/LedHandler.hpp>
+#include <libnpos/dev/task/Timer.hpp>
+
 #include <libnpos/emulator/Led.hpp>
 #include <libnpos/emulator/SystemTick.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
 {
-	npos::emulator::SystemTick systemTick;
-	npos::os::Storage<> storage;
+	static constexpr npos::nps::Task::Priority USER_TASK_PRIORITY = 1;
+	static constexpr npos::nps::Task::Priority DEVICE_TASK_PRIORITY = 2;
+	static constexpr npos::nps::Task::Priority TIMER_TASK_PRIORITY = 3;
+
+	//kernel
+	npos::nps::SchedulerStatic<16> scheduler;
+	npos::ipc::SystemBusStatic<16, 64> systemBus(0);
+
+	//Devices
+	npos::ipc::ServiceTaskStatic<16, 16, 1> deviceTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(deviceTask));
+	assert(systemBus.addPort(deviceTask));
+
 	npos::emulator::Led led0(true);
 	etl::vector<npos::dev::hal::Led*, 1> leds { &led0 };
-	npos::os::LedBank banks[] = { { leds, "leds" } };
+	npos::dev::service::LedHandler ledHandler(deviceTask, leds, "leds");
+	assert(deviceTask.subscribe(ledHandler));
 
-	npos::os::UserApi api;
-	UserApplication userApp(api, "leds");
-	npos::ipc::Service* services[] = { &userApp };
+	//Timer
+	npos::emulator::SystemTick systemTick;
+	npos::dev::task::TimerStatic<16> timerTask(TIMER_TASK_PRIORITY, systemTick, systemBus);
+	assert(scheduler.addTask(timerTask));
+	assert(systemBus.addPort(timerTask));
 
-	npos::os::Hal hal(systemTick);
-	hal.leds = banks;
+	//user app
+	npos::ipc::ServiceTaskStatic<16, 16, 1> userTask(USER_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(userTask));
+	assert(systemBus.addPort(userTask));
 
-	npos::os::System system(hal, storage.memory(), services, api);
-	system.start();
+	UserApplication userApp(userTask, "leds");
+	assert(userTask.subscribe(userApp));
 
+	scheduler.start();
 	return 0;
 }

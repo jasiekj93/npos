@@ -15,7 +15,6 @@ Three libraries are built by the top level `Makefile`.
 |---|---|
 | `npos` | The core, header only, in `npos/libnpos/<module>` (see modules below) |
 | `npos-emulator` | HAL implementations for running on a PC |
-| `npos-os` | `os::System` builds a whole system from HAL interfaces |
 
 Modules of `npos`, included as `<libnpos/<module>/File.hpp>`:
 
@@ -41,7 +40,7 @@ make            # builds libraries, runs all unit tests (CppUTest), builds the e
 ```
 
 Unit tests of the core live in `npos/tests/<module>/` as `<Module>.test.cpp` and form one test program;
-`npos-emulator` and `npos-os` have their own `tests`. Mocks are in `tests/mock`. Test file names must be unique
+`npos-emulator` have their own `tests`. Mocks are in `tests/mock`. Test file names must be unique
 in the whole library, so a letter-suffix is added on a clash (e.g. `ApiDev.test.cpp`, `ApiFs.test.cpp`).
 New test directories must be listed in `npos/tests/Makefile`. A failing test fails the build.
 Output of the emulator is silent unless `verbose` is passed to a mock (the examples do that).
@@ -49,27 +48,32 @@ Output of the emulator is silent unless `verbose` is passed to a mock (the examp
 ## Building a system
 
 ```cpp
-npos::emulator::SystemTick tick;
+static constexpr npos::nps::Task::Priority DEVICE_TASK_PRIORITY = 2;
+static constexpr npos::nps::Task::Priority USER_TASK_PRIORITY = 1;
+
+//kernel
+npos::nps::SchedulerStatic<16> scheduler;           //set the max task list size
+npos::ipc::SystemBusStatic<16, 64> systemBus(0);    //set the max port list size, memory pool size and start port ID
+
+//Devices
+npos::ipc::ServiceTaskStatic<16, 16, 1> deviceTask(DEVICE_TASK_PRIORITY, systemBus); //set request and response queue size and max service list
+assert(scheduler.addTask(deviceTask)); //check that scheduler adds task
+assert(systemBus.addPort(deviceTask)); //check that system bus register task
+
 npos::emulator::Rtc rtc;
-npos::os::Device<npos::dev::hal::Rtc> rtcs[] = { { rtc, "clock" } };
+npos::dev::service::RtcClock rtcService(deviceTask, rtc, "clock");
+assert(deviceTask.subscribe(rtcService)); //check that task subscribes service
 
-npos::os::Storage<> storage;                    // all containers, queues and pools (injected, never allocated by the library)
-npos::os::UserApi api;                          // lets user services exist before the system
-MyService service(api);
-npos::ipc::Service* services[] = { &service };
+//user app
+npos::ipc::ServiceTaskStatic<16, 16, 1> userTask(USER_TASK_PRIORITY, systemBus);
+assert(scheduler.addTask(userTask));
+assert(systemBus.addPort(userTask));
 
-npos::os::Hal hal(tick);                        // system tick is mandatory
-hal.rtcs = rtcs;                                // also: flash/icache, power, watchdog, leds,
-                                                // backups, pollingUarts, uarts, hashes
+UserApplication userApp(userTask, "clock");
+assert(userTask.subscribe(userApp));
 
-npos::os::Config config;                        // task priorities (with defaults), cli flag
-npos::os::System system(hal, storage.memory(), services, api, config);
-system.start();
+scheduler.start();
 ```
-
-`System` creates the user, device, interrupt device, filesystem, timer and (with `cli`) terminal tasks, and the idle and watchdog tasks
-when `power` and `watchdog` are given. Any number of devices of each kind can be added, each under its own name.
-
 ## Logging
 
 Logging belongs to the `cli` module, the `ipc` module has no knowledge of it:

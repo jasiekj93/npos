@@ -43,7 +43,6 @@ examples/cli \
 library_names = \
 npos \
 npos-emulator \
-npos-os \
 
 # optimalization flags
 # export debug_optimalization := 

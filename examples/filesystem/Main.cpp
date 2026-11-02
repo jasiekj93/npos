@@ -4,7 +4,13 @@
  * @date 2026-10-13
  */
 
-#include <libnpos/os/System.hpp>
+#include <cassert>
+
+#include <libnpos/nps/Scheduler.hpp>
+#include <libnpos/ipc/SystemBus.hpp>
+#include <libnpos/ipc/ServiceTask.hpp>
+#include <libnpos/fs/task/Littlefs.hpp>
+
 #include <libnpos/emulator/Flash.hpp>
 #include <libnpos/emulator/ICache.hpp>
 #include <libnpos/emulator/SystemTick.hpp>
@@ -12,21 +18,28 @@
 
 int main(int argc, char* argv[])
 {
-	npos::emulator::SystemTick systemTick;
-	npos::os::Storage<> storage;
+	static constexpr npos::nps::Task::Priority USER_TASK_PRIORITY = 1;
+	static constexpr npos::nps::Task::Priority FILESYSTEM_TASK_PRIORITY = 2;
+
+	//kernel
+	npos::nps::SchedulerStatic<16> scheduler;
+	npos::ipc::SystemBusStatic<16, 64> systemBus(0);
+
+	//Filesystem
 	npos::emulator::Flash flash(true);
 	npos::emulator::ICache icache(true);
+	npos::fs::task::LittlefsStatic<32, 8> filesystemTask(FILESYSTEM_TASK_PRIORITY, systemBus, flash, &icache);
+	assert(scheduler.addTask(filesystemTask));
+	assert(systemBus.addPort(filesystemTask));
 
-	npos::os::UserApi api;
-	UserApplication userApp(api);
-	npos::ipc::Service* services[] = { &userApp };
+	//user app
+	npos::ipc::ServiceTaskStatic<16, 16, 1> userTask(USER_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(userTask));
+	assert(systemBus.addPort(userTask));
 
-	npos::os::Hal hal(systemTick);
-	hal.flash = &flash;
-	hal.icache = &icache;
+	UserApplication userApp(userTask);
+	assert(userTask.subscribe(userApp));
 
-	npos::os::System system(hal, storage.memory(), services, api);
-	system.start();
-
+	scheduler.start();
 	return 0;
 }

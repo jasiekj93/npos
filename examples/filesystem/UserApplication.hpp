@@ -48,6 +48,12 @@ public:
                     npos::fs::api::file::read(*this, devOid, sizeof(buffer) - 1, etl::span<uint8_t>(reinterpret_cast<uint8_t*>(buffer), sizeof(buffer) - 1));
                 }
             }
+            else
+            {
+                std::cout << "Failed to open file" << std::endl;
+                //close example
+                exit(1);
+            }
         }
         else if (message.type == npos::fs::msg::Type::FILE_WRITE) 
         {
@@ -57,6 +63,12 @@ public:
             {
                 std::cout << "File written successfully, now closing file." << std::endl;
                 npos::fs::api::file::close(*this, devOid);
+            }
+            else
+            {
+                std::cout << "Failed to write to file" << std::endl;
+                //close example
+                exit(1);
             }
         }
         else if (message.type == npos::fs::msg::Type::FILE_CLOSE) 
@@ -76,7 +88,15 @@ public:
                 else
                 {
                     std::cout << "Finished reading from file. Bye!" << std::endl;
+                    //close example
+                    exit(0);
                 }
+            }
+            else
+            {
+                std::cout << "Failed to close file after write" << std::endl;
+                //close example
+                exit(1);
             }
         }
         else if (message.type == npos::fs::msg::Type::FILE_READ) 
@@ -90,6 +110,12 @@ public:
 
                 std::cout << "Closing file after reading." << std::endl;
                 npos::fs::api::file::close(*this, devOid);
+            }
+            else
+            {
+                std::cout << "Failed to close file after read" << std::endl;
+                //close example
+                exit(1);
             }
         }
     }

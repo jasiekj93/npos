@@ -4,28 +4,45 @@
  * @date 2026-10-13
  */
 
-#include <libnpos/os/System.hpp>
+#include <cassert>
+
+#include <libnpos/nps/Scheduler.hpp>
+#include <libnpos/ipc/SystemBus.hpp>
+#include <libnpos/ipc/ServiceTask.hpp>
+#include <libnpos/dev/InterruptServiceTask.hpp>
+#include <libnpos/dev/service/UartInterrupt.hpp>
+
 #include <libnpos/emulator/UartInterrupt.hpp>
 #include <libnpos/emulator/SystemTick.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
 {
-	npos::emulator::SystemTick systemTick;
-	npos::os::Storage<> storage;
+	static constexpr npos::nps::Task::Priority DEVICE_TASK_PRIORITY = 2;
+	static constexpr npos::nps::Task::Priority USER_TASK_PRIORITY = 1;
+
+	//kernel
+	npos::nps::SchedulerStatic<16> scheduler;
+	npos::ipc::SystemBusStatic<16, 64> systemBus(0);
+
+	//Devices
+	npos::dev::InterruptServiceTaskStatic<16, 16, 1> deviceTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(deviceTask));
+	assert(systemBus.addPort(deviceTask));
+
 	npos::emulator::UartInterrupt uart(true);
 	npos::dev::InterruptService::InterruptQueue<32> uartQueue;
-	npos::os::InterruptDevice<npos::dev::hal::UartInterrupt> uarts[] = { { uart, "uart0", uartQueue } };
+	npos::dev::service::UartInterrupt uartService(deviceTask, uartQueue, uart, "uart0");
+	assert(deviceTask.subscribe(uartService));
 
-	npos::os::UserApi api;
-	UserApplication userApp(api, "uart0");
-	npos::ipc::Service* services[] = { &userApp };
+	//user app
+	npos::ipc::ServiceTaskStatic<16, 16, 1> userTask(USER_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(userTask));
+	assert(systemBus.addPort(userTask));
 
-	npos::os::Hal hal(systemTick);
-	hal.uarts = uarts;
+	UserApplication userApp(userTask, "uart0");
+	assert(userTask.subscribe(userApp));
 
-	npos::os::System system(hal, storage.memory(), services, api);
-	system.start();
-
+	scheduler.start();
 	return 0;
 }

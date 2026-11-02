@@ -120,6 +120,8 @@ namespace npos::emulator
 
             while(not stopReader)
             {
+                size_t received = 0;
+
                 {
                     std::unique_lock<std::mutex> lock(stateMutex);
                     stateChanged.wait(lock, [this] { return stopReader or pendingData; });
@@ -164,7 +166,7 @@ namespace npos::emulator
                     }
                     else
                     {
-                        auto received = ::read(STDIN_FILENO, pendingData, pendingSize);
+                        received = ::read(STDIN_FILENO, pendingData, pendingSize);
 
                         if(received > 0)
                         {
@@ -183,7 +185,7 @@ namespace npos::emulator
                     }
                 }
 
-                notifyInterrupt(event);
+                notifyInterrupt(event, received);
             }
         }
 
@@ -203,12 +205,12 @@ namespace npos::emulator
                 notifyInterrupt(event);
         }
 
-        void notifyInterrupt(Event event)
+        void notifyInterrupt(Event event, size_t received = 0)
         {
             std::lock_guard<std::mutex> lock(interruptMutex);
 
             if(interruptHandler)
-                interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::UART, event});
+                interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::UART, event, received});
         }
 
         std::mutex stateMutex;

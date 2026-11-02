@@ -51,6 +51,13 @@ public:
                 auto timestamp = response.getOutputTimestamp();
                 std::cout << "Current time: " << timestamp << std::endl;
             }
+            else
+            {
+                std::cout << "Failed to getiing time from device" << std::endl;
+            }
+
+            //close example
+            exit(0);
         }
     }
 

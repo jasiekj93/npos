@@ -41,6 +41,12 @@ public:
                 std::cout << "Getting time from device." << std::endl;
                 npos::dev::api::getTime(*this, devOid);
             }
+            else
+            {
+                std::cout << "Failed to open device" << std::endl;
+                //close example
+                exit(1);
+            }
         }
         else if (message.type == npos::dev::msg::Type::CLOCK) 
         {
@@ -51,6 +57,13 @@ public:
                 auto timestamp = response.getOutputTimestamp();
                 std::cout << "Current time: " << timestamp << std::endl;
             }
+            else
+            {
+                std::cout << "Failed to get time from device" << std::endl;
+            }
+
+            //close example
+            exit(static_cast<int>(response.getStatus()));
         }
     }
 

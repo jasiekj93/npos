@@ -4,27 +4,43 @@
  * @date 2026-10-13
  */
 
-#include <libnpos/os/System.hpp>
+#include <cassert>
+
+#include <libnpos/nps/Scheduler.hpp>
+#include <libnpos/ipc/SystemBus.hpp>
+#include <libnpos/ipc/ServiceTask.hpp>
+#include <libnpos/dev/service/RtcClock.hpp>
+
 #include <libnpos/emulator/Rtc.hpp>
 #include <libnpos/emulator/SystemTick.hpp>
 #include "UserApplication.hpp"
 
 int main(int argc, char* argv[])
 {
-	npos::emulator::SystemTick systemTick;
-	npos::os::Storage<> storage;
+	static constexpr npos::nps::Task::Priority DEVICE_TASK_PRIORITY = 2;
+	static constexpr npos::nps::Task::Priority USER_TASK_PRIORITY = 1;
+
+	//kernel
+	npos::nps::SchedulerStatic<16> scheduler;
+	npos::ipc::SystemBusStatic<16, 64> systemBus(0);
+
+	//Devices
+	npos::ipc::ServiceTaskStatic<16, 16, 1> deviceTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(deviceTask));
+	assert(systemBus.addPort(deviceTask));
+
 	npos::emulator::Rtc rtc;
-	npos::os::Device<npos::dev::hal::Rtc> rtcs[] = { { rtc, "clock" } };
+	npos::dev::service::RtcClock rtcService(deviceTask, rtc, "clock");
+	assert(deviceTask.subscribe(rtcService));
 
-	npos::os::UserApi api;
-	UserApplication userApp(api, "clock");
-	npos::ipc::Service* services[] = { &userApp };
+	//user app
+	npos::ipc::ServiceTaskStatic<16, 16, 1> userTask(USER_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(userTask));
+	assert(systemBus.addPort(userTask));
 
-	npos::os::Hal hal(systemTick);
-	hal.rtcs = rtcs;
+	UserApplication userApp(userTask, "clock");
+	assert(userTask.subscribe(userApp));
 
-	npos::os::System system(hal, storage.memory(), services, api);
-	system.start();
-
+	scheduler.start();
 	return 0;
 }

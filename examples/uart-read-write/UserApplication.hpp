@@ -41,6 +41,12 @@ public:
                 std::cout << "Writing Uart" << std::endl;
                 npos::dev::api::transcieverWrite(*this, devOid, { input, 1024 });
             }
+            else
+            {
+                std::cout << "Failed to open device" << std::endl;
+                //close example
+                exit(1);
+            }
         }
         else if (message.type == npos::dev::msg::Type::TRANSCIEVER) 
         {
@@ -57,11 +63,15 @@ public:
                 else if(response.getOperation() == npos::dev::msg::Transciever::Operation::READ)
                 {
                     std::cout << "Uart read completed successfully." << std::endl;
+                    //close example
+                    exit(0);
                 }
             }
             else
             {
                 std::cout << "Uart operation failed." << std::endl;
+                //close example
+                exit(1);
             }
         }
     }
