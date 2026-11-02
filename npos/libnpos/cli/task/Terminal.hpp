@@ -91,6 +91,16 @@ namespace npos::cli::task
             logLevel = level;
         }
 
+        void setCustomPrompt(etl::string_view prompt)
+        {
+            customPrompt = prompt;
+        }
+
+        void setCustomGreetings(etl::string_view greetings)
+        {
+            customGreetings = greetings;
+        }
+
         //Port
         bool accepts(ipc::Message::Type type) const override
         {
@@ -285,6 +295,12 @@ namespace npos::cli::task
 
         void printGreeting()
         {
+            if(customGreetings.has_value())
+            {
+                print(customGreetings.value());
+                return;
+            }
+
             etl::string<GREETING_SIZE> text("\r\nWelcome to npos ");
 
             etl::to_string(static_cast<unsigned>(VERSION.major), text, true);
@@ -672,7 +688,11 @@ namespace npos::cli::task
 
         void printPrompt()
         {
-            print("npos:");
+            if(customPrompt.has_value())
+                print(customPrompt.value());
+            else
+                print("npos:");
+
             print(etl::string_view(cwd.c_str(), cwd.size()));
             print("> ");
         }
@@ -732,6 +752,8 @@ namespace npos::cli::task
         uint8_t rxBuffer[READ_SIZE];
         uint8_t lastInput = 0;
         char lastOutput = 0;
+        etl::optional<etl::string_view> customGreetings = etl::nullopt;
+        etl::optional<etl::string_view> customPrompt = etl::nullopt;
     };
 
 
