@@ -154,3 +154,38 @@ TEST(TimerTask, RepeatingTimerIsRescheduled)
     CHECK_EQUAL(0, bus.released.size());
     CHECK_EQUAL(20, request.getEventTick());
 }
+
+TEST(TimerTask, CompareTimerMessageOrdersCorrectly)
+{
+    Timer first({ 2, 1 }, npos::dev::msg::Timer::SINGLE_SHOT, 10);
+    Timer second({ 2, 1 }, npos::dev::msg::Timer::SINGLE_SHOT, 20);
+    Timer third({ 2, 1 }, npos::dev::msg::Timer::SINGLE_SHOT, 10);
+    Timer fourth({ 2, 1 }, npos::dev::msg::Timer::SINGLE_SHOT, 10);
+
+    first.setEventTick(100);
+    second.setEventTick(200);
+
+    //Systick overflow situation
+    third.setEventTick(0xFFFFFF00);
+    fourth.setEventTick(0x000002E8);
+
+    npos::dev::task::CompareTimerMessage compare;
+    CHECK_TRUE(compare(&second, &first));
+    CHECK_FALSE(compare(&first, &second));
+    CHECK_TRUE(compare(&fourth, &third));
+    CHECK_FALSE(compare(&third, &fourth));
+}
+
+TEST(TimerTask, IsReadyWhenSystickOverflows)
+{
+    tick.tick = 0xFFFFFFFF;
+
+    Timer request({ 2, 1 }, Timer::SINGLE_SHOT, 10);
+    timer.receiveRequest(request);
+
+    CHECK_FALSE(timer.isReady());
+
+    tick.tick = 10;
+
+    CHECK_TRUE(timer.isReady());
+}

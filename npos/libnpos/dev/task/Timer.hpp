@@ -20,7 +20,9 @@ namespace npos::dev::task
         // etl::priority_queue keeps the "largest" element on top, so order by greater to get the earliest event first.
         bool operator()(const msg::Timer* lhs, const msg::Timer* rhs) const
         {
-            return lhs->getEventTick() > rhs->getEventTick();
+            // return lhs->getEventTick() > rhs->getEventTick();
+            auto difference = static_cast<int32_t>(lhs->getEventTick() - rhs->getEventTick());
+            return difference > 0;
         }
     };
 
@@ -87,7 +89,8 @@ namespace npos::dev::task
             if(messageQueue.empty())
                 return false;
             else
-                return messageQueue.top()->getEventTick() <= systemTick.getTick();
+                return (static_cast<int32_t>(systemTick.getTick() - messageQueue.top()->getEventTick()) >= 0);
+                // return messageQueue.top()->getEventTick() <= systemTick.getTick();
         }
         
         void process() override
