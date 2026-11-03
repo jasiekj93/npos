@@ -1,6 +1,6 @@
-#include <CppUTest/TestHarness.h>
-
 #include <libnpos/emulator/InterconnectUart.hpp>
+
+#include <CppUTest/TestHarness.h>
 
 namespace
 {
