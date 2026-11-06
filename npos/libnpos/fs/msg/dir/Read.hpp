@@ -13,40 +13,22 @@
 
 #include <libnpos/fs/msg/Type.hpp>
 #include <libnpos/fs/msg/Status.hpp>
-#include <libnpos/fs/utils/String.hpp>
+#include <libnpos/fs/Info.hpp>
 #include <libnpos/ipc/Message.hpp>
 
 namespace npos::fs::msg::dir
 {
-    struct Entry
-    {
-        static constexpr size_t NAME_SIZE = 64;
-
-        enum Type : uint8_t
-        {
-            FILE,
-            DIRECTORY
-        };
-
-        Type type = FILE;
-        uint32_t size = 0;
-        char name[NAME_SIZE] = {};
-
-        inline etl::string_view getName() const
-        {
-            return etl::string_view(name, utils::strnlen(name, NAME_SIZE));
-        }
-    };
+    
 
     // Reads the next entry of an opened directory, END_OF_DIRECTORY status means there are no more.
     struct Read : public ipc::Message
     {
-        Read(ipc::Oid dir, Entry& entry)
+        Read(ipc::Oid dir, Info& entry)
         {
             this->recipient = dir;
             this->type = msg::Type::DIR_READ;
             this->output.data = reinterpret_cast<uint8_t*>(&entry);
-            this->output.size = sizeof(Entry);
+            this->output.size = sizeof(Info);
         }
 
         inline ipc::Oid getDir() const
@@ -54,9 +36,9 @@ namespace npos::fs::msg::dir
             return this->recipient;
         }
 
-        inline Entry& getEntry() const
+        inline Info& getEntry() const
         {
-            return *reinterpret_cast<Entry*>(this->output.data);
+            return *reinterpret_cast<Info*>(this->output.data);
         }
 
         inline msg::Status getStatus() const

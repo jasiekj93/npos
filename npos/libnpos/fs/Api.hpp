@@ -67,7 +67,7 @@ namespace npos::fs::api
             sender.getApi().send(sender, request);
         }
 
-        inline void read(ipc::Service& sender, ipc::Oid dir, npos::fs::msg::dir::Entry& entry)
+        inline void read(ipc::Service& sender, ipc::Oid dir, npos::fs::Info& entry)
         {
             npos::fs::msg::dir::Read request(dir, entry);
             sender.getApi().send(sender, request);

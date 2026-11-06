@@ -87,7 +87,7 @@ namespace mock
             program.handleResponse(message);
         }
 
-        void answerDirRead(npos::fs::msg::Status status, npos::fs::msg::dir::Entry::Type type = npos::fs::msg::dir::Entry::FILE,
+        void answerDirRead(npos::fs::msg::Status status, npos::fs::Info::Type type = npos::fs::Info::FILE,
             uint32_t size = 0, const char* name = "")
         {
             auto message = take();

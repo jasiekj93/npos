@@ -64,8 +64,8 @@ TEST(Ls, PrintsFilesWithSizeAndDirectoriesWithSlash)
 {
     startOpened();
 
-    filesystem.answerDirRead(msg::Status::SUCCESS, msg::dir::Entry::FILE, 5, "a.txt");
-    filesystem.answerDirRead(msg::Status::SUCCESS, msg::dir::Entry::DIRECTORY, 0, "sub");
+    filesystem.answerDirRead(msg::Status::SUCCESS, Info::FILE, 5, "a.txt");
+    filesystem.answerDirRead(msg::Status::SUCCESS, Info::DIRECTORY, 0, "sub");
 
     CHECK_TRUE(host.outputIs("         5 a.txt\r\n     <dir> sub/\r\n"));
     CHECK_EQUAL(msg::Type::DIR_READ, filesystem.nextType());
@@ -116,7 +116,7 @@ TEST(Ls, WaitsForOutputToDrainAndContinuesOnResume)
     startOpened();
     host.capacity = 4;
 
-    filesystem.answerDirRead(msg::Status::SUCCESS, msg::dir::Entry::FILE, 7, "f");
+    filesystem.answerDirRead(msg::Status::SUCCESS, Info::FILE, 7, "f");
 
     CHECK_EQUAL(4, host.output.size());
     CHECK_FALSE(filesystem.hasRequest());

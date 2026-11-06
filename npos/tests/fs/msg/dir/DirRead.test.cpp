@@ -10,7 +10,7 @@
 
 TEST_GROUP(DirRead)
 {
-    npos::fs::msg::dir::Entry entry;
+    npos::fs::Info entry;
 };
 
 TEST(DirRead, EntryNameIsBoundedByNameSize)
@@ -18,7 +18,7 @@ TEST(DirRead, EntryNameIsBoundedByNameSize)
     for(auto& c : entry.name)
         c = 'x';
 
-    CHECK_EQUAL(npos::fs::msg::dir::Entry::NAME_SIZE, entry.getName().size());
+    CHECK_EQUAL(npos::fs::Info::NAME_SIZE, entry.getName().size());
 }
 
 TEST(DirRead, EntryNameStopsAtTerminator)
@@ -33,7 +33,7 @@ TEST(DirRead, EntryNameStopsAtTerminator)
 
 TEST(DirRead, EntryDefaultsToEmptyFile)
 {
-    CHECK_EQUAL(npos::fs::msg::dir::Entry::FILE, entry.type);
+    CHECK_EQUAL(npos::fs::Info::FILE, entry.type);
     CHECK_EQUAL(0, entry.size);
     CHECK_EQUAL(0, entry.getName().size());
 }

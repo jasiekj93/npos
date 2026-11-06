@@ -85,7 +85,7 @@ TEST(FsApi, DirMakeSendsMakeRequest)
 
 TEST(FsApi, DirReadSendsReadRequestWithEntryBuffer)
 {
-    npos::fs::msg::dir::Entry entry;
+    npos::fs::Info entry;
 
     npos::fs::api::dir::read(sender, { 1, 3 }, entry);
 

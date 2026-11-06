@@ -100,7 +100,7 @@ namespace npos::cli::program
             line.clear();
             offset = 0;
 
-            if(entry.type == fs::msg::dir::Entry::DIRECTORY)
+            if(entry.type == fs::Info::DIRECTORY)
                 line.append("     <dir> ");
             else
                 { utils::text::appendNumber(line, entry.size, 10); line.push_back(' '); }
@@ -108,7 +108,7 @@ namespace npos::cli::program
             auto name = entry.getName();
             line.append(name.data(), name.size());
 
-            if(entry.type == fs::msg::dir::Entry::DIRECTORY)
+            if(entry.type == fs::Info::DIRECTORY)
                 line.push_back('/');
 
             line.append("\r\n");
@@ -159,8 +159,8 @@ namespace npos::cli::program
         State state = State::IDLE;
         etl::string<utils::text::MAX_PATH> path;
         ipc::Oid dir = ipc::NULL_OID;
-        fs::msg::dir::Entry entry;
-        etl::string<fs::msg::dir::Entry::NAME_SIZE + 16> line;
+        fs::Info entry;
+        etl::string<fs::Info::NAME_SIZE + 16> line;
         size_t offset = 0;
         int exitCode = 0;
     };

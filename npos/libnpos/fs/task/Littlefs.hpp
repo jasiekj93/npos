@@ -396,7 +396,7 @@ namespace npos::fs::task
             if(result == 0)
                 return bus.respond(request.setStatus(msg::Status::END_OF_DIRECTORY));
 
-            entry.type = (info.type == LFS_TYPE_DIR) ? msg::dir::Entry::DIRECTORY : msg::dir::Entry::FILE;
+            entry.type = (info.type == LFS_TYPE_DIR) ? Info::DIRECTORY : Info::FILE;
             entry.size = info.size;
             strncpy(entry.name, info.name, sizeof(entry.name) - 1);
             entry.name[sizeof(entry.name) - 1] = '\0';

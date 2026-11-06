@@ -448,8 +448,8 @@ TEST(Littlefs, DirectoryOpenFailsWithNoMemoryWhenAllSlotsAreUsed)
 TEST(Littlefs, EmptyDirectoryEndsImmediately)
 {
     auto dir = openDir("/");
-    msg::dir::Entry entry;
-    msg::dir::Read request(dir, entry);
+    Info entry;
+    msg::dir::Read request(dir, static_cast<Info&>(entry));
 
     run(request);
 
@@ -461,13 +461,13 @@ TEST(Littlefs, DirectoryListsFilesWithSizeAndSkipsDotEntries)
     write("a.txt", "12345");
     write("b.txt", "1");
     auto dir = openDir("/");
-    msg::dir::Entry entry;
+    Info entry;
     int count = 0;
     bool foundA = false;
 
     for(;;)
     {
-        msg::dir::Read request(dir, entry);
+        msg::dir::Read request(dir, static_cast<Info&>(entry));
         run(request);
 
         if(request.getStatus() == msg::Status::END_OF_DIRECTORY)
@@ -475,7 +475,7 @@ TEST(Littlefs, DirectoryListsFilesWithSizeAndSkipsDotEntries)
 
         CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
         CHECK_TRUE(entry.getName() != "." and entry.getName() != "..");
-        CHECK_EQUAL(msg::dir::Entry::FILE, entry.type);
+        CHECK_EQUAL(Info::FILE, entry.type);
 
         if(entry.getName() == "a.txt")
         {
@@ -515,7 +515,7 @@ TEST(Littlefs, DirectoryCloseOfUnknownDirectoryFails)
 
 TEST(Littlefs, DirectoryReadOfUnknownDirectoryFails)
 {
-    msg::dir::Entry entry;
+    Info entry;
     msg::dir::Read request({ 2, 7 }, entry);
 
     run(request);
@@ -560,11 +560,11 @@ TEST(Littlefs, MakeDirectoryCreatesIt)
 
     CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
     auto dir = openDir("docs");
-    msg::dir::Entry entry;
+    Info entry;
     msg::dir::Read read(openDir("/"), entry);
     run(read);
     CHECK_EQUAL(msg::Status::SUCCESS, read.getStatus());
-    CHECK_EQUAL(msg::dir::Entry::DIRECTORY, entry.type);
+    CHECK_EQUAL(Info::DIRECTORY, entry.type);
     CHECK_TRUE(entry.getName() == "docs");
     CHECK_EQUAL(2, dir.portId);
 }
@@ -594,12 +594,12 @@ TEST(Littlefs, FilesCanBeCreatedInMadeDirectory)
     run(make);
 
     write("docs/a.txt", "x");
-    msg::dir::Entry entry;
+    Info entry;
     msg::dir::Read read(openDir("docs"), entry);
     run(read);
 
     CHECK_EQUAL(msg::Status::SUCCESS, read.getStatus());
-    CHECK_EQUAL(msg::dir::Entry::FILE, entry.type);
+    CHECK_EQUAL(Info::FILE, entry.type);
     CHECK_TRUE(entry.getName() == "a.txt");
 }
 
