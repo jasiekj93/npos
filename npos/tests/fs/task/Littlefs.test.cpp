@@ -115,6 +115,7 @@ TEST(Littlefs, AcceptsFileAndDirectoryMessagesOnly)
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_CLOSE));
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_READ));
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_MAKE));
+    CHECK_TRUE(filesystem.accepts(msg::Type::STAT));
     CHECK_FALSE(filesystem.accepts(npos::ipc::DEVICE_MESSAGE_TYPE));
 }
 
@@ -671,4 +672,128 @@ TEST(Littlefs, RemoveDirectoryRejectsFile)
     run(remove);
 
     CHECK_EQUAL(msg::Status::NOT_A_DIRECTORY, remove.getStatus());
+}
+
+TEST(Littlefs, StatDescribesFile)
+{
+    write("a.txt", "hello");
+    Info info;
+    msg::Stat request("a.txt", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    POINTERS_EQUAL(&request, bus.responded.back());
+    CHECK_EQUAL(Info::FILE, info.type);
+    CHECK_EQUAL(5, info.size);
+    CHECK_TRUE(info.getName() == "a.txt");
+}
+
+TEST(Littlefs, StatDescribesEmptyFile)
+{
+    write("empty", "");
+    Info info;
+    msg::Stat request("empty", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    CHECK_EQUAL(Info::FILE, info.type);
+    CHECK_EQUAL(0, info.size);
+}
+
+TEST(Littlefs, StatDescribesDirectory)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    Info info;
+    msg::Stat request("docs", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    CHECK_EQUAL(Info::DIRECTORY, info.type);
+    CHECK_TRUE(info.getName() == "docs");
+}
+
+TEST(Littlefs, StatDescribesRootDirectory)
+{
+    Info info;
+    msg::Stat request("/", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    CHECK_EQUAL(Info::DIRECTORY, info.type);
+}
+
+TEST(Littlefs, StatReportsNameWithoutParentPath)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    write("docs/a.txt", "xy");
+    Info info;
+    msg::Stat request("docs/a.txt", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    CHECK_EQUAL(2, info.size);
+    CHECK_TRUE(info.getName() == "a.txt");
+}
+
+TEST(Littlefs, StatSeesFileSizeAfterAppend)
+{
+    write("a.txt", "abc");
+    write("a.txt", "de", Flags::WRITE_ONLY | Flags::APPEND);
+    Info info;
+    msg::Stat request("a.txt", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    CHECK_EQUAL(5, info.size);
+}
+
+TEST(Littlefs, StatOfMissingEntryFails)
+{
+    Info info;
+    msg::Stat request("missing", info);
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, request.getStatus());
+}
+
+TEST(Littlefs, StatDoesNotTakeHandleSlots)
+{
+    write("a.txt", "x");
+    Info info;
+
+    for(size_t i = 0; i < SLOTS + 1; ++i)
+    {
+        msg::Stat request("a.txt", info);
+        run(request);
+        CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    }
+
+    auto first = open("a.txt", Flags::READ_ONLY);
+    CHECK_EQUAL(0, first.serviceId);
+}
+
+TEST(Littlefs, StatRequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
+{
+    mock::RamFlash brokenFlash;
+    brokenFlash.failUnlock = true;
+    task::Littlefs<SLOTS>::MessageQueue<2> otherQueue;
+    task::Littlefs<SLOTS> other(3, otherQueue, bus, brokenFlash, nullptr);
+    other.initialize();
+    Info info;
+    msg::Stat request("a", info);
+
+    other.receiveRequest(request);
+    other.process();
+
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(msg::Status::IO_ERROR, request.getStatus());
 }

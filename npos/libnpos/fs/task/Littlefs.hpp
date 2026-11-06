@@ -71,6 +71,7 @@ namespace npos::fs::task
             case msg::Type::DIR_READ:
             case msg::Type::DIR_MAKE:
             case msg::Type::DIR_REMOVE:
+            case msg::Type::STAT:
                 return true;
             default:
                 return false;
@@ -271,6 +272,8 @@ namespace npos::fs::task
                 return fileRemove(static_cast<msg::file::Remove&>(message));
             case msg::Type::DIR_REMOVE:
                 return dirRemove(static_cast<msg::dir::Remove&>(message));
+            case msg::Type::STAT:
+                return stat(static_cast<msg::Stat&>(message));
             default:
                 return handleUnknownRequest(message);
             }
@@ -351,6 +354,24 @@ namespace npos::fs::task
             }
 
             return fromLfsStatus(result);
+        }
+
+        // Describes a file or a directory without opening it. The path must be null terminated.
+        void stat(msg::Stat& request)
+        {
+            lfs_info info;
+            auto result = lfs_stat(&filesystem, request.getPath().data(), &info);
+
+            if(result != LFS_ERR_OK)
+                return bus.respond(request.setStatus(fromLfsStatus(result)));
+
+            auto& entry = request.getEntry();
+            entry.type = (info.type == LFS_TYPE_DIR) ? Info::DIRECTORY : Info::FILE;
+            entry.size = info.size;
+            strncpy(entry.name, info.name, sizeof(entry.name) - 1);
+            entry.name[sizeof(entry.name) - 1] = '\0';
+
+            bus.respond(request.setStatus(msg::Status::SUCCESS));
         }
 
         void dirClose(msg::dir::Close& request)

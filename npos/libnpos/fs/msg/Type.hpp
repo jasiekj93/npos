@@ -22,5 +22,6 @@ namespace npos::fs::msg
         DIR_READ,
         DIR_MAKE,
         DIR_REMOVE,
+        STAT,
     };
 }

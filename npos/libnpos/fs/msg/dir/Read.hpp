@@ -18,8 +18,6 @@
 
 namespace npos::fs::msg::dir
 {
-    
-
     // Reads the next entry of an opened directory, END_OF_DIRECTORY status means there are no more.
     struct Read : public ipc::Message
     {
