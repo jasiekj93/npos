@@ -23,11 +23,12 @@ TEST_GROUP(Terminal)
 
     mock::RecordingApi api;
     mock::RecordingBus bus;
-    Terminal::MessageQueue<8> queue;
+    Terminal::MessageQueue<8> requestQueue;
+    Terminal::MessageQueue<8> responseQueue;
     etl::generic_pool<npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, 4> payloads;
     Terminal::ProgramList<2> programList;
     Terminal::RegisteredNames<2> names;
-    Terminal terminal{2, queue, payloads, programList, names, bus, "uart0"};
+    Terminal terminal{2, requestQueue, responseQueue, payloads, programList, names, bus, "uart0"};
     mock::Console console{terminal, bus};
     mock::FakeProgram program{api};
 
@@ -691,20 +692,6 @@ TEST(Terminal, AcceptsOnlyLogs)
     CHECK_FALSE(terminal.accepts(npos::dev::msg::Type::LED));
 }
 
-TEST(Terminal, RequestsOtherThanLogsAreReleasedWithoutQueueing)
-{
-    npos::ipc::Message request;
-    request.type = npos::dev::msg::Type::OPEN;
-    request.sender.portId = terminal.getId();
-
-    terminal.receiveRequest(request);
-
-    CHECK_FALSE(terminal.isReady());
-    CHECK_EQUAL(1, bus.released.size());
-    CHECK_EQUAL(1, bus.responded.size());
-    CHECK_EQUAL(npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED, bus.responded[0].output.status);
-}
-
 TEST(Terminal, UnknownRequestHandlerAnswersNotSupported)
 {
     npos::ipc::Message message;
@@ -1074,8 +1061,9 @@ TEST(Terminal, TooLongLogIsDropped)
 
 TEST(Terminal, LogIsDroppedAndSlotFreedWhenQueueIsFull)
 {
-    Terminal::MessageQueue<1> smallQueue;
-    Terminal small{2, smallQueue, payloads, programList, names, bus, "uart0"};
+    Terminal::MessageQueue<1> smallRequestQueue;
+    Terminal::MessageQueue<1> smallResponseQueue;
+    Terminal small{2, smallRequestQueue, smallResponseQueue, payloads, programList, names, bus, "uart0"};
     npos::cli::msg::Syslog first({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "a", false);
     npos::cli::msg::Syslog second({ 10, 0 }, { small.getId(), 0 }, npos::cli::log::Level::INFO, "b", false);
 

@@ -64,10 +64,11 @@ namespace npos::cli::task
         using PayloadPool = etl::generic_pool<npos::cli::utils::LogStream::MAX_MESSAGE_LENGTH, 1, N>;
 
         // Slots of the payload pool hold the text of one log each.
-        Terminal(Priority priority, MessageQueueInt& messageQueue, PayloadPoolInt& payloads, ProgramListInt& programs,
+        Terminal(Priority priority, MessageQueueInt& requestQueue, MessageQueueInt& responseQueue, PayloadPoolInt& payloads, ProgramListInt& programs,
             RegisteredNamesInt& names, ipc::Bus& bus, etl::string_view deviceName)
             : nps::Task(priority)
-            , messageQueue(messageQueue)
+            , requestQueue(requestQueue)
+            , responseQueue(responseQueue)
             , payloads(payloads)
             , programs(programs)
             , names(names)
@@ -82,7 +83,9 @@ namespace npos::cli::task
             if(programs.full())
                 return false;
 
+            auto id = programs.size();
             programs.push_back(&program);
+            program.setId(id);
             return true;
         }
 
@@ -104,7 +107,12 @@ namespace npos::cli::task
         //Port
         bool accepts(ipc::Message::Type type) const override
         {
-            return type == cli::msg::SYSLOG or type == cli::msg::REGISTER_NAME;
+            if(type == cli::msg::SYSLOG or type == cli::msg::REGISTER_NAME)
+                return true;
+            else if(running)
+                return running->acceptsRequest(type);
+            else
+                return false;
         }
 
         // The log text lives in the sender's buffer, so it is moved to a slot of the payload pool before queueing.
@@ -112,30 +120,24 @@ namespace npos::cli::task
         {
             auto& request = const_cast<ipc::Message&>(message);
 
-            if(request.type == cli::msg::REGISTER_NAME)
+            if(request.type == cli::msg::SYSLOG)
             {
-                if(messageQueue.full())
+                if(not storeLog(request))
                     return bus.release(&request);
 
-                return messageQueue.push(&request);
+                if(requestQueue.full())
+                {
+                    payloads.release(request.input.data);
+                    return bus.release(&request);
+                }
+
+                return requestQueue.push(&request);
             }
 
-            if(request.type != cli::msg::SYSLOG)
-            {
-                handleUnknownRequest(request);
-                return bus.release(&request);
-            }
-
-            if(not storeLog(request))
+            if(requestQueue.full())
                 return bus.release(&request);
 
-            if(messageQueue.full())
-            {
-                payloads.release(request.input.data);
-                return bus.release(&request);
-            }
-
-            messageQueue.push(&request);
+            return requestQueue.push(&request);
         }
 
         // Only answers to our own requests matter.
@@ -143,10 +145,10 @@ namespace npos::cli::task
         {
             auto& response = const_cast<ipc::Message&>(message);
 
-            if(response.sender.portId != getId() or messageQueue.full())
+            if(response.sender.portId != getId() or responseQueue.full())
                 return bus.release(&response);
 
-            messageQueue.push(&response);
+            responseQueue.push(&response);
         }
 
         void handleUnknownRequest(ipc::Message& message) override
@@ -169,22 +171,29 @@ namespace npos::cli::task
 
         bool isReady() const override
         {
-            return not messageQueue.empty();
+            return not requestQueue.empty() or not responseQueue.empty();
         }
 
         void process() override
         {
-            if(messageQueue.empty())
-                return;
+            if(not responseQueue.empty())
+            {
+                auto message = responseQueue.front();
+                handleResponse(*message);
+                responseQueue.pop();
+                bus.release(message);
+            }
+            else if(not requestQueue.empty())
+            {
+                auto message = requestQueue.front();
+                handleRequest(*message);
 
-            auto message = messageQueue.front();
-            handle(*message);
+                if(message->type == cli::msg::SYSLOG)
+                    payloads.release(message->input.data);
 
-            if(message->type == cli::msg::SYSLOG)
-                payloads.release(message->input.data);
-
-            messageQueue.pop();
-            bus.release(message);
+                requestQueue.pop();
+                bus.release(message);
+            }
         }
 
         //Service::Api
@@ -265,23 +274,27 @@ namespace npos::cli::task
             return true;
         }
 
-        // SYSLOG and REGISTER_NAME are the requests the terminal serves, everything else queued is an answer.
-        // Once the terminal device is open, an Open answer belongs to the running program.
-        void handle(ipc::Message& message)
+        void handleRequest(ipc::Message& message)
         {
             if(message.type == cli::msg::Type::SYSLOG)
-                onLog(message);
+                onLogRequest(message);
             else if(message.type == cli::msg::Type::REGISTER_NAME)
-                onRegisterName(static_cast<cli::msg::RegisterName&>(message));
-            else if(message.type == dev::msg::Type::OPEN and not opened)
-                onOpen(static_cast<dev::msg::Open&>(message));
+                onRegisterNameRequest(static_cast<cli::msg::RegisterName&>(message));
+            else if(running and running->acceptsRequest(message.type))
+                running->handleRequest(message);
+        }
+        
+        void handleResponse(ipc::Message& message)
+        {
+            if(message.type == dev::msg::Type::OPEN and not opened)
+                onOpenResponse(static_cast<dev::msg::Open&>(message));
             else if(message.type == dev::msg::Type::TRANSCIEVER)
-                onTransciever(static_cast<dev::msg::Transciever&>(message));
+                onTranscieverResponse(static_cast<dev::msg::Transciever&>(message));
             else if(running)
                 running->handleResponse(message);
         }
 
-        void onOpen(dev::msg::Open& response)
+        void onOpenResponse(dev::msg::Open& response)
         {
             if(response.getStatus() != dev::msg::Open::Status::SUCCESS)
                 return;
@@ -313,7 +326,7 @@ namespace npos::cli::task
             print(etl::string_view(text.data(), text.size()));
         }
 
-        void onTransciever(dev::msg::Transciever& response)
+        void onTranscieverResponse(dev::msg::Transciever& response)
         {
             bool success = response.getStatus() == dev::msg::Transciever::SUCCESS;
 
@@ -340,7 +353,7 @@ namespace npos::cli::task
         }
 
         // The name must stay valid for the lifetime of the program (e.g. a string literal).
-        void onRegisterName(cli::msg::RegisterName& request)
+        void onRegisterNameRequest(cli::msg::RegisterName& request)
         {
             auto sender = request.sender;
             auto name = request.getName();
@@ -376,7 +389,7 @@ namespace npos::cli::task
         }
 
         // Prints the log above the edited line, then restores the line.
-        void onLog(ipc::Message& message)
+        void onLogRequest(ipc::Message& message)
         {
             auto& request = static_cast<cli::msg::Syslog&>(message);
 
@@ -719,7 +732,8 @@ namespace npos::cli::task
             bus.send(request);
         }
 
-        MessageQueueInt& messageQueue;
+        MessageQueueInt& requestQueue;
+        MessageQueueInt& responseQueue;
         PayloadPoolInt& payloads;
         ProgramListInt& programs;
         RegisteredNamesInt& names;
@@ -757,17 +771,19 @@ namespace npos::cli::task
     };
 
 
-    template <size_t QUEUE_SIZE, size_t PROGRAMS, size_t PAYLOADS, size_t NAMES = 16>
+    template <size_t REQUEST_SIZE, size_t RESPONSE_SIZE, size_t PROGRAMS, size_t PAYLOADS, size_t NAMES = 16>
     class TerminalStatic : public Terminal
     {
     public:
         TerminalStatic(Priority priority, ipc::Bus& bus, etl::string_view deviceName)
-            : Terminal(priority, messageQueueStatic, payloadsStatic, programsStatic, namesStatic, bus, deviceName)
+            : Terminal(priority, requestQueueStatic, responseQueueStatic, 
+                        payloadsStatic, programsStatic, namesStatic, bus, deviceName)
         {
         }
 
     private:
-        MessageQueue<QUEUE_SIZE> messageQueueStatic;
+        MessageQueue<REQUEST_SIZE> requestQueueStatic;
+        MessageQueue<RESPONSE_SIZE> responseQueueStatic;
         PayloadPool<PAYLOADS> payloadsStatic;
         ProgramList<PROGRAMS> programsStatic;
         RegisteredNames<NAMES> namesStatic;

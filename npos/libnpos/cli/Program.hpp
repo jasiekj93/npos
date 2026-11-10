@@ -45,9 +45,9 @@ namespace npos::cli
         // Called when the terminal output has been drained.
         virtual void resume() {}
 
-        // Programs only consume responses.
-        bool acceptsRequest(ipc::Message::Type) const override { return false; }
-        void handleRequest(ipc::Message& message) override {}
+        // Programs on default only consumes content
+        virtual bool acceptsRequest(ipc::Message::Type) const override { return false; }
+        virtual void handleRequest(ipc::Message&) override {}
 
         inline etl::string_view getName() const { return name; }
         inline etl::string_view getDescription() const { return description; }
