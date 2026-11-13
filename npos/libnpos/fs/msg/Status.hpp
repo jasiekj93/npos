@@ -29,5 +29,6 @@ namespace npos::fs::msg
         NAME_TOO_LONG,
         UNKNOWN_ERROR,
         END_OF_DIRECTORY,
+        LOCKED,
     };
 }

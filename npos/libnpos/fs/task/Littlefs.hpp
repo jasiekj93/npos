@@ -33,13 +33,13 @@ namespace npos::fs::task
         struct File
         {
             lfs_file_t handle;
-            bool free;
+            ipc::Oid owner;
         };
 
         struct Dir
         {
             lfs_dir_t handle;
-            bool free;
+            ipc::Oid owner;
         };
 
         using MessageQueueInt = etl::iqueue<ipc::Message*>;
@@ -102,10 +102,10 @@ namespace npos::fs::task
         virtual void initialize() override
         {
             for (auto& file : files)
-                file.free = true;
+                file.owner = ipc::NULL_OID;
 
             for (auto& dir : dirs)
-                dir.free = true;
+                dir.owner = ipc::NULL_OID;
 
             config.read = [](const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size) -> int
             {
@@ -283,14 +283,14 @@ namespace npos::fs::task
         {
             for(auto i = 0; i < files.size(); i++)
             {
-                if(files[i].free)
+                if(files[i].owner == ipc::NULL_OID)
                 {
                     auto result = lfs_file_open(&filesystem, &files[i].handle, 
                         request.getPath().data(), static_cast<int>(request.getFlags()));
 
                     if(result == LFS_ERR_OK)
                     {
-                        files[i].free = false;
+                        files[i].owner = request.sender;
                         request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
                         auto size = lfs_file_size(&filesystem, &files[i].handle);
                         request.setSize(size < 0 ? 0 : static_cast<size_t>(size));
@@ -307,13 +307,13 @@ namespace npos::fs::task
         {
             for(size_t i = 0; i < dirs.size(); i++)
             {
-                if(dirs[i].free)
+                if(dirs[i].owner == ipc::NULL_OID)
                 {
                     auto result = lfs_dir_open(&filesystem, &dirs[i].handle, request.getPath().data());
 
                     if(result == LFS_ERR_OK)
                     {
-                        dirs[i].free = false;
+                        dirs[i].owner = request.sender;
                         request.setOpened(ipc::Oid{ getId(), static_cast<ipc::ServiceId>(i) });
                     }
 
@@ -377,16 +377,20 @@ namespace npos::fs::task
         void dirClose(msg::dir::Close& request)
         {
             if(request.getDir().serviceId >= dirs.size() or
-                dirs[request.getDir().serviceId].free)
+                dirs[request.getDir().serviceId].owner == ipc::NULL_OID)
             {
                 return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& dir = dirs[request.getDir().serviceId];
+
+            if(dir.owner != request.sender)
+                return bus.respond(request.setStatus(msg::Status::LOCKED));
+
             auto result = lfs_dir_close(&filesystem, &dir.handle);
 
             if(result == LFS_ERR_OK)
-                dir.free = true;
+                dir.owner = ipc::NULL_OID;
 
             bus.respond(request.setStatus(fromLfsStatus(result)));
         }
@@ -394,12 +398,16 @@ namespace npos::fs::task
         void dirRead(msg::dir::Read& request)
         {
             if(request.getDir().serviceId >= dirs.size() or
-                dirs[request.getDir().serviceId].free)
+                dirs[request.getDir().serviceId].owner == ipc::NULL_OID)
             {
                 return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& dir = dirs[request.getDir().serviceId];
+
+            if(dir.owner != request.sender)
+                return bus.respond(request.setStatus(msg::Status::LOCKED));
+
             auto& entry = request.getEntry();
             lfs_info info;
             int result;
@@ -428,16 +436,20 @@ namespace npos::fs::task
         void fileClose(msg::file::Close& request)
         {
             if(request.getFile().serviceId >= files.size() or
-                files[request.getFile().serviceId].free)
+                files[request.getFile().serviceId].owner == ipc::NULL_OID)
             {
                 return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
+
+            if(file.owner != request.sender)
+                return bus.respond(request.setStatus(msg::Status::LOCKED));
+
             auto result = lfs_file_close(&filesystem, &file.handle);
 
             if(result == LFS_ERR_OK)
-                file.free = true;
+                file.owner = ipc::NULL_OID;
 
             bus.respond(request.setStatus(fromLfsStatus(result)));
         }
@@ -445,12 +457,16 @@ namespace npos::fs::task
         void fileRead(msg::file::Read& request)
         {
             if(request.getFile().serviceId >= files.size() or
-                files[request.getFile().serviceId].free)
+                files[request.getFile().serviceId].owner == ipc::NULL_OID)
             {
                 return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
+
+            if(file.owner != request.sender)
+                return bus.respond(request.setStatus(msg::Status::LOCKED));
+
             auto result = lfs_file_read(&filesystem, &file.handle, request.getBuffer().data(), request.getBuffer().size());
 
             if(result >= 0)
@@ -463,12 +479,16 @@ namespace npos::fs::task
         void fileWrite(msg::file::Write& request)
         {
             if(request.getFile().serviceId >= files.size() or
-                files[request.getFile().serviceId].free)
+                files[request.getFile().serviceId].owner == ipc::NULL_OID)
             {
                 return bus.respond(request.setStatus(msg::Status::BAD_FILE_NUMBER));
             }
 
             auto& file = files[request.getFile().serviceId];
+
+            if(file.owner != request.sender)
+                return bus.respond(request.setStatus(msg::Status::LOCKED));
+
             auto result = lfs_file_write(&filesystem, &file.handle, request.getBuffer().data(), request.getBuffer().size());
 
             if(result >= 0)

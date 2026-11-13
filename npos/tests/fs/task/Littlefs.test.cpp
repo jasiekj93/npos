@@ -24,6 +24,7 @@ TEST_GROUP(Littlefs)
     mock::FakeICache icache;
     task::Littlefs<SLOTS>::MessageQueue<8> queue;
     task::Littlefs<SLOTS> filesystem{3, queue, bus, flash, &icache};
+    npos::ipc::Oid owner{2, 0};
 
     void setup() override
     {
@@ -33,6 +34,7 @@ TEST_GROUP(Littlefs)
 
     void run(npos::ipc::Message& message)
     {
+        message.sender = owner;
         filesystem.receiveRequest(message);
         filesystem.process();
     }
@@ -122,6 +124,7 @@ TEST(Littlefs, AcceptsFileAndDirectoryMessagesOnly)
 TEST(Littlefs, IsReadyOnlyWithQueuedMessages)
 {
     msg::file::Open request("a", Flags::READ_ONLY);
+    request.sender = owner;
 
     CHECK_FALSE(filesystem.isReady());
 
@@ -141,6 +144,8 @@ TEST(Littlefs, ReceiveReleasesMessagesWhenQueueIsFull)
     task::Littlefs<SLOTS> small(3, smallQueue, bus, smallFlash, nullptr);
     small.initialize();
     msg::file::Open a("a", Flags::READ_ONLY), b("b", Flags::READ_ONLY);
+    a.sender = owner;
+    b.sender = owner;
 
     small.receiveRequest(a);
     small.receiveRequest(b);
@@ -211,6 +216,7 @@ TEST(Littlefs, RequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
     task::Littlefs<SLOTS> other(3, otherQueue, bus, brokenFlash, nullptr);
     other.initialize();
     msg::file::Open request("a", Flags::READ_ONLY);
+    request.sender = owner;
 
     other.receiveRequest(request);
     other.process();
@@ -547,6 +553,7 @@ TEST(Littlefs, DataSurvivesRemount)
     remounted.setId(2);
     remounted.initialize();
     msg::file::Open request("keep.txt", Flags::READ_ONLY);
+    request.sender = owner;
     remounted.receiveRequest(request);
     remounted.process();
 
@@ -790,6 +797,7 @@ TEST(Littlefs, StatRequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
     other.initialize();
     Info info;
     msg::Stat request("a", info);
+    request.sender = owner;
 
     other.receiveRequest(request);
     other.process();
