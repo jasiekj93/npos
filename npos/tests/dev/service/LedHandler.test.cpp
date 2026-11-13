@@ -17,8 +17,30 @@ TEST_GROUP(LedHandler)
     mock::FakeLed led0, led1;
     etl::vector<npos::dev::hal::Led*, 2> leds { &led0, &led1 };
     npos::dev::service::LedHandler handler{api, leds, "leds"};
+    npos::ipc::Oid owner;
 
-    void setup() override { handler.setId(1); }
+    void setup() override 
+    { 
+        handler.setId(1);
+        owner = { 3, 1 };
+    }
+
+    void open()
+    {
+        npos::dev::msg::Open request("leds");
+        request.sender = owner;
+        handler.handleRequest(request);
+        api.responded.clear();
+    }
+
+    npos::dev::msg::Led led(uint8_t index, npos::dev::msg::Led::Operation op, npos::ipc::Oid sender = {0, 0})
+    {
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = npos::dev::msg::Led(sender, index, op);
+        msg.sender = sender;
+        return msg;
+    }
 
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
@@ -33,6 +55,7 @@ TEST(LedHandler, AcceptsLedAndOpenMessages)
 TEST(LedHandler, OpenWithItsNameAnswersWithItsOid)
 {
     npos::dev::msg::Open request("leds");
+    request.sender = owner;
 
     handler.handleRequest(request);
 
@@ -45,6 +68,7 @@ TEST(LedHandler, OpenWithItsNameAnswersWithItsOid)
 TEST(LedHandler, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
+    request.sender = owner;
 
     handler.handleRequest(request);
 
@@ -53,9 +77,10 @@ TEST(LedHandler, OpenWithOtherNameIsIgnored)
 
 TEST(LedHandler, SwitchesLedsOnOffAndToggles)
 {
-    npos::dev::msg::Led on({ 3, 1 }, 1, npos::dev::msg::Led::ON);
-    npos::dev::msg::Led off({ 3, 1 }, 1, npos::dev::msg::Led::OFF);
-    npos::dev::msg::Led toggle({ 3, 1 }, 0, npos::dev::msg::Led::TOGGLE);
+    open();
+    auto on = led(1, npos::dev::msg::Led::ON);
+    auto toggle = led(0, npos::dev::msg::Led::TOGGLE);
+    auto off = led(1, npos::dev::msg::Led::OFF);
 
     handler.handleRequest(on);
     handler.handleRequest(toggle);
@@ -70,7 +95,7 @@ TEST(LedHandler, SwitchesLedsOnOffAndToggles)
 
 TEST(LedHandler, UnsupportedOperationIsAnsweredWithNotSupported)
 {
-    npos::dev::msg::Led request({ 3, 1 }, 0, npos::dev::msg::Led::ON);
+    auto request = led(0, npos::dev::msg::Led::ON);
     request.input.attributes.mode = 99;
 
     handler.handleRequest(request);
@@ -82,7 +107,7 @@ TEST(LedHandler, UnsupportedOperationIsAnsweredWithNotSupported)
 
 TEST(LedHandler, UnknownLedIsReported)
 {
-    npos::dev::msg::Led request({ 3, 1 }, 5, npos::dev::msg::Led::ON);
+    auto request = led(5, npos::dev::msg::Led::ON);
 
     handler.handleRequest(request);
 
@@ -98,4 +123,28 @@ TEST(LedHandler, IgnoresOtherMessageTypes)
     handler.handleRequest(message);
 
     CHECK_EQUAL(0, api.responded.size());
+}
+
+TEST(LedHandler, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("leds");
+    request.sender = { 3, 2 };  // different owner
+    
+    handler.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(LedHandler, RejectsCloseFromNonOwner)
+{
+    open();
+    
+    npos::dev::msg::Close request(owner);
+    request.sender = { 3, 2 };  // different owner
+    
+    handler.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Close::LOCKED, statusOfResponse());
 }

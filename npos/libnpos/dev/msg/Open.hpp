@@ -19,7 +19,9 @@ namespace npos::dev::msg
         {
             SUCCESS = 0x00,
             NOT_FOUND = 0x01,
-            INIT_FAILURE = 0x02
+            INIT_FAILURE = 0x02,
+            LOCKED = 0x03,
+            ALREADY_OPENED = 0x04
         };
 
         Open(etl::string_view name)

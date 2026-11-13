@@ -27,7 +27,8 @@ namespace npos::dev::msg
             DEVICE_FAILURE,
             BUSY,
             NOT_INITIALIZED,
-            INVALID_OUTPUT_SIZE
+            INVALID_OUTPUT_SIZE,
+            LOCKED
         };
 
         Hash(ipc::Oid oid, Operation operation, etl::span<const uint8_t> input, etl::span<uint8_t> output = {})

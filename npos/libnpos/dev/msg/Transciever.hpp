@@ -26,6 +26,7 @@ namespace npos::dev::msg
             SUCCESS,
             BUSY,
             NOT_INITIALIZED,
+            LOCKED,
             DEVICE_ERROR
         };
 

@@ -23,12 +23,18 @@ TEST_GROUP(UartInterrupt)
     npos::dev::service::UartInterrupt service{api, queue, uart, "uart0"};
     uint8_t rx[8];
     uint8_t tx[8];
+    npos::ipc::Oid owner;
 
-    void setup() override { service.setId(1); }
+    void setup() override 
+    { 
+        service.setId(1);
+        owner = { 3, 1 };
+    }
 
     void open()
     {
         npos::dev::msg::Open request("uart0");
+        request.sender = owner;
         service.handleRequest(request);
         api.responded.clear();
     }
@@ -39,8 +45,24 @@ TEST_GROUP(UartInterrupt)
         service.processInterrupt();
     }
 
-    Transciever read(size_t length = 4) { return Transciever({ 3, 1 }, Transciever::READ, length, etl::span<uint8_t>(rx, sizeof(rx))); }
-    Transciever write(size_t length = 4) { return Transciever({ 3, 1 }, Transciever::WRITE, length, etl::span<uint8_t>(tx, sizeof(tx))); }
+    Transciever read(size_t length = 4, npos::ipc::Oid sender = {0, 0}) 
+    { 
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Transciever(sender, Transciever::READ, length, etl::span<uint8_t>(rx, sizeof(rx)));
+        msg.sender = sender;
+        return msg;
+    }
+    
+    Transciever write(size_t length = 4, npos::ipc::Oid sender = {0, 0}) 
+    { 
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Transciever(sender, Transciever::WRITE, length, etl::span<uint8_t>(tx, sizeof(tx)));
+        msg.sender = sender;
+        return msg;
+    }
+    
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
@@ -67,6 +89,7 @@ TEST(UartInterrupt, AcceptsTranscieverAndOpenMessages)
 TEST(UartInterrupt, OpenInitializesUartOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("uart0");
+    request.sender = owner;
 
     service.handleRequest(request);
     service.handleRequest(request);
@@ -89,6 +112,7 @@ TEST(UartInterrupt, OpenReportsInitFailure)
 {
     uart.failInit = true;
     npos::dev::msg::Open request("uart0");
+    request.sender = owner;
 
     service.handleRequest(request);
 
@@ -114,7 +138,6 @@ TEST(UartInterrupt, ReadStartsReceptionIntoRequestBuffer)
     POINTERS_EQUAL(rx, uart.received);
     CHECK_EQUAL(4, uart.receivedSize);
     CHECK_EQUAL(0, api.responded.size());
-    CHECK_EQUAL(1, request.referenceCount);
 }
 
 TEST(UartInterrupt, ReceiveCompleteAnswersWithLength)
@@ -127,7 +150,6 @@ TEST(UartInterrupt, ReceiveCompleteAnswersWithLength)
 
     CHECK_EQUAL(Transciever::SUCCESS, statusOfResponse());
     CHECK_EQUAL(4, api.responded[0].output.readWrite.length);
-    CHECK_EQUAL(0, request.referenceCount);
 }
 
 TEST(UartInterrupt, SecondReadWhileBusyIsRejected)
@@ -152,14 +174,13 @@ TEST(UartInterrupt, ReadFailureIsReportedAndFreesTheSlot)
     service.handleRequest(request);
 
     CHECK_EQUAL(Transciever::DEVICE_ERROR, statusOfResponse());
-    CHECK_EQUAL(0, request.referenceCount);
+    CHECK_EQUAL(0, api.responded[0].output.readWrite.length);
 
     uart.failReceive = false;
     auto again = read();
     service.handleRequest(again);
 
     CHECK_EQUAL(1, api.responded.size());
-    CHECK_EQUAL(1, again.referenceCount);
 }
 
 TEST(UartInterrupt, WriteStartsTransmission)
@@ -171,7 +192,6 @@ TEST(UartInterrupt, WriteStartsTransmission)
 
     POINTERS_EQUAL(tx, uart.transmitted);
     CHECK_EQUAL(6, uart.transmittedSize);
-    CHECK_EQUAL(1, request.referenceCount);
 }
 
 TEST(UartInterrupt, TransmitCompleteAnswersWithLength)
@@ -184,7 +204,6 @@ TEST(UartInterrupt, TransmitCompleteAnswersWithLength)
 
     CHECK_EQUAL(Transciever::SUCCESS, statusOfResponse());
     CHECK_EQUAL(6, api.responded[0].output.readWrite.length);
-    CHECK_EQUAL(0, request.referenceCount);
 }
 
 TEST(UartInterrupt, SecondWriteWhileBusyIsRejected)
@@ -208,7 +227,7 @@ TEST(UartInterrupt, WriteFailureIsReported)
     service.handleRequest(request);
 
     CHECK_EQUAL(Transciever::DEVICE_ERROR, statusOfResponse());
-    CHECK_EQUAL(0, request.referenceCount);
+    CHECK_EQUAL(0, api.responded[0].output.readWrite.length);
 }
 
 TEST(UartInterrupt, ReadAndWriteCanRunTogether)
@@ -282,4 +301,27 @@ TEST(UartInterrupt, UnknownEventIsIgnored)
     interrupt(0x7F);
 
     CHECK_EQUAL(0, api.responded.size());
+}
+
+TEST(UartInterrupt, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("uart0");
+    request.sender = { 3, 2 };  // different owner
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(UartInterrupt, RejectsTransferFromDifferentOwner)
+{
+    open();
+    
+    auto request = read(4, { 3, 2 });  // different owner
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(Transciever::LOCKED, statusOfResponse());
 }

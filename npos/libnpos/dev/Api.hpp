@@ -9,6 +9,7 @@
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/dev/msg/Clock.hpp>
 #include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Close.hpp>
 #include <libnpos/dev/msg/Led.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
 #include <libnpos/dev/msg/BackupRegisters.hpp>
@@ -20,6 +21,12 @@ namespace npos::dev::api
     inline void open(ipc::Service& sender, etl::string_view name)
     {
         npos::dev::msg::Open request(name);
+        sender.getApi().send(sender, request);
+    }
+
+    inline void close(ipc::Service& sender, ipc::Oid oid)
+    {
+        npos::dev::msg::Close request(oid);
         sender.getApi().send(sender, request);
     }
 

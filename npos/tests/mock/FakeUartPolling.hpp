@@ -14,7 +14,7 @@ namespace mock
     {
     public:
         bool init() override { initCount++; return not failInit; }
-        void deinit() override {}
+        void deinit() override { deinitCount++; }
 
         bool transmit(const uint8_t* data, size_t size) override
         {
@@ -37,6 +37,7 @@ namespace mock
         bool failTransmit = false;
         bool failReceive = false;
         int initCount = 0;
+        int deinitCount = 0;
         const uint8_t* transmitted = nullptr;
         size_t transmittedSize = 0;
         uint8_t* received = nullptr;

@@ -25,7 +25,8 @@ namespace npos::dev::msg
             SUCCESS,
             DEVICE_FAILURE,
             INVALID_TIMESTAMP,
-            NOT_INITIALIZED
+            NOT_INITIALIZED,
+            LOCKED
         };
 
         Clock(ipc::Oid oid, Operation operation, Timestamp timestamp = 0)

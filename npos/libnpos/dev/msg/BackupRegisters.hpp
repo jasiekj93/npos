@@ -24,7 +24,8 @@ namespace npos::dev::msg
             SUCCESS = 0,
             INVALID_REGISTER,
             INVALID_VALUE_PTR,
-            NOT_INITIALIZED
+            NOT_INITIALIZED,
+            LOCKED
         };
 
         using Value = uint32_t;

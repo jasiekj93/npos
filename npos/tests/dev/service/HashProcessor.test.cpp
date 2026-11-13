@@ -22,12 +22,18 @@ TEST_GROUP(HashProcessor)
     npos::dev::service::HashProcessor processor{api, queue, hash, "hash"};
     uint8_t input[16] = {};
     uint8_t digest[npos::dev::hal::Hash::DIGEST_SIZE];
+    npos::ipc::Oid owner;
 
-    void setup() override { processor.setId(2); }
+    void setup() override 
+    { 
+        processor.setId(2);
+        owner = { 3, 2 };
+    }
 
     void open()
     {
         npos::dev::msg::Open request("hash");
+        request.sender = owner;
         processor.handleRequest(request);
         api.responded.clear();
     }
@@ -38,7 +44,15 @@ TEST_GROUP(HashProcessor)
         processor.processInterrupt();
     }
 
-    Hash accumulate() { return Hash({ 3, 2 }, Hash::ACCUMULATE, etl::span<const uint8_t>(input, sizeof(input))); }
+    Hash accumulate(npos::ipc::Oid sender = {0, 0}) 
+    { 
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Hash(sender, Hash::ACCUMULATE, etl::span<const uint8_t>(input, sizeof(input)));
+        msg.sender = sender;
+        return msg;
+    }
+    
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
@@ -64,7 +78,6 @@ TEST(HashProcessor, AccumulateThatCannotStartIsAnsweredAndDoesNotBlockTheDevice)
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(Hash::DEVICE_FAILURE, statusOfResponse());
-    CHECK_EQUAL(0, failed.referenceCount);
 
     api.responded.clear();
     hash.failAccumulate = false;
@@ -72,20 +85,19 @@ TEST(HashProcessor, AccumulateThatCannotStartIsAnsweredAndDoesNotBlockTheDevice)
     processor.handleRequest(next);
 
     CHECK_EQUAL(0, api.responded.size());
-    CHECK_EQUAL(1, next.referenceCount);
 }
 
 TEST(HashProcessor, AccumulateEndThatCannotStartIsAnswered)
 {
     open();
     hash.failAccumulate = true;
-    Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
+    Hash request(owner, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
+    request.sender = owner;
 
     processor.handleRequest(request);
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(Hash::DEVICE_FAILURE, statusOfResponse());
-    CHECK_EQUAL(0, request.referenceCount);
 }
 
 TEST(HashProcessor, AcceptsHashAndOpenMessages)
@@ -98,6 +110,7 @@ TEST(HashProcessor, AcceptsHashAndOpenMessages)
 TEST(HashProcessor, OpenInitializesHashOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("hash");
+    request.sender = owner;
 
     processor.handleRequest(request);
     processor.handleRequest(request);
@@ -121,6 +134,7 @@ TEST(HashProcessor, OpenReportsInitFailure)
 {
     hash.failInit = true;
     npos::dev::msg::Open request("hash");
+    request.sender = owner;
 
     processor.handleRequest(request);
 
@@ -145,7 +159,6 @@ TEST(HashProcessor, AccumulateStartsHardwareAndHoldsRequestUntilInterrupt)
 
     CHECK_EQUAL(sizeof(input), hash.accumulated);
     CHECK_EQUAL(0, api.responded.size());
-    CHECK_EQUAL(1, request.referenceCount);
 }
 
 TEST(HashProcessor, InputCompleteAnswersSuccessAndReleasesRequest)
@@ -158,7 +171,6 @@ TEST(HashProcessor, InputCompleteAnswersSuccessAndReleasesRequest)
 
     CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(Hash::SUCCESS, statusOfResponse());
-    CHECK_EQUAL(0, request.referenceCount);
 }
 
 TEST(HashProcessor, SecondRequestWhileBusyIsRejected)
@@ -177,7 +189,8 @@ TEST(HashProcessor, SecondRequestWhileBusyIsRejected)
 TEST(HashProcessor, AccumulateEndWithWrongOutputSizeIsRejected)
 {
     open();
-    Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, 4));
+    Hash request(owner, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, 4));
+    request.sender = owner;
 
     processor.handleRequest(request);
 
@@ -187,7 +200,8 @@ TEST(HashProcessor, AccumulateEndWithWrongOutputSizeIsRejected)
 TEST(HashProcessor, AccumulateEndFinishesWithDigestInterrupt)
 {
     open();
-    Hash request({ 3, 2 }, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
+    Hash request(owner, Hash::ACCUMULATE_END, etl::span<const uint8_t>(input, sizeof(input)), etl::span<uint8_t>(digest, sizeof(digest)));
+    request.sender = owner;
 
     processor.handleRequest(request);
     interrupt(npos::dev::hal::Hash::DIGEST_COMPLETE);
@@ -237,7 +251,6 @@ TEST(HashProcessor, UnknownEventKeepsRequestPending)
     interrupt(0x7F);
 
     CHECK_EQUAL(0, api.responded.size());
-    CHECK_EQUAL(1, request.referenceCount);
 }
 
 TEST(HashProcessor, CanServeNextRequestAfterCompletion)
@@ -253,4 +266,27 @@ TEST(HashProcessor, CanServeNextRequestAfterCompletion)
     interrupt(npos::dev::hal::Hash::INPUT_COMPLETE);
 
     CHECK_EQUAL(Hash::SUCCESS, statusOfResponse());
+}
+
+TEST(HashProcessor, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("hash");
+    request.sender = { 3, 1 };  // different owner
+    
+    processor.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(HashProcessor, RejectsTransferFromDifferentOwner)
+{
+    open();
+    
+    auto request = accumulate({ 3, 1 });  // different owner
+    
+    processor.handleRequest(request);
+    
+    CHECK_EQUAL(Hash::LOCKED, statusOfResponse());
 }

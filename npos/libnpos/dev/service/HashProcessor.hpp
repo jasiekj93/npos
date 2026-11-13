@@ -16,6 +16,7 @@
 #include <libnpos/dev/InterruptService.hpp>
 #include <libnpos/dev/msg/Hash.hpp>
 #include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Close.hpp>
 #include <libnpos/dev/hal/Hash.hpp>
 
 namespace npos::dev::service
@@ -28,6 +29,7 @@ namespace npos::dev::service
             , hash(hash)
             , name(name)
             , currentRequest(*this)
+            , owner(ipc::NULL_OID)
         {
         }
 
@@ -37,12 +39,14 @@ namespace npos::dev::service
             {
                 auto& request = static_cast<msg::Hash&>(message);
 
-                if(isInitalized == false)
+                if(owner == ipc::NULL_OID)
                     return getApi().respond(request.setStatus(msg::Hash::Status::NOT_INITIALIZED));
+
+                if(owner != message.sender)
+                    return getApi().respond(request.setStatus(msg::Hash::Status::LOCKED));
 
                 if(currentRequest.hasValue())
                     return getApi().respond(request.setStatus(msg::Hash::Status::BUSY));
-
 
                 if(request.getOperation() == msg::Hash::Operation::ACCUMULATE)
                 {
@@ -72,6 +76,8 @@ namespace npos::dev::service
             }
             else if (message.type == msg::Type::OPEN)
                 open(message);
+            else if (message.type == msg::Type::CLOSE)
+                close(message);
         }
 
         void handleResponse(ipc::Message& message) override {}
@@ -79,7 +85,8 @@ namespace npos::dev::service
         bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::HASH or 
-                    type == msg::Type::OPEN);
+                    type == msg::Type::OPEN or
+                    type == msg::Type::CLOSE);
         }
 
         void onInterrupt(const hal::Interrupt& interrupt) override
@@ -119,21 +126,39 @@ namespace npos::dev::service
 
             auto status = msg::Open::Status::SUCCESS;
 
-            if(not isInitalized)
-            {
-                if(not hash.init())
-                    status = msg::Open::Status::INIT_FAILURE;
-                else
-                    isInitalized = true;
-            }
+            if(owner == request.sender)
+                return api.respond(request.setStatus(msg::Open::Status::ALREADY_OPENED));
+
+            if(owner != ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Open::Status::LOCKED));
+
+            if(not hash.init())
+                status = msg::Open::Status::INIT_FAILURE;
+            else
+                owner = request.sender;
 
             api.respond(request.setStatus(status).setOpened(getOid()));
+        }
+
+        void close(ipc::Message& message)
+        {
+            auto& request = static_cast<msg::Close&>(message);
+
+            if(owner == ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Close::Status::NOT_INITIALIZED));
+
+            if(owner != message.sender)
+                return api.respond(request.setStatus(msg::Close::Status::LOCKED));
+
+            owner = ipc::NULL_OID;
+            hash.deinit();
+            api.respond(request.setStatus(msg::Close::Status::SUCCESS));
         }
 
     private:
         hal::Hash& hash;
         etl::string_view name;
-        bool isInitalized = false;
+        ipc::Oid owner = ipc::NULL_OID;
         ipc::MessageStore<dev::msg::Hash> currentRequest;
     };
 }

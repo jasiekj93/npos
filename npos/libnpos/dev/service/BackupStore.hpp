@@ -9,6 +9,7 @@
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/dev/msg/BackupRegisters.hpp>
 #include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Close.hpp>
 #include <libnpos/dev/hal/BackupRegisters.hpp>
 
 namespace npos::dev::service
@@ -20,6 +21,7 @@ namespace npos::dev::service
             : ipc::Service(api)
             , backupRegisters(backupRegisters)
             , name(name)
+            , owner(ipc::NULL_OID)
         {
         }
 
@@ -29,8 +31,11 @@ namespace npos::dev::service
             {
                 auto& request = static_cast<msg::BackupRegisters&>(message);
 
-                if(not isInitalized)
+                if(owner == ipc::NULL_OID)
                     return getApi().respond(request.setStatus(msg::BackupRegisters::Status::NOT_INITIALIZED));
+
+                if(message.sender != owner)
+                    return getApi().respond(request.setStatus(msg::BackupRegisters::Status::LOCKED));
 
                 if(request.getValue() == nullptr)
                     return getApi().respond(request.setStatus(msg::BackupRegisters::Status::INVALID_VALUE_PTR));
@@ -47,14 +52,17 @@ namespace npos::dev::service
             }
             else if (message.type == msg::Type::OPEN)
                 open(message);
+            else if (message.type == msg::Type::CLOSE)
+                close(message);
         }
 
         void handleResponse(ipc::Message& message) override {}
         
         bool acceptsRequest(ipc::Message::Type type) const override
         {
-            return (type == msg::Type::BACKUP_REGISTERS or 
-                    type == msg::Type::OPEN);
+            return (type == msg::Type::BACKUP_REGISTERS) or 
+                    (type == msg::Type::OPEN) or
+                    (type == msg::Type::CLOSE);
         }
 
     protected:
@@ -77,19 +85,38 @@ namespace npos::dev::service
             if(request.getName() != name)
                 return;
 
-            if(not isInitalized)
-            {
-                backupRegisters.enableAccess();
-                isInitalized = true;
-            }
+            if(owner == request.sender)
+                return api.respond(request.setStatus(msg::Open::Status::ALREADY_OPENED));
+
+            if(owner != ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Open::Status::LOCKED));
+
+
+            backupRegisters.enableAccess();
+            owner = message.sender;
 
             auto status = msg::Open::Status::SUCCESS;
             api.respond(request.setStatus(status).setOpened(getOid()));
         }
 
+        void close(ipc::Message& message)
+        {
+            auto& request = static_cast<msg::Close&>(message);
+
+            if(owner == ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Close::Status::NOT_INITIALIZED));
+
+            if(owner != message.sender)
+                return api.respond(request.setStatus(msg::Close::Status::LOCKED));
+
+            owner = ipc::NULL_OID;
+            backupRegisters.disableAccess();
+            api.respond(request.setStatus(msg::Close::Status::SUCCESS));
+        }
+
     private:
         hal::BackupRegisters& backupRegisters;
         etl::string_view name;
-        bool isInitalized = false;
+        ipc::Oid owner;
     };
 }

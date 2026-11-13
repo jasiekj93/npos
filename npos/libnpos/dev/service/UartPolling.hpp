@@ -9,6 +9,7 @@
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/dev/msg/Transciever.hpp>
 #include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Close.hpp>
 #include <libnpos/dev/hal/Uart.hpp>
 
 namespace npos::dev::service
@@ -20,6 +21,7 @@ namespace npos::dev::service
             : ipc::Service(api)
             , uart(uart)
             , name(name)
+            , owner(ipc::NULL_OID)
         {
         }
 
@@ -29,8 +31,11 @@ namespace npos::dev::service
             {
                 auto& request = static_cast<msg::Transciever&>(message);
 
-                if(not isInitalized)
+                if(owner == ipc::NULL_OID)
                     return getApi().respond(request.setStatus(msg::Transciever::Status::NOT_INITIALIZED));
+
+                if(owner != request.sender)
+                    return getApi().respond(request.setStatus(msg::Transciever::Status::LOCKED));
 
                 if(request.getOperation() == msg::Transciever::Operation::READ)
                     return read(request);    
@@ -41,6 +46,8 @@ namespace npos::dev::service
             }
             else if(message.type == msg::Type::OPEN)
                 open(message);
+            else if(message.type == msg::Type::CLOSE)
+                close(message);
         }
         
         void handleResponse(ipc::Message& message) override {}
@@ -48,7 +55,8 @@ namespace npos::dev::service
         bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::TRANSCIEVER or 
-                    type == msg::Type::OPEN);
+                    type == msg::Type::OPEN or
+                    type == msg::Type::CLOSE);
         }
 
     protected:
@@ -77,22 +85,40 @@ namespace npos::dev::service
             if(request.getName() != name)
                 return;
 
+            if(owner == request.sender)
+                return api.respond(request.setStatus(msg::Open::Status::ALREADY_OPENED));
+
+            if(owner != ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Open::Status::LOCKED));
+
             auto status = msg::Open::Status::SUCCESS;
 
-            if(not isInitalized)
-            {
-                if(not uart.init())
-                    status = msg::Open::Status::INIT_FAILURE;
-                else
-                    isInitalized = true;
-            }
+            if(not uart.init())
+                status = msg::Open::Status::INIT_FAILURE;
+            else
+                owner = request.sender;
 
             api.respond(request.setStatus(status).setOpened(getOid()));
+        }
+
+        void close(ipc::Message& message)
+        {
+            auto& request = static_cast<msg::Close&>(message);
+
+            if(owner == ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Close::Status::NOT_INITIALIZED));
+
+            if(owner != message.sender)
+                return api.respond(request.setStatus(msg::Close::Status::LOCKED));
+
+            owner = ipc::NULL_OID;
+            uart.deinit();
+            api.respond(request.setStatus(msg::Close::Status::SUCCESS));
         }
 
     private:
         hal::UartPolling& uart;
         etl::string_view name;
-        bool isInitalized = false;
+        ipc::Oid owner = ipc::NULL_OID;
     };
 }

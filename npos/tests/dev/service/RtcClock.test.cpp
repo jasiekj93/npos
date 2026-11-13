@@ -19,12 +19,37 @@ TEST_GROUP(RtcClock)
     mock::RecordingApi api;
     mock::FakeRtc rtc;
     RtcClock clock{api, rtc, "clock"};
+    npos::ipc::Oid owner;
+
+    void setup() override 
+    {
+        owner = { 3, 0 };
+    }
 
     void open()
     {
         npos::dev::msg::Open request("clock");
+        request.sender = owner;
         clock.handleRequest(request);
         api.responded.clear();
+    }
+
+    Clock get(npos::ipc::Oid sender = {0, 0})
+    {
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Clock(sender, Clock::GET_TIME);
+        msg.sender = sender;
+        return msg;
+    }
+
+    Clock set(npos::dev::Timestamp value, npos::ipc::Oid sender = {0, 0})
+    {
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Clock(sender, Clock::SET_TIME, value);
+        msg.sender = sender;
+        return msg;
     }
 
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
@@ -94,7 +119,7 @@ TEST(RtcClock, ConversionsAreInverse)
 TEST(RtcClock, UnsupportedOperationIsAnsweredWithNotSupported)
 {
     open();
-    Clock request({ 3, 0 }, Clock::GET_TIME);
+    auto request = get();
     request.input.attributes.mode = 99;
 
     clock.handleRequest(request);
@@ -112,8 +137,11 @@ TEST(RtcClock, AcceptsClockAndOpenMessages)
 
 TEST(RtcClock, OpenInitializesRtcOnce)
 {
-    open();
-    open();
+    npos::dev::msg::Open request("clock");
+    request.sender = owner;
+    
+    clock.handleRequest(request);
+    clock.handleRequest(request);
 
     CHECK_EQUAL(1, rtc.initCount);
 }
@@ -121,6 +149,7 @@ TEST(RtcClock, OpenInitializesRtcOnce)
 TEST(RtcClock, OpenWithOtherNameIsIgnored)
 {
     npos::dev::msg::Open request("other");
+    request.sender = owner;
 
     clock.handleRequest(request);
 
@@ -132,6 +161,7 @@ TEST(RtcClock, OpenReportsInitFailure)
 {
     rtc.failInit = true;
     npos::dev::msg::Open request("clock");
+    request.sender = owner;
 
     clock.handleRequest(request);
 
@@ -140,7 +170,7 @@ TEST(RtcClock, OpenReportsInitFailure)
 
 TEST(RtcClock, GetTimeBeforeOpenFails)
 {
-    Clock request({ 3, 0 }, Clock::GET_TIME);
+    auto request = get();
 
     clock.handleRequest(request);
 
@@ -152,7 +182,7 @@ TEST(RtcClock, GetTimeReturnsRtcTimestamp)
     open();
     rtc.time = { 12, 50, 24 };
     rtc.date = { 29, 9, 26 };
-    Clock request({ 3, 0 }, Clock::GET_TIME);
+    auto request = get();
 
     clock.handleRequest(request);
 
@@ -163,7 +193,7 @@ TEST(RtcClock, GetTimeReturnsRtcTimestamp)
 TEST(RtcClock, GetTimeReportsDeviceFailures)
 {
     open();
-    Clock request({ 3, 0 }, Clock::GET_TIME);
+    auto request = get();
 
     rtc.failGetTime = true;
     clock.handleRequest(request);
@@ -177,7 +207,7 @@ TEST(RtcClock, GetTimeReportsDeviceFailures)
 
 TEST(RtcClock, SetTimeBeforeOpenFails)
 {
-    Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
+    auto request = set(1790686224);
 
     clock.handleRequest(request);
 
@@ -187,7 +217,7 @@ TEST(RtcClock, SetTimeBeforeOpenFails)
 TEST(RtcClock, SetTimeProgramsRtcAndEchoesTimestamp)
 {
     open();
-    Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
+    auto request = set(1790686224);
 
     clock.handleRequest(request);
 
@@ -200,7 +230,7 @@ TEST(RtcClock, SetTimeProgramsRtcAndEchoesTimestamp)
 TEST(RtcClock, SetTimeRejectsInvalidTimestamp)
 {
     open();
-    Clock request({ 3, 0 }, Clock::SET_TIME, 5);
+    auto request = set(5);
 
     clock.handleRequest(request);
 
@@ -210,7 +240,7 @@ TEST(RtcClock, SetTimeRejectsInvalidTimestamp)
 TEST(RtcClock, SetTimeReportsDeviceFailures)
 {
     open();
-    Clock request({ 3, 0 }, Clock::SET_TIME, 1790686224);
+    auto request = set(1790686224);
 
     rtc.failSetTime = true;
     clock.handleRequest(request);
@@ -220,4 +250,27 @@ TEST(RtcClock, SetTimeReportsDeviceFailures)
 
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[0].output.status);
     CHECK_EQUAL(Clock::DEVICE_FAILURE, api.responded[1].output.status);
+}
+
+TEST(RtcClock, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("clock");
+    request.sender = { 3, 1 };  // different owner
+    
+    clock.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(RtcClock, RejectsTransferFromDifferentOwner)
+{
+    open();
+    
+    auto request = get({ 3, 1 });  // different owner
+    
+    clock.handleRequest(request);
+    
+    CHECK_EQUAL(Clock::LOCKED, statusOfResponse());
 }

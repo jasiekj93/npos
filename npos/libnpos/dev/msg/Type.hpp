@@ -13,6 +13,7 @@ namespace npos::dev::msg
     enum Type : ipc::Message::Type
     {
         OPEN = ipc::DEVICE_MESSAGE_TYPE,
+        CLOSE,
         CLOCK,
         LED,
         HASH,

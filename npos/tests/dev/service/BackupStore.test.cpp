@@ -19,14 +19,38 @@ TEST_GROUP(BackupStore)
     mock::FakeBackupRegisters registers;
     npos::dev::service::BackupStore store{api, registers, "backup"};
     BackupRegisters::Value value = 0;
+    npos::ipc::Oid owner;
 
-    void setup() override { store.setId(2); }
+    void setup() override 
+    { 
+        store.setId(2);
+        owner = { 3, 2 };
+    }
 
     void open()
     {
         npos::dev::msg::Open request("backup");
+        request.sender = owner;
         store.handleRequest(request);
         api.responded.clear();
+    }
+
+    BackupRegisters read(int index = 0, npos::ipc::Oid sender = {0, 0})
+    {
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = BackupRegisters(sender, BackupRegisters::READ, index, &value);
+        msg.sender = sender;
+        return msg;
+    }
+
+    BackupRegisters write(int index = 0, npos::ipc::Oid sender = {0, 0})
+    {
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = BackupRegisters(sender, BackupRegisters::WRITE, index, &value);
+        msg.sender = sender;
+        return msg;
     }
 
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
@@ -35,7 +59,7 @@ TEST_GROUP(BackupStore)
 TEST(BackupStore, UnsupportedOperationIsAnsweredWithNotSupported)
 {
     open();
-    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 1, &value);
+    auto request = read();
     request.input.readWrite.mode = 99;
 
     store.handleRequest(request);
@@ -54,6 +78,7 @@ TEST(BackupStore, AcceptsRegisterAndOpenMessages)
 TEST(BackupStore, OpenEnablesAccessOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("backup");
+    request.sender = owner;
 
     store.handleRequest(request);
     store.handleRequest(request);
@@ -76,7 +101,7 @@ TEST(BackupStore, OpenWithOtherNameIsIgnored)
 
 TEST(BackupStore, RequestBeforeOpenIsRejected)
 {
-    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 0, &value);
+    auto request = read();
 
     store.handleRequest(request);
 
@@ -86,7 +111,8 @@ TEST(BackupStore, RequestBeforeOpenIsRejected)
 TEST(BackupStore, RequestWithoutValuePointerIsRejected)
 {
     open();
-    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 0, nullptr);
+    BackupRegisters request(owner, BackupRegisters::READ, 0, nullptr);
+    request.sender = owner;
 
     store.handleRequest(request);
 
@@ -96,7 +122,7 @@ TEST(BackupStore, RequestWithoutValuePointerIsRejected)
 TEST(BackupStore, UnknownRegisterIsRejected)
 {
     open();
-    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, npos::dev::hal::BackupRegisters::COUNT, &value);
+    auto request = read(npos::dev::hal::BackupRegisters::COUNT);
 
     store.handleRequest(request);
 
@@ -107,7 +133,7 @@ TEST(BackupStore, ReadReturnsRegisterValue)
 {
     open();
     registers.registers[5] = 0xBEEF;
-    BackupRegisters request({ 3, 2 }, BackupRegisters::READ, 5, &value);
+    auto request = read(5);
 
     store.handleRequest(request);
 
@@ -119,7 +145,7 @@ TEST(BackupStore, WriteStoresValueInRegister)
 {
     open();
     value = 0x1234;
-    BackupRegisters request({ 3, 2 }, BackupRegisters::WRITE, 7, &value);
+    auto request = write(7);
 
     store.handleRequest(request);
 
@@ -135,4 +161,27 @@ TEST(BackupStore, IgnoresOtherMessageTypes)
     store.handleRequest(message);
 
     CHECK_EQUAL(0, api.responded.size());
+}
+
+TEST(BackupStore, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("backup");
+    request.sender = { 3, 1 };  // different owner
+    
+    store.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(BackupStore, RejectsTransferFromDifferentOwner)
+{
+    open();
+    
+    auto request = read(0, { 3, 1 });  // different owner
+    
+    store.handleRequest(request);
+    
+    CHECK_EQUAL(BackupRegisters::LOCKED, statusOfResponse());
 }

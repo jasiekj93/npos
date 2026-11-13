@@ -20,18 +20,40 @@ TEST_GROUP(UartPolling)
     npos::dev::service::UartPolling service{api, uart, "ttyS0"};
     uint8_t rx[8];
     uint8_t tx[8];
+    npos::ipc::Oid owner;
 
-    void setup() override { service.setId(1); }
+    void setup() override 
+    { 
+        service.setId(1);
+        owner = { 3, 1 };
+    }
 
     void open()
     {
         npos::dev::msg::Open request("ttyS0");
+        request.sender = owner;
         service.handleRequest(request);
         api.responded.clear();
     }
 
-    Transciever read(size_t length = 4) { return Transciever({ 3, 1 }, Transciever::READ, length, etl::span<uint8_t>(rx, sizeof(rx))); }
-    Transciever write(size_t length = 4) { return Transciever({ 3, 1 }, Transciever::WRITE, length, etl::span<uint8_t>(tx, sizeof(tx))); }
+    Transciever read(size_t length = 4, npos::ipc::Oid sender = {0, 0}) 
+    { 
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Transciever(sender, Transciever::READ, length, etl::span<uint8_t>(rx, sizeof(rx)));
+        msg.sender = sender;
+        return msg;
+    }
+    
+    Transciever write(size_t length = 4, npos::ipc::Oid sender = {0, 0}) 
+    { 
+        if(sender.portId == 0 && sender.serviceId == 0)
+            sender = owner;
+        auto msg = Transciever(sender, Transciever::WRITE, length, etl::span<uint8_t>(tx, sizeof(tx)));
+        msg.sender = sender;
+        return msg;
+    }
+    
     uint8_t statusOfResponse() { return api.responded[0].output.status; }
 };
 
@@ -57,14 +79,23 @@ TEST(UartPolling, AcceptsTranscieverAndOpenMessages)
 TEST(UartPolling, OpenInitializesUartOnceAndAnswersWithOid)
 {
     npos::dev::msg::Open request("ttyS0");
+    request.sender = owner;
 
     service.handleRequest(request);
-    service.handleRequest(request);
-
+    
     CHECK_EQUAL(1, uart.initCount);
-    CHECK_EQUAL(2, api.responded.size());
+    CHECK_EQUAL(1, api.responded.size());
     CHECK_EQUAL(npos::dev::msg::Open::SUCCESS, statusOfResponse());
     CHECK_EQUAL(1, api.responded[0].output.open.opened.serviceId);
+    
+    api.responded.clear();
+    
+    // Second open from same owner should return ALREADY_OPENED
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(1, uart.initCount);  // init not called again
+    CHECK_EQUAL(1, api.responded.size());
+    CHECK_EQUAL(npos::dev::msg::Open::ALREADY_OPENED, statusOfResponse());
 }
 
 TEST(UartPolling, OpenWithOtherNameIsIgnored)
@@ -80,6 +111,7 @@ TEST(UartPolling, OpenReportsInitFailure)
 {
     uart.failInit = true;
     npos::dev::msg::Open request("ttyS0");
+    request.sender = owner;
 
     service.handleRequest(request);
 
@@ -98,7 +130,7 @@ TEST(UartPolling, TransferBeforeOpenIsRejected)
 TEST(UartPolling, ReadReceivesIntoRequestBufferAndAnswersAtOnce)
 {
     open();
-    auto request = read(4);
+    auto request = read(4, owner);
 
     service.handleRequest(request);
 
@@ -112,7 +144,7 @@ TEST(UartPolling, ReadFailureIsReportedWithZeroLength)
 {
     open();
     uart.failReceive = true;
-    auto request = read();
+    auto request = read(4, owner);
 
     service.handleRequest(request);
 
@@ -123,7 +155,7 @@ TEST(UartPolling, ReadFailureIsReportedWithZeroLength)
 TEST(UartPolling, WriteTransmitsRequestDataAndAnswersAtOnce)
 {
     open();
-    auto request = write(6);
+    auto request = write(6, owner);
 
     service.handleRequest(request);
 
@@ -137,7 +169,7 @@ TEST(UartPolling, WriteFailureIsReported)
 {
     open();
     uart.failTransmit = true;
-    auto request = write();
+    auto request = write(4, owner);
 
     service.handleRequest(request);
 
@@ -153,4 +185,62 @@ TEST(UartPolling, IgnoresOtherMessageTypes)
     service.handleRequest(message);
 
     CHECK_EQUAL(0, api.responded.size());
+}
+
+TEST(UartPolling, RejectsOpenFromDifferentOwnerWhenLocked)
+{
+    open();
+    
+    npos::dev::msg::Open request("ttyS0");
+    request.sender = { 3, 2 };  // different owner
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Open::LOCKED, statusOfResponse());
+}
+
+TEST(UartPolling, RejectsTransferFromDifferentOwner)
+{
+    open();
+    
+    auto request = read(4, { 3, 2 });  // different owner
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(Transciever::LOCKED, statusOfResponse());
+}
+
+TEST(UartPolling, AcceptsCloseFromOwner)
+{
+    open();
+    
+    npos::dev::msg::Close request(owner);
+    request.sender = owner;
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Close::SUCCESS, statusOfResponse());
+    CHECK_EQUAL(1, uart.deinitCount);
+}
+
+TEST(UartPolling, RejectsCloseFromNonOwner)
+{
+    open();
+    
+    npos::dev::msg::Close request(owner);
+    request.sender = { 3, 2 };  // different owner
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Close::LOCKED, statusOfResponse());
+}
+
+TEST(UartPolling, RejectsCloseWhenNotInitialized)
+{
+    npos::dev::msg::Close request(owner);
+    request.sender = owner;
+    
+    service.handleRequest(request);
+    
+    CHECK_EQUAL(npos::dev::msg::Close::NOT_INITIALIZED, statusOfResponse());
 }

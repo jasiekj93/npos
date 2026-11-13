@@ -14,6 +14,7 @@
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/dev/msg/Led.hpp>
 #include <libnpos/dev/msg/Open.hpp>
+#include <libnpos/dev/msg/Close.hpp>
 #include <libnpos/dev/hal/Led.hpp>
 
 namespace npos::dev::service
@@ -27,6 +28,7 @@ namespace npos::dev::service
             : ipc::Service(api)
             , leds(leds)
             , name(name)
+            , owner(ipc::NULL_OID)
         {
         }
 
@@ -52,6 +54,8 @@ namespace npos::dev::service
             }
             else if(message.type == msg::Type::OPEN)
                 return open(message);
+            else if(message.type == msg::Type::CLOSE)
+                return close(message);
         }
 
         void handleResponse(ipc::Message& message) override {}
@@ -59,7 +63,8 @@ namespace npos::dev::service
         bool acceptsRequest(ipc::Message::Type type) const override
         {
             return (type == msg::Type::LED or 
-                    type == msg::Type::OPEN);
+                    type == msg::Type::OPEN or
+                    type == msg::Type::CLOSE);
         }
 
     protected:
@@ -70,12 +75,34 @@ namespace npos::dev::service
             if(request.getName() != name)
                 return;
 
+            if(owner == request.sender)
+                return api.respond(request.setStatus(msg::Open::Status::ALREADY_OPENED));
+
+            if(owner != ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Open::Status::LOCKED));
+
+            owner = request.sender;
             auto status = msg::Open::Status::SUCCESS;
             api.respond(request.setStatus(status).setOpened(getOid()));
+        }
+
+        void close(ipc::Message& message)
+        {
+            auto& request = static_cast<msg::Close&>(message);
+
+            if(owner == ipc::NULL_OID)
+                return api.respond(request.setStatus(msg::Close::Status::NOT_INITIALIZED));
+
+            if(owner != message.sender)
+                return api.respond(request.setStatus(msg::Close::Status::LOCKED));
+
+            owner = ipc::NULL_OID;
+            api.respond(request.setStatus(msg::Close::Status::SUCCESS));
         }
 
     private:
         Leds& leds;
         etl::string_view name;
+        ipc::Oid owner = ipc::NULL_OID;
     };
 }
