@@ -118,6 +118,7 @@ TEST(Littlefs, AcceptsFileAndDirectoryMessagesOnly)
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_READ));
     CHECK_TRUE(filesystem.accepts(msg::Type::DIR_MAKE));
     CHECK_TRUE(filesystem.accepts(msg::Type::STAT));
+    CHECK_TRUE(filesystem.accepts(msg::Type::RENAME));
     CHECK_FALSE(filesystem.accepts(npos::ipc::DEVICE_MESSAGE_TYPE));
 }
 
@@ -797,6 +798,122 @@ TEST(Littlefs, StatRequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
     other.initialize();
     Info info;
     msg::Stat request("a", info);
+    request.sender = owner;
+
+    other.receiveRequest(request);
+    other.process();
+
+    CHECK_EQUAL(1, bus.responded.size());
+    CHECK_EQUAL(msg::Status::IO_ERROR, request.getStatus());
+}
+
+TEST(Littlefs, RenameFile)
+{
+    write("old.txt", "content");
+    msg::Rename request("old.txt", "new.txt");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    msg::file::Open open("new.txt", Flags::READ_ONLY);
+    run(open);
+    CHECK_EQUAL(msg::Status::SUCCESS, open.getStatus());
+    msg::file::Open openOld("old.txt", Flags::READ_ONLY);
+    run(openOld);
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, openOld.getStatus());
+}
+
+TEST(Littlefs, RenameDirectory)
+{
+    msg::dir::Make make("olddir");
+    run(make);
+    msg::Rename request("olddir", "newdir");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    auto dir = openDir("newdir");
+    CHECK_EQUAL(2, dir.portId);
+    msg::dir::Open openOld("olddir");
+    run(openOld);
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, openOld.getStatus());
+}
+
+TEST(Littlefs, RenameFileToNonExistentPath)
+{
+    write("a.txt", "x");
+    msg::Rename request("a.txt", "subdir/b.txt");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, request.getStatus());
+}
+
+TEST(Littlefs, RenameMissingFileFails)
+{
+    msg::Rename request("missing.txt", "new.txt");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::NO_DIR_ENTRY, request.getStatus());
+}
+
+TEST(Littlefs, RenameToExistingFileSucceeds)
+{
+    write("a.txt", "first");
+    write("b.txt", "second");
+    msg::Rename request("a.txt", "b.txt");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    auto file = open("b.txt", Flags::READ_ONLY);
+    uint8_t buffer[16] = {};
+    msg::file::Read readRequest(file, sizeof(buffer), etl::span<uint8_t>(buffer, sizeof(buffer)));
+    run(readRequest);
+    CHECK_EQUAL(msg::Status::SUCCESS, readRequest.getStatus());
+    STRCMP_EQUAL("first", reinterpret_cast<const char*>(buffer));
+}
+
+TEST(Littlefs, RenamePreservesContent)
+{
+    write("original.txt", "Hello, World!");
+    msg::Rename request("original.txt", "renamed.txt");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    auto file = open("renamed.txt", Flags::READ_ONLY);
+    uint8_t buffer[32] = {};
+    msg::file::Read readRequest(file, sizeof(buffer), etl::span<uint8_t>(buffer, sizeof(buffer)));
+    run(readRequest);
+    CHECK_EQUAL(msg::Status::SUCCESS, readRequest.getStatus());
+    CHECK_EQUAL(13, readRequest.getOutputLength());
+    STRCMP_EQUAL("Hello, World!", reinterpret_cast<const char*>(buffer));
+}
+
+TEST(Littlefs, RenameDirectoryWithContents)
+{
+    msg::dir::Make make("docs");
+    run(make);
+    write("docs/file.txt", "content");
+    msg::Rename request("docs", "renamed_docs");
+
+    run(request);
+
+    CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
+    auto file = open("renamed_docs/file.txt", Flags::READ_ONLY);
+    CHECK_EQUAL(2, file.portId);
+}
+
+TEST(Littlefs, RenameRequestsAreAnsweredWithIoErrorWhenFilesystemIsNotMounted)
+{
+    mock::RamFlash brokenFlash;
+    brokenFlash.failUnlock = true;
+    task::Littlefs<SLOTS>::MessageQueue<2> otherQueue;
+    task::Littlefs<SLOTS> other(3, otherQueue, bus, brokenFlash, nullptr);
+    other.initialize();
+    msg::Rename request("a", "b");
     request.sender = owner;
 
     other.receiveRequest(request);

@@ -23,5 +23,6 @@ namespace npos::fs::msg
         DIR_MAKE,
         DIR_REMOVE,
         STAT,
+        RENAME,
     };
 }

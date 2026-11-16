@@ -8,6 +8,7 @@
 
 #include <libnpos/ipc/Service.hpp>
 #include <libnpos/fs/msg/Stat.hpp>
+#include <libnpos/fs/msg/Rename.hpp>
 #include <libnpos/fs/msg/file/Open.hpp>
 #include <libnpos/fs/msg/file/Close.hpp>
 #include <libnpos/fs/msg/file/Read.hpp>
@@ -24,6 +25,12 @@ namespace npos::fs::api
     inline void stat(ipc::Service& sender, etl::string_view path, npos::fs::Info& info)
     {
         npos::fs::msg::Stat request(path, info);
+        sender.getApi().send(sender, request);
+    }
+
+    inline void rename(ipc::Service& sender, etl::string_view oldPath, etl::string_view newPath)
+    {
+        npos::fs::msg::Rename request(oldPath, newPath);
         sender.getApi().send(sender, request);
     }
 

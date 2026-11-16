@@ -72,6 +72,7 @@ namespace npos::fs::task
             case msg::Type::DIR_MAKE:
             case msg::Type::DIR_REMOVE:
             case msg::Type::STAT:
+            case msg::Type::RENAME:
                 return true;
             default:
                 return false;
@@ -274,6 +275,8 @@ namespace npos::fs::task
                 return dirRemove(static_cast<msg::dir::Remove&>(message));
             case msg::Type::STAT:
                 return stat(static_cast<msg::Stat&>(message));
+            case msg::Type::RENAME:
+                return rename(static_cast<msg::Rename&>(message));
             default:
                 return handleUnknownRequest(message);
             }
@@ -372,6 +375,12 @@ namespace npos::fs::task
             entry.name[sizeof(entry.name) - 1] = '\0';
 
             bus.respond(request.setStatus(msg::Status::SUCCESS));
+        }
+
+        void rename(msg::Rename& request)
+        {
+            auto result = lfs_rename(&filesystem, request.getOldPath().data(), request.getNewPath().data());
+            bus.respond(request.setStatus(fromLfsStatus(result)));
         }
 
         void dirClose(msg::dir::Close& request)
