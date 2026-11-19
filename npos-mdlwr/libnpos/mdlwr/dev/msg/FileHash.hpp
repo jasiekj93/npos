@@ -11,7 +11,7 @@
 
 #include <libnpos/mdlwr/dev/msg/Type.hpp>
 
-namespace npos::mdlwr::dev::msg::file
+namespace npos::mdlwr::dev::msg
 {
     struct FileHash : public ipc::Message
     {

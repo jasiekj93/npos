@@ -11,12 +11,9 @@
 
 namespace npos::mdlwr::dev::api
 {
-    namespace file
+    inline void fileHash(ipc::Service& sender, etl::string_view path, etl::span<uint8_t> output)
     {
-        inline void hash(ipc::Service& sender, etl::string_view path, etl::span<uint8_t> output)
-        {
-            npos::mdlwr::dev::msg::file::FileHash request(path, output);
-            sender.getApi().send(sender, request);
-        }
+        npos::mdlwr::dev::msg::FileHash request(path, output);
+        sender.getApi().send(sender, request);
     }
 }

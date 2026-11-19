@@ -24,10 +24,10 @@ namespace npos::mdlwr::dev::service
     // The file is read in chunks of the size of the buffer given to the service. The device is opened for
     // the time of the operation only and both the file and the device are closed before the answer.
     // Nobody answers an open request of a device which does not exist, so a timer limits the wait for it.
-    class FileHash : public fs::service::Operation<msg::file::FileHash, msg::file::FileHash::Status>
+    class FileHash : public fs::service::Operation<msg::FileHash, msg::FileHash::Status>
     {
     public:
-        using Request = msg::file::FileHash;
+        using Request = msg::FileHash;
 
         static constexpr npos::dev::Tick HASH_OPEN_TIMEOUT = 1000;
 

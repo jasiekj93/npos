@@ -15,7 +15,7 @@ using namespace npos::mdlwr::dev;
 
 namespace
 {
-    using Hash = msg::file::FileHash;
+    using Hash = msg::FileHash;
 }
 
 TEST_GROUP(Sha256sum)

@@ -23,7 +23,7 @@ TEST_GROUP(FileHash)
     service::FileHash fileHash{api, "hash0", etl::span<uint8_t>(chunk)};
     mock::Filesystem filesystem{fileHash, api};
     uint8_t output[40] = {};
-    msg::file::FileHash request{"/a", etl::span<uint8_t>(output)};
+    msg::FileHash request{"/a", etl::span<uint8_t>(output)};
 
     void setup() override
     {
@@ -137,7 +137,7 @@ TEST(FileHash, NoAnswerFromTheDeviceIsHashNotFoundAfterClosingTheFile)
     CHECK_EQUAL(fs::msg::Type::FILE_CLOSE, filesystem.nextType());
     filesystem.answerClose();
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::HASH_NOT_FOUND, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::HASH_NOT_FOUND, request.getStatus());
 }
 
 TEST(FileHash, TimerAfterTheDeviceIsOpenedChangesNothing)
@@ -213,7 +213,7 @@ TEST(FileHash, DigestGoesToTheBufferOfTheClient)
     answerClosing();
 
     CHECK_EQUAL(1, api.responded.size());
-    CHECK_EQUAL(msg::file::FileHash::SUCCESS, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::SUCCESS, request.getStatus());
     BYTES_EQUAL(0xAB, output[0]);
     BYTES_EQUAL(0xAB, output[31]);
     BYTES_EQUAL(0, output[32]);
@@ -252,7 +252,7 @@ TEST(FileHash, EmptyFileIsHashedWithoutReading)
     answerHash();
     answerClosing();
 
-    CHECK_EQUAL(msg::file::FileHash::SUCCESS, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::SUCCESS, request.getStatus());
 }
 
 TEST(FileHash, ShrunkFileEndsWithWhatWasRead)
@@ -271,11 +271,11 @@ TEST(FileHash, BusyWhenThereIsAnotherRequest)
 {
     fileHash.handleRequest(request);
     uint8_t otherOutput[32];
-    msg::file::FileHash other{"/b", etl::span<uint8_t>(otherOutput)};
+    msg::FileHash other{"/b", etl::span<uint8_t>(otherOutput)};
 
     fileHash.handleRequest(other);
 
-    CHECK_EQUAL(msg::file::FileHash::BUSY, other.getStatus());
+    CHECK_EQUAL(msg::FileHash::BUSY, other.getStatus());
     CHECK_EQUAL(1, api.sent.size());
     CHECK_EQUAL(1, api.responded.size());
 }
@@ -283,18 +283,18 @@ TEST(FileHash, BusyWhenThereIsAnotherRequest)
 TEST(FileHash, TooSmallBufferIsRefusedWithoutOpeningAnything)
 {
     uint8_t small[31];
-    msg::file::FileHash tooSmall{"/a", etl::span<uint8_t>(small)};
+    msg::FileHash tooSmall{"/a", etl::span<uint8_t>(small)};
 
     fileHash.handleRequest(tooSmall);
 
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::BUFFER_TOO_SMALL, tooSmall.getStatus());
+    CHECK_EQUAL(msg::FileHash::BUFFER_TOO_SMALL, tooSmall.getStatus());
 }
 
 TEST(FileHash, BufferOfExactlyDigestSizeIsEnough)
 {
     uint8_t exact[32];
-    msg::file::FileHash fits{"/a", etl::span<uint8_t>(exact)};
+    msg::FileHash fits{"/a", etl::span<uint8_t>(exact)};
 
     fileHash.handleRequest(fits);
 
@@ -308,7 +308,7 @@ TEST(FileHash, MissingFileIsReported)
     filesystem.answerOpen(fs::msg::Status::NO_DIR_ENTRY);
 
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::FILE_NOT_FOUND, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::FILE_NOT_FOUND, request.getStatus());
 }
 
 TEST(FileHash, OtherFileOpenErrorIsDeviceFailure)
@@ -317,18 +317,18 @@ TEST(FileHash, OtherFileOpenErrorIsDeviceFailure)
 
     filesystem.answerOpen(fs::msg::Status::IO_ERROR);
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, TooLongPathIsReportedAsInvalid)
 {
     etl::string<100> longPath(70, 'a');
-    msg::file::FileHash tooLong{etl::string_view(longPath.c_str(), longPath.size()), etl::span<uint8_t>(output)};
+    msg::FileHash tooLong{etl::string_view(longPath.c_str(), longPath.size()), etl::span<uint8_t>(output)};
 
     fileHash.handleRequest(tooLong);
 
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::INVALID_PATH, tooLong.getStatus());
+    CHECK_EQUAL(msg::FileHash::INVALID_PATH, tooLong.getStatus());
 }
 
 TEST(FileHash, DirectoryIsReported)
@@ -338,7 +338,7 @@ TEST(FileHash, DirectoryIsReported)
     filesystem.answerOpen(fs::msg::Status::IS_A_DIRECTORY);
 
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::IS_A_DIRECTORY, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::IS_A_DIRECTORY, request.getStatus());
 }
 
 TEST(FileHash, RejectedNameByTheFilesystemIsInvalidPath)
@@ -347,7 +347,7 @@ TEST(FileHash, RejectedNameByTheFilesystemIsInvalidPath)
 
     filesystem.answerOpen(fs::msg::Status::NAME_TOO_LONG);
 
-    CHECK_EQUAL(msg::file::FileHash::INVALID_PATH, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::INVALID_PATH, request.getStatus());
 }
 
 TEST(FileHash, DeviceReportingNotFoundIsHashNotFound)
@@ -358,7 +358,7 @@ TEST(FileHash, DeviceReportingNotFoundIsHashNotFound)
     answerHashOpen(device::msg::Open::NOT_FOUND);
     filesystem.answerClose();
 
-    CHECK_EQUAL(msg::file::FileHash::HASH_NOT_FOUND, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::HASH_NOT_FOUND, request.getStatus());
 }
 
 TEST(FileHash, LockedDeviceIsReportedAfterClosingTheFile)
@@ -372,7 +372,7 @@ TEST(FileHash, LockedDeviceIsReportedAfterClosingTheFile)
     CHECK_EQUAL(0, api.responded.size());
     filesystem.answerClose();
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::HASH_BUSY, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::HASH_BUSY, request.getStatus());
 }
 
 TEST(FileHash, DeviceOpenFailureIsDeviceFailure)
@@ -383,7 +383,7 @@ TEST(FileHash, DeviceOpenFailureIsDeviceFailure)
     answerHashOpen(device::msg::Open::INIT_FAILURE);
     filesystem.answerClose();
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, ReadFailureIsDeviceFailureAfterClosingBoth)
@@ -394,7 +394,7 @@ TEST(FileHash, ReadFailureIsDeviceFailureAfterClosingBoth)
     answerClosing();
 
     CHECK_FALSE(filesystem.hasRequest());
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
     BYTES_EQUAL(0, output[0]);
 }
 
@@ -406,7 +406,7 @@ TEST(FileHash, HashFailureIsDeviceFailureAfterClosingBoth)
     answerHash(device::msg::Hash::DEVICE_FAILURE);
     answerClosing();
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, FailureOfTheLastChunkIsDeviceFailure)
@@ -417,7 +417,7 @@ TEST(FileHash, FailureOfTheLastChunkIsDeviceFailure)
     answerHash(device::msg::Hash::BUSY);
     answerClosing();
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, FailedCloseTurnsSuccessIntoDeviceFailure)
@@ -429,7 +429,7 @@ TEST(FileHash, FailedCloseTurnsSuccessIntoDeviceFailure)
     filesystem.answerClose(fs::msg::Status::IO_ERROR);
     answerHashClose();
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, FailedDeviceCloseTurnsSuccessIntoDeviceFailure)
@@ -441,7 +441,7 @@ TEST(FileHash, FailedDeviceCloseTurnsSuccessIntoDeviceFailure)
 
     answerHashClose(device::msg::Close::DEVICE_ERROR);
 
-    CHECK_EQUAL(msg::file::FileHash::DEVICE_FAILURE, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::DEVICE_FAILURE, request.getStatus());
 }
 
 TEST(FileHash, FailedCloseDoesNotHideTheFirstError)
@@ -452,14 +452,14 @@ TEST(FileHash, FailedCloseDoesNotHideTheFirstError)
 
     filesystem.answerClose(fs::msg::Status::IO_ERROR);
 
-    CHECK_EQUAL(msg::file::FileHash::HASH_BUSY, request.getStatus());
+    CHECK_EQUAL(msg::FileHash::HASH_BUSY, request.getStatus());
 }
 
 TEST(FileHash, TakesNextRequestWhenDone)
 {
     fileHash.handleRequest(request);
     filesystem.answerOpen(fs::msg::Status::NO_DIR_ENTRY);
-    msg::file::FileHash other{"/c", etl::span<uint8_t>(output)};
+    msg::FileHash other{"/c", etl::span<uint8_t>(output)};
 
     fileHash.handleRequest(other);
 

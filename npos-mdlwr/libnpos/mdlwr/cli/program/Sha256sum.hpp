@@ -38,9 +38,9 @@ namespace npos::mdlwr::cli::program
             if(state != State::HASHING or message.type != mdlwr::dev::msg::Type::FILE_HASH)
                 return;
 
-            auto status = static_cast<mdlwr::dev::msg::file::FileHash&>(message).getStatus();
+            auto status = static_cast<mdlwr::dev::msg::FileHash&>(message).getStatus();
 
-            if(status != mdlwr::dev::msg::file::FileHash::SUCCESS)
+            if(status != mdlwr::dev::msg::FileHash::SUCCESS)
             {
                 error("cannot read", operand, {}, utils::text::describe(status));
                 return next();
@@ -84,7 +84,7 @@ namespace npos::mdlwr::cli::program
                 if(resolve(operand, path))
                 {
                     state = State::HASHING;
-                    return mdlwr::dev::api::file::hash(*this, etl::string_view(path.c_str(), path.size()),
+                    return mdlwr::dev::api::fileHash(*this, etl::string_view(path.c_str(), path.size()),
                         etl::span<uint8_t>(digest, sizeof(digest)));
                 }
 

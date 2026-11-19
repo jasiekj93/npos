@@ -39,9 +39,9 @@ namespace npos::mdlwr::cli::utils::text
         }
     }
 
-    inline const char* describe(mdlwr::dev::msg::file::FileHash::Status status)
+    inline const char* describe(mdlwr::dev::msg::FileHash::Status status)
     {
-        using Status = mdlwr::dev::msg::file::FileHash;
+        using Status = mdlwr::dev::msg::FileHash;
 
         // Nobody serves the request: the bus or the service task answers with its own status.
         if(status == npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED or
