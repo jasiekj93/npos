@@ -18,7 +18,7 @@ TEST_GROUP(FileMove)
     mock::RecordingApi api;
     service::file::Move move{api};
     mock::Filesystem filesystem{move, api};
-    msg::file::Move request{npos::ipc::NULL_OID, "/a", "/b"};
+    msg::file::Move request{"/a", "/b"};
 
     void setup() override
     {
@@ -106,7 +106,7 @@ TEST(FileMove, RenameFailureIsReported)
 
 TEST(FileMove, MoveOntoItselfLeavesTheFileUntouched)
 {
-    msg::file::Move same{npos::ipc::NULL_OID, "/a", "/a"};
+    msg::file::Move same{"/a", "/a"};
     move.handleRequest(same);
 
     filesystem.answerStat(fs::msg::Status::SUCCESS);
@@ -118,7 +118,7 @@ TEST(FileMove, MoveOntoItselfLeavesTheFileUntouched)
 TEST(FileMove, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::file::Move tooLong{npos::ipc::NULL_OID, etl::string_view(longPath.c_str(), longPath.size()), "/b"};
+    msg::file::Move tooLong{etl::string_view(longPath.c_str(), longPath.size()), "/b"};
 
     move.handleRequest(tooLong);
 

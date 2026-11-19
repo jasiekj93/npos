@@ -18,7 +18,7 @@ TEST_GROUP(DirMove)
     mock::RecordingApi api;
     service::dir::Move move{api};
     mock::Filesystem filesystem{move, api};
-    msg::dir::Move request{npos::ipc::NULL_OID, "/a", "/b"};
+    msg::dir::Move request{"/a", "/b"};
 
     void setup() override
     {
@@ -85,7 +85,7 @@ TEST(DirMove, FileAsSourceIsRejected)
 
 TEST(DirMove, MovingIntoItselfIsRejected)
 {
-    msg::dir::Move inside{npos::ipc::NULL_OID, "/a", "/a/b"};
+    msg::dir::Move inside{"/a", "/a/b"};
 
     move.handleRequest(inside);
 
@@ -95,7 +95,7 @@ TEST(DirMove, MovingIntoItselfIsRejected)
 
 TEST(DirMove, SiblingWithTheSamePrefixIsNotInside)
 {
-    msg::dir::Move sibling{npos::ipc::NULL_OID, "/a", "/ab"};
+    msg::dir::Move sibling{"/a", "/ab"};
 
     move.handleRequest(sibling);
 
@@ -116,7 +116,7 @@ TEST(DirMove, RenameFailureIsReported)
 TEST(DirMove, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::dir::Move tooLong{npos::ipc::NULL_OID, "/a", etl::string_view(longPath.c_str(), longPath.size())};
+    msg::dir::Move tooLong{"/a", etl::string_view(longPath.c_str(), longPath.size())};
 
     move.handleRequest(tooLong);
 

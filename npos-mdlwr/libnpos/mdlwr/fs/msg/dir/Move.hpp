@@ -15,10 +15,9 @@ namespace npos::mdlwr::fs::msg::dir
 {
     struct Move : public ipc::Message
     {
-        Move(npos::ipc::Oid recipient, etl::string_view oldPath, etl::string_view newPath)
+        Move(etl::string_view oldPath, etl::string_view newPath)
         {
             this->type = msg::Type::DIR_MOVE;
-            this->recipient = recipient;
             this->input.data = reinterpret_cast<const uint8_t*>(oldPath.data());
             this->input.size = oldPath.size();
             this->output.data = reinterpret_cast<uint8_t*>(const_cast<char*>(newPath.data()));

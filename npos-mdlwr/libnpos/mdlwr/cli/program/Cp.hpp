@@ -7,8 +7,7 @@
  */
 
 #include <libnpos/mdlwr/cli/utils/Transfer.hpp>
-#include <libnpos/mdlwr/fs/msg/dir/Copy.hpp>
-#include <libnpos/mdlwr/fs/msg/file/Copy.hpp>
+#include <libnpos/mdlwr/fs/Api.hpp>
 
 namespace npos::mdlwr::cli::program
 {
@@ -32,14 +31,12 @@ namespace npos::mdlwr::cli::program
         {
             if(directory)
             {
-                mdlwr::fs::msg::dir::Copy request(npos::ipc::NULL_OID, source, target);
-                getApi().send(*this, request);
-                return request.type;
+                fs::api::dir::copy(*this, source, target);
+                return fs::msg::Type::DIR_COPY;
             }
 
-            mdlwr::fs::msg::file::Copy request(npos::ipc::NULL_OID, source, target);
-            getApi().send(*this, request);
-            return request.type;
+            fs::api::file::copy(*this, source, target);
+            return fs::msg::Type::FILE_COPY;
         }
     };
 }

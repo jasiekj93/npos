@@ -16,7 +16,7 @@ namespace npos::mdlwr::fs::msg::file
 {
     struct Read : public npos::ipc::Message
     {
-        Read(npos::ipc::Oid recipient, etl::string_view pathToFile, etl::span<uint8_t> output)
+        Read(etl::string_view pathToFile, etl::span<uint8_t> output)
         {
             this->type = msg::Type::FILE_READ;
             this->recipient = recipient;

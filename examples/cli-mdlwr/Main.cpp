@@ -79,14 +79,20 @@ int main(int argc, char* argv[])
 	npos::mdlwr::fs::service::file::Move fileMove(deviceTask);
 	assert(deviceTask.subscribe(fileMove));
 
-	npos::mdlwr::fs::service::dir::Copy dirCopy(deviceTask, fileCopy.getOid());
-	assert(deviceTask.subscribe(dirCopy));
+	// dir::Copy sends file::Copy requests as a broadcast, which never returns to the port it comes from.
+	// Hence the directory services need a task of their own.
+	npos::ipc::ServiceTaskStatic<16, 16, 4> directoryTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(directoryTask));
+	assert(systemBus.addPort(directoryTask));
 
-	npos::mdlwr::fs::service::dir::Move dirMove(deviceTask);
-	assert(deviceTask.subscribe(dirMove));
+	npos::mdlwr::fs::service::dir::Copy dirCopy(directoryTask);
+	assert(directoryTask.subscribe(dirCopy));
 
-	npos::mdlwr::fs::service::dir::Remove dirRemove(deviceTask);
-	assert(deviceTask.subscribe(dirRemove));
+	npos::mdlwr::fs::service::dir::Move dirMove(directoryTask);
+	assert(directoryTask.subscribe(dirMove));
+
+	npos::mdlwr::fs::service::dir::Remove dirRemove(directoryTask);
+	assert(directoryTask.subscribe(dirRemove));
 
 	//Timer
 	npos::emulator::SystemTick systemTick;

@@ -15,10 +15,9 @@ namespace npos::mdlwr::fs::msg::file
 {
     struct Copy : public ipc::Message
     {
-        Copy(npos::ipc::Oid recipient, etl::string_view oldPath, etl::string_view newPath)
+        Copy(etl::string_view oldPath, etl::string_view newPath)
         {
             this->type = msg::Type::FILE_COPY;
-            this->recipient = recipient;
             this->input.data = reinterpret_cast<const uint8_t*>(oldPath.data());
             this->input.size = oldPath.size();
             this->output.data = reinterpret_cast<uint8_t*>(const_cast<char*>(newPath.data()));

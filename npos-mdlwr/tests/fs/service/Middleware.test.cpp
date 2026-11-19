@@ -58,9 +58,11 @@ TEST_GROUP(Middleware)
 {
     mock::RamFlash flash;
     mock::FakeICache icache;
-    npos::ipc::SystemBusStatic<4, 16> bus{0};
+    npos::ipc::SystemBusStatic<5, 16> bus{0};
     fs::task::LittlefsStatic<8, 4> filesystem{2, bus, flash, &icache};
-    npos::ipc::ServiceTaskStatic<8, 8, 8> tasks{1, bus};
+    // A broadcast never returns to the port it comes from, so dir::Copy must not share a task with file::Copy.
+    npos::ipc::ServiceTaskStatic<8, 8, 4> tasks{1, bus};
+    npos::ipc::ServiceTaskStatic<8, 8, 4> directoryTask{1, bus};
     npos::ipc::ServiceTaskStatic<8, 8, 4> applicationTask{1, bus};
 
     etl::array<uint8_t, 16> buffer;
@@ -68,11 +70,9 @@ TEST_GROUP(Middleware)
     service::file::Move fileMove{tasks};
     service::file::Read fileRead{tasks};
     service::file::Write fileWrite{tasks};
-    // Port and service ids are given by setup(), so the address of fileCopy has to be known up front:
-    // tasks is the second port of the bus and fileCopy the first service of it.
-    service::dir::Copy dirCopy{tasks, { 1, 0 }};
-    service::dir::Move dirMove{tasks};
-    service::dir::Remove dirRemove{tasks};
+    service::dir::Copy dirCopy{directoryTask};
+    service::dir::Move dirMove{directoryTask};
+    service::dir::Remove dirRemove{directoryTask};
     Client client{applicationTask};
     mock::FakeHost host;
     npos::mdlwr::cli::program::Cp cp{applicationTask};
@@ -83,15 +83,15 @@ TEST_GROUP(Middleware)
     {
         bus.addPort(filesystem);
         bus.addPort(tasks);
+        bus.addPort(directoryTask);
         bus.addPort(applicationTask);
         tasks.subscribe(fileCopy);
         tasks.subscribe(fileMove);
         tasks.subscribe(fileRead);
         tasks.subscribe(fileWrite);
-        tasks.subscribe(dirCopy);
-        tasks.subscribe(dirMove);
-        tasks.subscribe(dirRemove);
-        CHECK_TRUE(fileCopy.getOid() == (npos::ipc::Oid{ 1, 0 }));
+        directoryTask.subscribe(dirCopy);
+        directoryTask.subscribe(dirMove);
+        directoryTask.subscribe(dirRemove);
         applicationTask.subscribe(client);
         applicationTask.subscribe(cp);
         applicationTask.subscribe(mv);
@@ -99,6 +99,7 @@ TEST_GROUP(Middleware)
 
         filesystem.initialize();
         tasks.initialize();
+        directoryTask.initialize();
         applicationTask.initialize();
     }
 
@@ -112,7 +113,7 @@ TEST_GROUP(Middleware)
             worked = false;
 
             for(npos::nps::Task* task : { static_cast<npos::nps::Task*>(&filesystem), static_cast<npos::nps::Task*>(&tasks),
-                static_cast<npos::nps::Task*>(&applicationTask) })
+                static_cast<npos::nps::Task*>(&directoryTask), static_cast<npos::nps::Task*>(&applicationTask) })
             {
                 if(task->isReady())
                 {
@@ -143,7 +144,7 @@ TEST_GROUP(Middleware)
 
     void write(const char* path, etl::string_view text, bool append = false)
     {
-        msg::file::Write request{npos::ipc::NULL_OID, path,
+        msg::file::Write request{path,
             etl::span<const uint8_t>(reinterpret_cast<const uint8_t*>(text.data()), text.size()), append};
         CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
     }
@@ -151,7 +152,7 @@ TEST_GROUP(Middleware)
     etl::string<256> read(const char* path, msg::Status expected = msg::Status::SUCCESS)
     {
         uint8_t output[256];
-        msg::file::Read request{npos::ipc::NULL_OID, path, etl::span<uint8_t>(output)};
+        msg::file::Read request{path, etl::span<uint8_t>(output)};
         auto& response = send(request);
         CHECK_EQUAL(expected, response.getStatus());
         return etl::string<256>(reinterpret_cast<const char*>(output), response.getOutputLength());
@@ -193,7 +194,7 @@ TEST(Middleware, ReadReportsTooSmallBufferAndMissingFile)
 {
     write("/a.txt", etl::string<100>(100, 'a'));
     uint8_t small[10];
-    msg::file::Read request{npos::ipc::NULL_OID, "/a.txt", etl::span<uint8_t>(small)};
+    msg::file::Read request{"/a.txt", etl::span<uint8_t>(small)};
 
     CHECK_EQUAL(msg::Status::BUFFER_TOO_SMALL, send(request).getStatus());
 
@@ -207,7 +208,7 @@ TEST(Middleware, CopiesFileLongerThanTheBuffer)
         content.push_back(static_cast<char>('a' + i % 26));
     write("/a.txt", content);
 
-    msg::file::Copy request{npos::ipc::NULL_OID, "/a.txt", "/b.txt"};
+    msg::file::Copy request{"/a.txt", "/b.txt"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
     STRCMP_EQUAL(content.c_str(), read("/b.txt").c_str());
@@ -217,7 +218,7 @@ TEST(Middleware, CopiesFileLongerThanTheBuffer)
 TEST(Middleware, CopyOntoItselfKeepsTheContent)
 {
     write("/a.txt", "hello");
-    msg::file::Copy request{npos::ipc::NULL_OID, "/a.txt", "/a.txt"};
+    msg::file::Copy request{"/a.txt", "/a.txt"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
     STRCMP_EQUAL("hello", read("/a.txt").c_str());
@@ -227,7 +228,7 @@ TEST(Middleware, MovesFileOverExistingOne)
 {
     write("/a.txt", "new");
     write("/b.txt", "old");
-    msg::file::Move request{npos::ipc::NULL_OID, "/a.txt", "/b.txt"};
+    msg::file::Move request{"/a.txt", "/b.txt"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
 
@@ -238,7 +239,7 @@ TEST(Middleware, MovesFileOverExistingOne)
 TEST(Middleware, MoveOfMissingFileKeepsTheDestination)
 {
     write("/b.txt", "old");
-    msg::file::Move request{npos::ipc::NULL_OID, "/a.txt", "/b.txt"};
+    msg::file::Move request{"/a.txt", "/b.txt"};
 
     CHECK_EQUAL(msg::Status::FILE_NOT_FOUND, send(request).getStatus());
     STRCMP_EQUAL("old", read("/b.txt").c_str());
@@ -255,7 +256,7 @@ TEST(Middleware, CopiesDirectoryTree)
     write("/src/sub/c.txt", "c");
     write("/src/sub/deep/d.txt", "d");
     write("/src/z.txt", "z");
-    msg::dir::Copy request{npos::ipc::NULL_OID, "/src", "/dst"};
+    msg::dir::Copy request{"/src", "/dst"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
 
@@ -272,7 +273,7 @@ TEST(Middleware, CopyOfDirectoryOntoExistingOneIsRejected)
 {
     makeDirectory("/src");
     makeDirectory("/dst");
-    msg::dir::Copy request{npos::ipc::NULL_OID, "/src", "/dst"};
+    msg::dir::Copy request{"/src", "/dst"};
 
     CHECK_EQUAL(msg::Status::ALREADY_EXISTS, send(request).getStatus());
 }
@@ -282,7 +283,7 @@ TEST(Middleware, MovesDirectoryTree)
     makeDirectory("/src");
     makeDirectory("/src/sub");
     write("/src/sub/c.txt", "c");
-    msg::dir::Move request{npos::ipc::NULL_OID, "/src", "/dst"};
+    msg::dir::Move request{"/src", "/dst"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
 
@@ -301,7 +302,7 @@ TEST(Middleware, RemovesDirectoryWithContent)
     write("/src/sub/c.txt", "c");
     write("/src/sub/deep/d.txt", "d");
     write("/keep.txt", "k");
-    msg::dir::Remove request{npos::ipc::NULL_OID, "/src"};
+    msg::dir::Remove request{"/src"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
 
@@ -312,7 +313,7 @@ TEST(Middleware, RemovesDirectoryWithContent)
 TEST(Middleware, RemovesEmptyDirectory)
 {
     makeDirectory("/src");
-    msg::dir::Remove request{npos::ipc::NULL_OID, "/src"};
+    msg::dir::Remove request{"/src"};
 
     CHECK_EQUAL(msg::Status::SUCCESS, send(request).getStatus());
     CHECK_FALSE(exists("/src"));
@@ -321,8 +322,8 @@ TEST(Middleware, RemovesEmptyDirectory)
 TEST(Middleware, RemoveOfFileOrMissingDirectoryIsReported)
 {
     write("/a.txt", "a");
-    msg::dir::Remove file{npos::ipc::NULL_OID, "/a.txt"};
-    msg::dir::Remove missing{npos::ipc::NULL_OID, "/missing"};
+    msg::dir::Remove file{"/a.txt"};
+    msg::dir::Remove missing{"/missing"};
 
     CHECK_EQUAL(msg::Status::NOT_A_DIRECTORY, send(file).getStatus());
     CHECK_EQUAL(msg::Status::DIR_NOT_FOUND, send(missing).getStatus());

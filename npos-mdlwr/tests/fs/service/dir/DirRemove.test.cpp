@@ -18,7 +18,7 @@ TEST_GROUP(DirRemove)
     mock::RecordingApi api;
     service::dir::Remove remove{api};
     mock::Filesystem filesystem{remove, api};
-    msg::dir::Remove request{npos::ipc::NULL_OID, "/d"};
+    msg::dir::Remove request{"/d"};
 
     void setup() override
     {
@@ -131,7 +131,7 @@ TEST(DirRemove, FileIsNotRemoved)
 
 TEST(DirRemove, RootDirectoryIsRejected)
 {
-    msg::dir::Remove root{npos::ipc::NULL_OID, "/"};
+    msg::dir::Remove root{"/"};
 
     remove.handleRequest(root);
 
@@ -182,7 +182,7 @@ TEST(DirRemove, TooLongEntryPathIsReportedAfterClosingTheDirectory)
     etl::string<100> name(30, 'a');
     etl::string<100> path(60, 'b');
     path.insert(0, "/");
-    msg::dir::Remove deep{npos::ipc::NULL_OID, etl::string_view(path.c_str(), path.size())};
+    msg::dir::Remove deep{etl::string_view(path.c_str(), path.size())};
     remove.handleRequest(deep);
     filesystem.answerDirOpen(fs::msg::Status::SUCCESS);
 
@@ -196,7 +196,7 @@ TEST(DirRemove, TooLongEntryPathIsReportedAfterClosingTheDirectory)
 TEST(DirRemove, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::dir::Remove tooLong{npos::ipc::NULL_OID, etl::string_view(longPath.c_str(), longPath.size())};
+    msg::dir::Remove tooLong{etl::string_view(longPath.c_str(), longPath.size())};
 
     remove.handleRequest(tooLong);
 

@@ -7,7 +7,7 @@
  */
 
 #include <libnpos/mdlwr/cli/utils/Command.hpp>
-#include <libnpos/mdlwr/fs/msg/dir/Remove.hpp>
+#include <libnpos/mdlwr/fs/Api.hpp>
 
 namespace npos::mdlwr::cli::program
 {
@@ -100,8 +100,7 @@ namespace npos::mdlwr::cli::program
                 return next();
             }
 
-            mdlwr::fs::msg::dir::Remove request(npos::ipc::NULL_OID, view);
-            getApi().send(*this, request);
+            fs::api::dir::remove(*this, view);
         }
 
         void onRemoved(const char* reason, bool success)

@@ -19,7 +19,7 @@ TEST_GROUP(FileRead)
     service::file::Read read{api};
     mock::Filesystem filesystem{read, api};
     uint8_t output[8] = {};
-    msg::file::Read request{npos::ipc::NULL_OID, "/a", etl::span<uint8_t>(output)};
+    msg::file::Read request{"/a", etl::span<uint8_t>(output)};
 
     void setup() override
     {
@@ -145,7 +145,7 @@ TEST(FileRead, ShrunkFileEndsTheReadingWithWhatWasRead)
 TEST(FileRead, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::file::Read tooLong{npos::ipc::NULL_OID, etl::string_view(longPath.c_str(), longPath.size()),
+    msg::file::Read tooLong{etl::string_view(longPath.c_str(), longPath.size()),
         etl::span<uint8_t>(output)};
 
     read.handleRequest(tooLong);

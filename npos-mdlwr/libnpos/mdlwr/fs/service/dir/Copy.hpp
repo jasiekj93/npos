@@ -8,31 +8,20 @@
 
 #include <etl/array.h>
 
-#include <libnpos/mdlwr/fs/msg/dir/Copy.hpp>
-#include <libnpos/mdlwr/fs/msg/file/Copy.hpp>
+#include <libnpos/mdlwr/fs/Api.hpp>
 #include <libnpos/mdlwr/fs/service/Operation.hpp>
 #include <libnpos/mdlwr/fs/utils/Path.hpp>
 #include <libnpos/mdlwr/fs/utils/Status.hpp>
 
 namespace npos::mdlwr::fs::service::dir
 {
-    // Copies a directory with everything inside. The destination must not exist and the copy is not undone
-    // when it fails halfway.
-    // Files are copied by the file::Copy service, which receives msg::file::Copy requests from this one.
-    // The requests are addressed to `fileCopy`, which has to be valid when the service is constructed
-    // (its port and service id are already assigned). A broadcast would not do, because it never returns
-    // to the port it comes from, so file::Copy in the same task would not get it.
-    //
-    // Only one directory is opened at a time. Before entering a subdirectory the current one is closed, so
-    // the traversal remembers how many entries of each level it passed and skips them when it comes back.
     class Copy : public Operation<msg::dir::Copy>
     {
     public:
         static constexpr size_t MAX_DEPTH = 16;
 
-        explicit Copy(Api& api, npos::ipc::Oid fileCopy)
+        explicit Copy(Api& api)
             : Operation(api, states, msg::Type::DIR_COPY)
-            , fileCopy(fileCopy)
             , idle(*this)
             , checkingSource(CHECKING_SOURCE, *this, &Copy::onSourceChecked)
             , checkingDestination(CHECKING_DESTINATION, *this, &Copy::onDestinationChecked)
@@ -165,8 +154,7 @@ namespace npos::mdlwr::fs::service::dir
                 return close(After::ENTER_ENTRY);
             }
 
-            msg::file::Copy request(fileCopy, utils::view(source), utils::view(destination));
-            getApi().send(*this, request);
+            api::file::copy(*this, utils::view(source), utils::view(destination));
             return COPYING;
         }
 

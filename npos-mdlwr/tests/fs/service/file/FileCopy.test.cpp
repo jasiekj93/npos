@@ -19,7 +19,7 @@ TEST_GROUP(FileCopy)
     uint8_t buffer[4];
     service::file::Copy copy{api, etl::span<uint8_t>(buffer)};
     mock::Filesystem filesystem{copy, api};
-    msg::file::Copy request{npos::ipc::NULL_OID, "/a", "/b"};
+    msg::file::Copy request{"/a", "/b"};
 
     void setup() override
     {
@@ -170,7 +170,7 @@ TEST(FileCopy, FailedCloseTurnsSuccessIntoError)
 
 TEST(FileCopy, CopyOntoItselfLeavesTheFileUntouched)
 {
-    msg::file::Copy same{npos::ipc::NULL_OID, "/a", "/a"};
+    msg::file::Copy same{"/a", "/a"};
     copy.handleRequest(same);
 
     filesystem.answerOpen(fs::msg::Status::SUCCESS);
@@ -184,7 +184,7 @@ TEST(FileCopy, CopyOntoItselfLeavesTheFileUntouched)
 TEST(FileCopy, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::file::Copy tooLong{npos::ipc::NULL_OID, "/a", etl::string_view(longPath.c_str(), longPath.size())};
+    msg::file::Copy tooLong{"/a", etl::string_view(longPath.c_str(), longPath.size())};
 
     copy.handleRequest(tooLong);
 
@@ -195,7 +195,7 @@ TEST(FileCopy, TooLongPathIsRejected)
 TEST(FileCopy, RequestWhileBusyIsAnsweredWithBusy)
 {
     copy.handleRequest(request);
-    msg::file::Copy other{npos::ipc::NULL_OID, "/c", "/d"};
+    msg::file::Copy other{"/c", "/d"};
 
     copy.handleRequest(other);
 
@@ -207,7 +207,7 @@ TEST(FileCopy, TakesNextRequestWhenDone)
 {
     copy.handleRequest(request);
     filesystem.answerOpen(fs::msg::Status::NO_DIR_ENTRY);
-    msg::file::Copy other{npos::ipc::NULL_OID, "/c", "/d"};
+    msg::file::Copy other{"/c", "/d"};
 
     copy.handleRequest(other);
 

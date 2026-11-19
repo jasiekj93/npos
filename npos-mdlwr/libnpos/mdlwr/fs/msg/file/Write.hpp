@@ -16,10 +16,9 @@ namespace npos::mdlwr::fs::msg::file
 {
     struct Write : public npos::ipc::Message
     {
-        Write(npos::ipc::Oid recipient, etl::string_view pathToFile, etl::span<const uint8_t> input, bool append)
+        Write(etl::string_view pathToFile, etl::span<const uint8_t> input, bool append)
         {
             this->type = msg::Type::FILE_WRITE;
-            this->recipient = recipient;
             this->input.data = input.data();
             this->input.size = input.size();
             this->input.readWrite.mode = append;

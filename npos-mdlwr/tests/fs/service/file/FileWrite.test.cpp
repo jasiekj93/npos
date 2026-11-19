@@ -19,7 +19,7 @@ TEST_GROUP(FileWrite)
     service::file::Write write{api};
     mock::Filesystem filesystem{write, api};
     const uint8_t input[5] = { 'h', 'e', 'l', 'l', 'o' };
-    msg::file::Write request{npos::ipc::NULL_OID, "/a", etl::span<const uint8_t>(input), false};
+    msg::file::Write request{"/a", etl::span<const uint8_t>(input), false};
 
     void setup() override
     {
@@ -38,7 +38,7 @@ TEST(FileWrite, OpensTheFileToOverwriteIt)
 
 TEST(FileWrite, OpensTheFileToAppend)
 {
-    msg::file::Write append{npos::ipc::NULL_OID, "/a", etl::span<const uint8_t>(input), true};
+    msg::file::Write append{"/a", etl::span<const uint8_t>(input), true};
 
     write.handleRequest(append);
 
@@ -81,7 +81,7 @@ TEST(FileWrite, ContinuesAfterShortWrite)
 
 TEST(FileWrite, EmptyInputOnlyCreatesTheFile)
 {
-    msg::file::Write empty{npos::ipc::NULL_OID, "/a", etl::span<const uint8_t>(), false};
+    msg::file::Write empty{"/a", etl::span<const uint8_t>(), false};
     write.handleRequest(empty);
 
     filesystem.answerOpen(fs::msg::Status::SUCCESS);
@@ -148,7 +148,7 @@ TEST(FileWrite, FailedCloseTurnsSuccessIntoError)
 TEST(FileWrite, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::file::Write tooLong{npos::ipc::NULL_OID, etl::string_view(longPath.c_str(), longPath.size()),
+    msg::file::Write tooLong{etl::string_view(longPath.c_str(), longPath.size()),
         etl::span<const uint8_t>(input), false};
 
     write.handleRequest(tooLong);

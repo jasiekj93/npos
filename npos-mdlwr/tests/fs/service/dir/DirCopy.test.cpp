@@ -16,10 +16,9 @@ namespace fs = npos::fs;
 TEST_GROUP(DirCopy)
 {
     mock::RecordingApi api;
-    static constexpr npos::ipc::Oid FILE_COPY{ 3, 7 };
-    service::dir::Copy copy{api, FILE_COPY};
+    service::dir::Copy copy{api};
     mock::Filesystem filesystem{copy, api};
-    msg::dir::Copy request{npos::ipc::NULL_OID, "/a", "/b"};
+    msg::dir::Copy request{"/a", "/b"};
 
     void setup() override
     {
@@ -73,14 +72,14 @@ TEST(DirCopy, EmptyDirectoryIsDoneWhenCreated)
     CHECK_EQUAL(msg::Status::SUCCESS, request.getStatus());
 }
 
-TEST(DirCopy, FilesAreCopiedByTheGivenFileCopyService)
+TEST(DirCopy, FilesAreCopiedByTheFileCopyService)
 {
     startCopying();
 
     filesystem.answerDirRead(fs::msg::Status::SUCCESS, fs::Info::FILE, "f");
 
     CHECK_EQUAL(msg::Type::FILE_COPY, filesystem.nextType());
-    CHECK_TRUE(filesystem.nextRecipient() == FILE_COPY);
+    CHECK_TRUE(filesystem.nextRecipient() == npos::ipc::NULL_OID);
     auto message = api.sent.front();
     auto& fileCopy = reinterpret_cast<msg::file::Copy&>(message);
     STRCMP_EQUAL("/a/f", fileCopy.getOldPath().data());
@@ -169,7 +168,7 @@ TEST(DirCopy, FileAsSourceIsRejected)
 
 TEST(DirCopy, CopyingIntoItselfIsRejected)
 {
-    msg::dir::Copy inside{npos::ipc::NULL_OID, "/a", "/a/b"};
+    msg::dir::Copy inside{"/a", "/a/b"};
 
     copy.handleRequest(inside);
 
@@ -219,7 +218,7 @@ TEST(DirCopy, TooLongEntryPathIsReportedAfterClosingTheDirectory)
     etl::string<100> name(40, 'a');
     etl::string<100> path(30, 'b');
     path.insert(0, "/");
-    msg::dir::Copy deep{npos::ipc::NULL_OID, etl::string_view(path.c_str(), path.size()), "/b"};
+    msg::dir::Copy deep{etl::string_view(path.c_str(), path.size()), "/b"};
     copy.handleRequest(deep);
     filesystem.answerStat(fs::msg::Status::SUCCESS, fs::Info::DIRECTORY);
     filesystem.answerStat(fs::msg::Status::NO_DIR_ENTRY);
@@ -255,7 +254,7 @@ TEST(DirCopy, TooDeepTreeIsReported)
 TEST(DirCopy, TooLongPathIsRejected)
 {
     etl::string<100> longPath(70, 'a');
-    msg::dir::Copy tooLong{npos::ipc::NULL_OID, etl::string_view(longPath.c_str(), longPath.size()), "/b"};
+    msg::dir::Copy tooLong{etl::string_view(longPath.c_str(), longPath.size()), "/b"};
 
     copy.handleRequest(tooLong);
 

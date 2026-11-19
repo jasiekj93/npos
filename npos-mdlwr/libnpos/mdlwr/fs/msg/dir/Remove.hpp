@@ -15,10 +15,9 @@ namespace npos::mdlwr::fs::msg::dir
 {
     struct Remove : public ipc::Message
     {
-        Remove(npos::ipc::Oid recipient, etl::string_view path)
+        Remove(etl::string_view path)
         {
             this->type = msg::Type::DIR_REMOVE;
-            this->recipient = recipient;
             this->input.data = reinterpret_cast<const uint8_t*>(path.data());
             this->input.size = path.size();
         }
