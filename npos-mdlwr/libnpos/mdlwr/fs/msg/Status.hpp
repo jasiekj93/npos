@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file Status.hpp
+ * @author Adrian Szczepanski
+ * @date 19-11-2026
+ */
+
 #include <libnpos/ipc/Message.hpp>
 
 namespace npos::mdlwr::fs::msg

@@ -69,6 +69,7 @@ namespace npos::mdlwr::fs::service::file
                 return fail(utils::fromFsStatus(response.getStatus(), msg::Status::FILE_NOT_FOUND));
 
             sourceFile = response.getOpened();
+            sourceFileSize = response.getSize();
 
             // Truncating the destination would destroy the source.
             if(source == destination)
@@ -139,7 +140,7 @@ namespace npos::mdlwr::fs::service::file
             auto& handle = (destinationFile != ipc::NULL_OID) ? destinationFile : sourceFile;
 
             if(handle == ipc::NULL_OID)
-                return finish(result);
+                return finish(result, sourceFileSize);
 
             auto file = handle;
             handle = ipc::NULL_OID;
@@ -152,6 +153,7 @@ namespace npos::mdlwr::fs::service::file
         utils::Path destination;
         ipc::Oid sourceFile = ipc::NULL_OID;
         ipc::Oid destinationFile = ipc::NULL_OID;
+        size_t sourceFileSize = 0;
         size_t length = 0;
         msg::Status result = msg::Status::SUCCESS;
 
@@ -162,5 +164,19 @@ namespace npos::mdlwr::fs::service::file
         Await<Copy, npos::fs::msg::file::Read, npos::fs::msg::Type::FILE_READ> reading;
         Await<Copy, npos::fs::msg::file::Write, npos::fs::msg::Type::FILE_WRITE> writing;
         Await<Copy, npos::fs::msg::file::Close, npos::fs::msg::Type::FILE_CLOSE> closing;
+    };
+
+
+    template<size_t BUFFER_SIZE>
+    class CopyStatic : public Copy
+    {
+    public:
+        CopyStatic(Api& api) 
+            : Copy(api, staticBuffer) 
+        {
+        }
+
+    private:
+        etl::array<uint8_t, BUFFER_SIZE> staticBuffer;
     };
 }

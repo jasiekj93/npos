@@ -44,5 +44,16 @@ namespace npos::mdlwr::fs::msg::file
             this->output.status = static_cast<npos::ipc::Message::Status>(status);
             return *this;
         }
+
+        inline size_t getFileSize() const
+        {
+            return this->output.readWrite.length;
+        }
+
+        inline Copy& setFileSize(size_t size)
+        {
+            this->output.readWrite.length = size;
+            return *this;
+        }
     };
 }

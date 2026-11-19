@@ -121,6 +121,14 @@ namespace npos::mdlwr::fs::service
             return IDLE;
         }
 
+        ID finish(msg::Status status, size_t length)
+        {
+            if(auto* request = current.release())
+                getApi().respond(request->setStatus(status).setFileSize(length));
+
+            return IDLE;
+        }
+
         ipc::Message::Type requestType;
         ipc::MessageStore<Request> current;
     };
