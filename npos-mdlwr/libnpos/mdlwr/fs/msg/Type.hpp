@@ -1,5 +1,11 @@
 #pragma once
 
+/**
+ * @file Type.hpp
+ * @author Adrian Szczepanski
+ * @date 18-11-2026
+ */
+
 #include <libnpos/ipc/Message.hpp>
 
 namespace npos::mdlwr::fs::msg 
@@ -12,6 +18,8 @@ namespace npos::mdlwr::fs::msg
         FILE_WRITE,
         DIR_MOVE,
         DIR_COPY,
-        DIR_REMOVE
+        DIR_REMOVE,
+
+        UNUSED
     };
 }

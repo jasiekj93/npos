@@ -15,6 +15,7 @@ external_dir := $(project_dir)/external
 cxx_sources :=  \
 $(wildcard *.cpp) \
 $(wildcard cli/program/*.cpp) \
+$(wildcard dev/service/*.cpp) \
 $(wildcard fs/service/*.cpp) \
 $(wildcard fs/service/dir/*.cpp) \
 $(wildcard fs/service/file/*.cpp) \

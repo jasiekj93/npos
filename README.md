@@ -14,7 +14,7 @@ Four libraries are built by the top level `Makefile`.
 | Library | Purpose |
 |---|---|
 | `npos` | The core, header only, in `npos/libnpos/<module>` (see modules below) |
-| `npos-mdlwr` | Middleware, header only: services doing `cp`/`mv`/`rm` like operations on the `fs` task (`mdlwr/fs/msg`, `mdlwr/fs/service`) and the terminal programs `cp`, `mv`, `rm` built on them (`mdlwr/cli/program`) |
+| `npos-mdlwr` | Middleware, header only: services doing `cp`/`mv`/`rm` like operations on the `fs` task (`mdlwr/fs/msg`, `mdlwr/fs/service`) and the terminal programs `cp`, `mv`, `rm`, `sha256sum` built on them (`mdlwr/cli/program`) |
 | `npos-emulator` | HAL implementations for running on a PC |
 
 Modules of `npos`, included as `<libnpos/<module>/File.hpp>`:

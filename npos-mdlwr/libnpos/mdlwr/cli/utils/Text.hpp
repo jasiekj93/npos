@@ -7,6 +7,7 @@
  */
 
 #include <libnpos/ipc/Message.hpp>
+#include <libnpos/mdlwr/dev/msg/FileHash.hpp>
 #include <libnpos/mdlwr/fs/msg/Status.hpp>
 
 namespace npos::mdlwr::cli::utils::text
@@ -34,6 +35,33 @@ namespace npos::mdlwr::cli::utils::text
         case mdlwr::fs::msg::Status::NOT_A_DIRECTORY: return "not a directory";
         case mdlwr::fs::msg::Status::NO_SPACE_LEFT: return "no space left";
         case mdlwr::fs::msg::Status::INVALID_PATH: return "invalid path";
+        default: return "unknown error";
+        }
+    }
+
+    inline const char* describe(mdlwr::dev::msg::file::FileHash::Status status)
+    {
+        using Status = mdlwr::dev::msg::file::FileHash;
+
+        // Nobody serves the request: the bus or the service task answers with its own status.
+        if(status == npos::ipc::Message::STATUS_MESSAGE_NOT_SUPPORTED or
+            status == npos::ipc::Message::STATUS_PORT_NOT_FOUND or
+            status == npos::ipc::Message::STATUS_SERVICE_NOT_FOUND)
+        {
+            return "service not available";
+        }
+
+        switch(status)
+        {
+        case Status::SUCCESS: return "success";
+        case Status::DEVICE_FAILURE: return "I/O error";
+        case Status::BUFFER_TOO_SMALL: return "buffer too small";
+        case Status::HASH_NOT_FOUND: return "hash device not found";
+        case Status::HASH_BUSY: return "hash device busy";
+        case Status::FILE_NOT_FOUND: return "no such file";
+        case Status::IS_A_DIRECTORY: return "is a directory";
+        case Status::INVALID_PATH: return "invalid path";
+        case Status::BUSY: return "service busy";
         default: return "unknown error";
         }
     }

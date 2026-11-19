@@ -16,7 +16,8 @@ namespace npos::mdlwr::fs::service
     // Base of the services which carry a request out as a series of filesystem requests.
     // The service stays in IDLE until a request comes, then it moves through the states, each one waiting
     // for a response of the filesystem, and answers the request when it is done.
-    template<typename Request>
+    // The status of the response is Request's own when it differs from msg::Status, it needs a BUSY value.
+    template<typename Request, typename StatusType = msg::Status>
     class Operation : public ipc::FsmService
     {
     public:
@@ -47,7 +48,7 @@ namespace npos::mdlwr::fs::service
 
             ID handleRequest(ipc::Message& message) override
             {
-                operation.getApi().respond(static_cast<Request&>(message).setStatus(msg::Status::BUSY));
+                operation.getApi().respond(static_cast<Request&>(message).setStatus(StatusType::BUSY));
                 return getId();
             }
 
@@ -106,14 +107,14 @@ namespace npos::mdlwr::fs::service
         // Called in IDLE with the new request. Returns the state to continue in, IDLE when the request is already answered.
         virtual ID begin(Request& request) = 0;
 
-        ID refuse(Request& request, msg::Status status)
+        ID refuse(Request& request, StatusType status)
         {
             getApi().respond(request.setStatus(status));
             return IDLE;
         }
 
         // Answers the stored request.
-        ID finish(msg::Status status)
+        ID finish(StatusType status)
         {
             if(auto* request = current.release())
                 getApi().respond(request->setStatus(status));
@@ -121,7 +122,7 @@ namespace npos::mdlwr::fs::service
             return IDLE;
         }
 
-        ID finish(msg::Status status, size_t length)
+        ID finish(StatusType status, size_t length)
         {
             if(auto* request = current.release())
                 getApi().respond(request->setStatus(status).setFileSize(length));

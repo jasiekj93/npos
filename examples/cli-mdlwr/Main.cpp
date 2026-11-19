@@ -14,6 +14,7 @@
 #include <libnpos/dev/InterruptServiceTask.hpp>
 #include <libnpos/dev/service/UartInterrupt.hpp>
 #include <libnpos/dev/service/RtcClock.hpp>
+#include <libnpos/dev/service/HashProcessor.hpp>
 #include <libnpos/cli/task/Terminal.hpp>
 #include <libnpos/cli/program/Cat.hpp>
 #include <libnpos/cli/program/Cd.hpp>
@@ -34,15 +35,18 @@
 #include <libnpos/mdlwr/fs/service/dir/Copy.hpp>
 #include <libnpos/mdlwr/fs/service/dir/Move.hpp>
 #include <libnpos/mdlwr/fs/service/dir/Remove.hpp>
+#include <libnpos/mdlwr/dev/service/FileHash.hpp>
 #include <libnpos/mdlwr/cli/program/Cp.hpp>
 #include <libnpos/mdlwr/cli/program/Mv.hpp>
 #include <libnpos/mdlwr/cli/program/Rm.hpp>
+#include <libnpos/mdlwr/cli/program/Sha256sum.hpp>
 
 #include <libnpos/emulator/Flash.hpp>
 #include <libnpos/emulator/ICache.hpp>
 #include <libnpos/emulator/ConsoleUart.hpp>
 #include <libnpos/emulator/Rtc.hpp>
 #include <libnpos/emulator/SystemTick.hpp>
+#include <libnpos/emulator/Hash.hpp>
 
 int main(int argc, char* argv[])
 {
@@ -58,7 +62,7 @@ int main(int argc, char* argv[])
 	npos::ipc::SystemBusStatic<16, 64> systemBus(0);
 
 	//Devices
-	npos::ipc::ServiceTaskStatic<16, 16, 8> deviceTask(DEVICE_TASK_PRIORITY, systemBus);
+	npos::ipc::ServiceTaskStatic<16, 16, 1> deviceTask(DEVICE_TASK_PRIORITY, systemBus);
 	assert(scheduler.addTask(deviceTask));
 	assert(systemBus.addPort(deviceTask));
 	
@@ -66,21 +70,37 @@ int main(int argc, char* argv[])
 	npos::dev::service::RtcClock rtcService(deviceTask, rtc, "rtc");
 	assert(deviceTask.subscribe(rtcService));
 
-	npos::mdlwr::fs::service::file::Read fileRead(deviceTask);
-	assert(deviceTask.subscribe(fileRead));
 
-	npos::mdlwr::fs::service::file::Write fileWrite(deviceTask);
-	assert(deviceTask.subscribe(fileWrite));
+	npos::dev::InterruptServiceTaskStatic<16, 16, 1> interruptTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(interruptTask));
+	assert(systemBus.addPort(interruptTask));
 
-	etl::array<uint8_t, 256> fileCopyBuffer;
-	npos::mdlwr::fs::service::file::Copy fileCopy(deviceTask, fileCopyBuffer);
-	assert(deviceTask.subscribe(fileCopy));
+	npos::emulator::Hash hash;
+	npos::dev::InterruptService::InterruptQueue<16> hashInterruptQueue;
+	npos::dev::service::HashProcessor hashProcessor(interruptTask, hashInterruptQueue, hash, "hash");
+	assert(interruptTask.subscribe(hashProcessor));
 
-	npos::mdlwr::fs::service::file::Move fileMove(deviceTask);
-	assert(deviceTask.subscribe(fileMove));
+	//File service task
+	npos::ipc::ServiceTaskStatic<16, 16, 5> fileTask(DEVICE_TASK_PRIORITY, systemBus);
+	assert(scheduler.addTask(fileTask));
+	assert(systemBus.addPort(fileTask));
 
-	// dir::Copy sends file::Copy requests as a broadcast, which never returns to the port it comes from.
-	// Hence the directory services need a task of their own.
+	npos::mdlwr::fs::service::file::Read fileRead(fileTask);
+	assert(fileTask.subscribe(fileRead));
+
+	npos::mdlwr::fs::service::file::Write fileWrite(fileTask);
+	assert(fileTask.subscribe(fileWrite));
+
+	npos::mdlwr::fs::service::file::CopyStatic<256> fileCopy(fileTask);
+	assert(fileTask.subscribe(fileCopy));
+
+	npos::mdlwr::fs::service::file::Move fileMove(fileTask);
+	assert(fileTask.subscribe(fileMove));
+
+	npos::mdlwr::dev::service::FileHashStatic<256> fileHash(fileTask, "hash");
+	assert(fileTask.subscribe(fileHash));
+
+	//Directory service task
 	npos::ipc::ServiceTaskStatic<16, 16, 4> directoryTask(DEVICE_TASK_PRIORITY, systemBus);
 	assert(scheduler.addTask(directoryTask));
 	assert(systemBus.addPort(directoryTask));
@@ -163,6 +183,9 @@ int main(int argc, char* argv[])
 
 	npos::cli::program::Touch touch(terminalTask);
 	assert(terminalTask.addProgram(touch));
+
+	npos::mdlwr::cli::program::Sha256sum sha256sum(terminalTask);
+	assert(terminalTask.addProgram(sha256sum));
 
 	scheduler.start();
 	return 0;
