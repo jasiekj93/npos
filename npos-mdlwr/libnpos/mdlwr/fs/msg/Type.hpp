@@ -2,7 +2,7 @@
 
 #include <libnpos/ipc/Message.hpp>
 
-namespace npos::mdlwr::dev::msg 
+namespace npos::mdlwr::fs::msg 
 {
     enum Type : ipc::Message::Type
     {

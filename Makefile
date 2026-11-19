@@ -38,10 +38,12 @@ examples/compute-hash \
 examples/uart-read-write \
 examples/filesystem \
 examples/cli \
+examples/cli-mdlwr \
 
 # Project libraries
 library_names = \
 npos \
+npos-mdlwr \
 npos-emulator \
 
 # optimalization flags

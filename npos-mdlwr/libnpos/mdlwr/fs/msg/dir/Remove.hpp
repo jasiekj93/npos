@@ -8,10 +8,10 @@
 
 #include <etl/string.h>
 
-#include <libnpos/mdlwr/dev/msg/Type.hpp>
-#include <libnpos/mdlwr/dev/msg/Status.hpp>
+#include <libnpos/mdlwr/fs/msg/Type.hpp>
+#include <libnpos/mdlwr/fs/msg/Status.hpp>
 
-namespace npos::mdlwr::dev::msg::dir
+namespace npos::mdlwr::fs::msg::dir
 {
     struct Remove : public ipc::Message
     {
@@ -28,12 +28,12 @@ namespace npos::mdlwr::dev::msg::dir
             return etl::string_view(reinterpret_cast<const char*>(this->input.data), this->input.size);
         }
 
-        Status getStatus() const
+        msg::Status getStatus() const
         {
-            return static_cast<Status>(this->output.status);
+            return static_cast<msg::Status>(this->output.status);
         }
 
-        Remove& setStatus(Status status)
+        Remove& setStatus(msg::Status status)
         {
             this->output.status = static_cast<npos::ipc::Message::Status>(status);
             return *this;

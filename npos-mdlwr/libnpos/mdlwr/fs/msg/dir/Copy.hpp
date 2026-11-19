@@ -1,23 +1,23 @@
 #pragma once
 
 /**
- * @file Move.hpp
+ * @file Copy.hpp
  * @author Adrian Szczepanski
  * @date 18-11-2026
  */
 
 #include <etl/string.h>
 
-#include <libnpos/mdlwr/dev/msg/Type.hpp>
-#include <libnpos/mdlwr/dev/msg/Status.hpp>
+#include <libnpos/mdlwr/fs/msg/Type.hpp>
+#include <libnpos/mdlwr/fs/msg/Status.hpp>
 
-namespace npos::mdlwr::dev::msg::file
+namespace npos::mdlwr::fs::msg::dir
 {
-    struct Move : public ipc::Message
+    struct Copy : public ipc::Message
     {
-        Move(npos::ipc::Oid recipient, etl::string_view oldPath, etl::string_view newPath)
+        Copy(npos::ipc::Oid recipient, etl::string_view oldPath, etl::string_view newPath)
         {
-            this->type = msg::Type::FILE_MOVE;
+            this->type = msg::Type::DIR_COPY;
             this->recipient = recipient;
             this->input.data = reinterpret_cast<const uint8_t*>(oldPath.data());
             this->input.size = oldPath.size();
@@ -35,12 +35,12 @@ namespace npos::mdlwr::dev::msg::file
             return etl::string_view(reinterpret_cast<const char*>(this->output.data), this->output.size);
         }
 
-        Status getStatus() const
+        msg::Status getStatus() const
         {
-            return static_cast<Status>(this->output.status);
+            return static_cast<msg::Status>(this->output.status);
         }
 
-        Move& setStatus(Status status)
+        Copy& setStatus(msg::Status status)
         {
             this->output.status = static_cast<npos::ipc::Message::Status>(status);
             return *this;

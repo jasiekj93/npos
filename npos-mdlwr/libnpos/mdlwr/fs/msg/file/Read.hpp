@@ -9,10 +9,10 @@
 #include <etl/string.h>
 #include <etl/span.h>
 
-#include <libnpos/mdlwr/dev/msg/Type.hpp>
-#include <libnpos/mdlwr/dev/msg/Status.hpp>
+#include <libnpos/mdlwr/fs/msg/Type.hpp>
+#include <libnpos/mdlwr/fs/msg/Status.hpp>
 
-namespace npos::mdlwr::dev::msg::file
+namespace npos::mdlwr::fs::msg::file
 {
     struct Read : public npos::ipc::Message
     {
@@ -36,12 +36,23 @@ namespace npos::mdlwr::dev::msg::file
             return etl::span<uint8_t>(this->output.data, this->output.size);
         }
 
-        Status getStatus() const
+        ipc::Message::Output::ReadWrite::Length getOutputLength() const
         {
-            return static_cast<Status>(this->output.status);
+            return this->output.readWrite.length;
         }
 
-        Read& setStatus(Status status)
+        Read& setOutputLength(ipc::Message::Output::ReadWrite::Length length)
+        {
+            this->output.readWrite.length = length;
+            return *this;
+        }
+
+        msg::Status getStatus() const
+        {
+            return static_cast<msg::Status>(this->output.status);
+        }
+
+        Read& setStatus(msg::Status status)
         {
             this->output.status = static_cast<npos::ipc::Message::Status>(status);
             return *this;

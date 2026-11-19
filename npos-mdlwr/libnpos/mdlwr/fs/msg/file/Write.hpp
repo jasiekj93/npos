@@ -9,19 +9,20 @@
 #include <etl/string.h>
 #include <etl/span.h>
 
-#include <libnpos/mdlwr/dev/msg/Type.hpp>
-#include <libnpos/mdlwr/dev/msg/Status.hpp>
+#include <libnpos/mdlwr/fs/msg/Type.hpp>
+#include <libnpos/mdlwr/fs/msg/Status.hpp>
 
-namespace npos::mdlwr::dev::msg::file
+namespace npos::mdlwr::fs::msg::file
 {
     struct Write : public npos::ipc::Message
     {
-        Write(npos::ipc::Oid recipient, etl::string_view pathToFile, etl::span<const uint8_t> input)
+        Write(npos::ipc::Oid recipient, etl::string_view pathToFile, etl::span<const uint8_t> input, bool append)
         {
             this->type = msg::Type::FILE_WRITE;
             this->recipient = recipient;
             this->input.data = input.data();
             this->input.size = input.size();
+            this->input.readWrite.mode = append;
             this->output.data = reinterpret_cast<uint8_t*>(const_cast<char*>(pathToFile.data()));
             this->output.size = pathToFile.size();
         }
@@ -35,13 +36,18 @@ namespace npos::mdlwr::dev::msg::file
         {
             return etl::span<const uint8_t>(this->input.data, this->input.size);
         }
-
-        Status getStatus() const
+        
+        bool getAppend() const
         {
-            return static_cast<Status>(this->output.status);
+            return this->input.readWrite.mode;
         }
 
-        Write& setStatus(Status status)
+        msg::Status getStatus() const
+        {
+            return static_cast<msg::Status>(this->output.status);
+        }
+
+        Write& setStatus(msg::Status status)
         {
             this->output.status = static_cast<npos::ipc::Message::Status>(status);
             return *this;
