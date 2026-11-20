@@ -54,7 +54,7 @@ namespace npos::mdlwr::cli::utils::text
         switch(status)
         {
         case Status::SUCCESS: return "success";
-        case Status::DEVICE_FAILURE: return "I/O error";
+        case Status::DEVICE_ERROR: return "I/O error";
         case Status::BUFFER_TOO_SMALL: return "buffer too small";
         case Status::HASH_NOT_FOUND: return "hash device not found";
         case Status::HASH_BUSY: return "hash device busy";

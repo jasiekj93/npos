@@ -18,9 +18,17 @@ namespace mock
         bool init() override { initCount++; return not failInit; }
         void deinit() override {}
 
-        bool accumulateIt(etl::span<const uint8_t> input) override
+        bool startIt(etl::span<const uint8_t> input, etl::span<uint8_t> output) override
         {
             accumulated = input.size();
+            digestSize = output.size();
+            return not failAccumulate;
+        }
+
+        bool accumulateIt(etl::span<const uint8_t> input, bool& finished) override
+        {
+            accumulated = input.size();
+            finished = false;
             return not failAccumulate;
         }
 

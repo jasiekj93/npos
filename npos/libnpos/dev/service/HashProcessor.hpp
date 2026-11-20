@@ -51,11 +51,17 @@ namespace npos::dev::service
                 if(request.getOperation() == msg::Hash::Operation::ACCUMULATE)
                 {
                     currentRequest.store(request); 
+                    bool finished = false;
 
-                    if(not hash.accumulateIt(request.getInput()))
+                    if(not hash.accumulateIt(request.getInput(), finished))
                     {
                         currentRequest.release();
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
+                    }
+                    if(finished)
+                    {
+                        currentRequest.release();
+                        return getApi().respond(request.setStatus(msg::Hash::Status::SUCCESS));
                     }
                 }
                 else if(request.getOperation() == msg::Hash::Operation::ACCUMULATE_END)
@@ -66,6 +72,19 @@ namespace npos::dev::service
                     currentRequest.store(request);
 
                     if(not hash.accumulateEndIt(request.getInput(), request.getOutput()))
+                    {
+                        currentRequest.release();
+                        return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
+                    }
+                }
+                else if(request.getOperation() == msg::Hash::Operation::COMPUTE)
+                {
+                    if(request.getOutput().size() != hal::Hash::DIGEST_SIZE)
+                        return getApi().respond(request.setStatus(msg::Hash::Status::INVALID_OUTPUT_SIZE));
+
+                    currentRequest.store(request);
+
+                    if(not hash.startIt(request.getInput(), request.getOutput()))
                     {
                         currentRequest.release();
                         return getApi().respond(request.setStatus(msg::Hash::Status::DEVICE_FAILURE));
@@ -100,8 +119,22 @@ namespace npos::dev::service
             switch (interrupt.code)
             {
             case hal::Hash::Event::INPUT_COMPLETE:
+            {
+                auto* constRequest = currentRequest.get();
+
+                if(constRequest->getOperation() != msg::Hash::Operation::ACCUMULATE)
+                    return;
+
+                auto* request = currentRequest.release();
+                return getApi().respond(request->setStatus(msg::Hash::Status::SUCCESS));
+            }
             case hal::Hash::Event::DIGEST_COMPLETE:
             {
+                auto* constRequest = currentRequest.get();
+
+                if(constRequest->getOperation() == msg::Hash::Operation::ACCUMULATE)
+                    return;
+
                 auto* request = currentRequest.release();
                 return getApi().respond(request->setStatus(msg::Hash::Status::SUCCESS));
             }

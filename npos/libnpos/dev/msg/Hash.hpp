@@ -17,6 +17,7 @@ namespace npos::dev::msg
     {
         enum Operation : ipc::Message::Input::Attributes::Mode
         {
+            COMPUTE,
             ACCUMULATE,
             ACCUMULATE_END
         };
@@ -40,12 +41,8 @@ namespace npos::dev::msg
             this->input.readWrite.length = input.size();
             this->input.data = input.data();
             this->input.size = input.size();
-
-            if(operation == ACCUMULATE_END)
-            {
-                this->output.data = output.data();
-                this->output.size = output.size();
-            }
+            this->output.data = output.data();
+            this->output.size = output.size();
         }
 
         inline Operation getOperation() const

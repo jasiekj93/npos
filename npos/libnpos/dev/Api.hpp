@@ -60,6 +60,12 @@ namespace npos::dev::api
         sender.getApi().send(sender, request);
     }
 
+    inline void hashCompute(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input, etl::span<uint8_t> output)
+    {
+        npos::dev::msg::Hash request(oid, npos::dev::msg::Hash::COMPUTE, input, output);
+        sender.getApi().send(sender, request);
+    }
+
     inline void hashAccumulate(ipc::Service& sender, ipc::Oid oid, etl::span<const uint8_t> input)
     {
         npos::dev::msg::Hash request(oid, npos::dev::msg::Hash::ACCUMULATE, input);

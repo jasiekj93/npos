@@ -18,7 +18,7 @@ namespace npos::mdlwr::dev::msg
         enum Status : ipc::Message::Status
         {
             SUCCESS = 0,
-            DEVICE_FAILURE,
+            DEVICE_ERROR,
             BUFFER_TOO_SMALL,
             HASH_NOT_FOUND,
             HASH_BUSY,

@@ -30,7 +30,8 @@ namespace npos::dev::hal
         virtual bool init() = 0;
         virtual void deinit() = 0;
 
-        virtual bool accumulateIt(etl::span<const uint8_t> input) = 0;
+        virtual bool startIt(etl::span<const uint8_t> input, etl::span<uint8_t> output) = 0;
+        virtual bool accumulateIt(etl::span<const uint8_t> input, bool& finished) = 0;
         virtual bool accumulateEndIt(etl::span<const uint8_t> input, etl::span<uint8_t> output) = 0;
     };
 }

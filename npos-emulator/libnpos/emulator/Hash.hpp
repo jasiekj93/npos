@@ -27,14 +27,33 @@ namespace npos::emulator
         {
         }
 
-        bool accumulateIt(etl::span<const uint8_t> input) override 
+        bool startIt(etl::span<const uint8_t> input, etl::span<uint8_t> output) override
+        {
+            if(not initialized)
+                return false;
+
+            if(output.size() < DIGEST_SIZE)
+                return false;
+
+            if(verbose)
+                std::cout << "Emulator: Hash startIt, input size: " << input.size() << ", output size: " << output.size() << std::endl;
+
+            etl::fill(output.begin(), output.end(), 0);
+            
+            if(interruptHandler)
+                interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::HASH_INT, Event::DIGEST_COMPLETE});
+            return true;
+        }
+
+        bool accumulateIt(etl::span<const uint8_t> input, bool& finished) override 
         {
             if(not initialized)
                 return false;
 
             if(verbose)
-
                 std::cout << "Emulator: Hash accumulateIt, size: " << input.size() << std::endl;
+
+            finished = false;
 
             if(interruptHandler)
                 interruptHandler->handleInterrupt({npos::dev::hal::Interrupt::Type::HASH_INT, Event::INPUT_COMPLETE});
