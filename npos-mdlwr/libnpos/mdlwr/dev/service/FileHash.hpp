@@ -176,7 +176,7 @@ namespace npos::mdlwr::dev::service
 
             auto* request = const_cast<msg::FileHash*>(currentRequest.get());
 
-            if(readSize < buffer.size())
+            if(readSize == remaining)
                 npos::dev::api::hashAccumulateEnd(*this, hash, etl::span<const uint8_t>(buffer.data(), readSize), request->getOutputBuffer());
             else
                 npos::dev::api::hashAccumulate(*this, hash, etl::span<const uint8_t>(buffer.data(), readSize));
