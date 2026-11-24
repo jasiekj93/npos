@@ -16,6 +16,7 @@ namespace npos::mdlwr::fs::msg
         FILE_MOVE,
         FILE_READ,
         FILE_WRITE,
+        DIR_COUNT,
         DIR_MOVE,
         DIR_COPY,
         DIR_REMOVE,
