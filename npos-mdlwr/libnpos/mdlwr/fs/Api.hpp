@@ -11,6 +11,7 @@
 #include <libnpos/mdlwr/fs/msg/file/Move.hpp>
 #include <libnpos/mdlwr/fs/msg/file/Read.hpp>
 #include <libnpos/mdlwr/fs/msg/file/Write.hpp>
+#include <libnpos/mdlwr/fs/msg/dir/Count.hpp>
 #include <libnpos/mdlwr/fs/msg/dir/Copy.hpp>
 #include <libnpos/mdlwr/fs/msg/dir/Move.hpp>
 #include <libnpos/mdlwr/fs/msg/dir/Remove.hpp>
@@ -46,6 +47,12 @@ namespace npos::mdlwr::fs::api
 
     namespace dir
     {
+        inline void count(ipc::Service& sender, etl::string_view path)
+        {
+            npos::mdlwr::fs::msg::dir::Count request(path);
+            sender.getApi().send(sender, request);
+        }
+
         inline void copy(ipc::Service& sender, etl::string_view oldPath, etl::string_view newPath)
         {
             npos::mdlwr::fs::msg::dir::Copy request(oldPath, newPath);
